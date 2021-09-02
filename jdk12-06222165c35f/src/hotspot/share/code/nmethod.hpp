@@ -188,7 +188,8 @@ class nmethod : public CompiledMethod {
           int frame_size,
           ByteSize basic_lock_owner_sp_offset, /* synchronized natives only */
           ByteSize basic_lock_sp_offset,       /* synchronized natives only */
-          OopMapSet* oop_maps);
+          OopMapSet* oop_maps,
+          bool       jportal);
 
   // Creation support
   nmethod(Method* method,
@@ -206,7 +207,8 @@ class nmethod : public CompiledMethod {
           ExceptionHandlerTable* handler_table,
           ImplicitExceptionTable* nul_chk_table,
           AbstractCompiler* compiler,
-          int comp_level
+          int comp_level,
+          bool jportal
 #if INCLUDE_JVMCI
           , jweak installed_code,
           jweak speculation_log
@@ -214,7 +216,7 @@ class nmethod : public CompiledMethod {
           );
 
   // helper methods
-  void* operator new(size_t size, int nmethod_size, int comp_level) throw();
+  void* operator new(size_t size, int nmethod_size, int comp_level, bool jportal) throw();
 
   const char* reloc_string_for(u_char* begin, u_char* end);
   // Returns true if this thread changed the state of the nmethod or
@@ -250,7 +252,8 @@ class nmethod : public CompiledMethod {
                               ExceptionHandlerTable* handler_table,
                               ImplicitExceptionTable* nul_chk_table,
                               AbstractCompiler* compiler,
-                              int comp_level
+                              int comp_level,
+                              bool jportal
 #if INCLUDE_JVMCI
                               , jweak installed_code = NULL,
                               jweak speculation_log = NULL
@@ -273,7 +276,8 @@ class nmethod : public CompiledMethod {
                                      int frame_size,
                                      ByteSize receiver_sp_offset,
                                      ByteSize basic_lock_sp_offset,
-                                     OopMapSet* oop_maps);
+                                     OopMapSet* oop_maps,
+                                     bool jportal);
 
   // type info
   bool is_nmethod() const                         { return true; }

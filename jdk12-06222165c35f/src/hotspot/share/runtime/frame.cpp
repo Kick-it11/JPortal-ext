@@ -525,7 +525,7 @@ void frame::print_value_on(outputStream* st, JavaThread *thread) const {
   } else if (Interpreter::contains(pc())) {
     st->print_cr(")");
     st->print("(");
-    InterpreterCodelet* desc = Interpreter::codelet_containing(pc());
+    InterpreterCodelet* desc = Interpreter::codelet_containing(pc(), CodeCache::is_jportal(pc()));
     if (desc != NULL) {
       st->print("~");
       desc->print_on(st);

@@ -1033,7 +1033,7 @@ void ShenandoahBarrierSetAssembler::barrier_stubs_init() {
   if (ShenandoahWriteBarrier || ShenandoahStoreValEnqueueBarrier) {
     int stub_code_size = 4096;
     ResourceMark rm;
-    BufferBlob* bb = BufferBlob::create("shenandoah_barrier_stubs", stub_code_size);
+    BufferBlob* bb = BufferBlob::create("shenandoah_barrier_stubs", stub_code_size, false);
     CodeBuffer buf(bb);
     StubCodeGenerator cgen(&buf);
     _shenandoah_wb = generate_shenandoah_wb(&cgen);

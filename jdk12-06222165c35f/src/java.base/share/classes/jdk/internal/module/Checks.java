@@ -217,6 +217,7 @@ public final class Checks {
             "instanceof",
             "int",
             "interface",
+            "jportal",
             "long",
             "native",
             "new",

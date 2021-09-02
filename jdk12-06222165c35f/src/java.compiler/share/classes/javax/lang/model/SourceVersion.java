@@ -404,6 +404,8 @@ public enum SourceVersion {
 
             // literals
         case "null":         case "true":       case "false":
+
+        case "jportal":
             return true;
 
         default:

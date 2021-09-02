@@ -555,7 +555,7 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   /* Interpreter (NOTE: incomplete) */                                                                                               \
   /**********************************/                                                                                               \
                                                                                                                                      \
-     static_field(AbstractInterpreter,         _code,                                         StubQueue*)                            \
+     static_field(AbstractInterpreter,         _normal_code,                                  StubQueue*)                            \
                                                                                                                                      \
   /****************************/                                                                                                     \
   /* Stubs (NOTE: incomplete) */                                                                                                     \

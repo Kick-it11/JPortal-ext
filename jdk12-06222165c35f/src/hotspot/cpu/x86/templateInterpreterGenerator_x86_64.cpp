@@ -35,7 +35,7 @@
 #define __ Disassembler::hook<InterpreterMacroAssembler>(__FILE__, __LINE__, _masm)->
 
 #ifdef _WIN64
-address TemplateInterpreterGenerator::generate_slow_signature_handler() {
+address TemplateInterpreterGenerator::generate_slow_signature_handler(bool jportal) {
   address entry = __ pc();
 
   // rbx: method
@@ -47,7 +47,7 @@ address TemplateInterpreterGenerator::generate_slow_signature_handler() {
   __ call_VM(noreg,
              CAST_FROM_FN_PTR(address,
                               InterpreterRuntime::slow_signature_handler),
-             rbx, r14, c_rarg3);
+             rbx, r14, c_rarg3, jportal);
 
   // rax: result handler
 
@@ -114,7 +114,7 @@ address TemplateInterpreterGenerator::generate_slow_signature_handler() {
   return entry;
 }
 #else
-address TemplateInterpreterGenerator::generate_slow_signature_handler() {
+address TemplateInterpreterGenerator::generate_slow_signature_handler(bool jportal) {
   address entry = __ pc();
 
   // rbx: method
@@ -126,7 +126,7 @@ address TemplateInterpreterGenerator::generate_slow_signature_handler() {
   __ call_VM(noreg,
              CAST_FROM_FN_PTR(address,
                               InterpreterRuntime::slow_signature_handler),
-             rbx, r14, c_rarg3);
+             rbx, r14, c_rarg3, jportal);
 
   // rax: result handler
 
@@ -181,7 +181,7 @@ address TemplateInterpreterGenerator::generate_slow_signature_handler() {
  * Method entry for static native methods:
  *   int java.util.zip.CRC32.update(int crc, int b)
  */
-address TemplateInterpreterGenerator::generate_CRC32_update_entry() {
+address TemplateInterpreterGenerator::generate_CRC32_update_entry(bool jportal) {
   if (UseCRC32Intrinsics) {
     address entry = __ pc();
 
@@ -218,7 +218,7 @@ address TemplateInterpreterGenerator::generate_CRC32_update_entry() {
 
     // generate a vanilla native entry as the slow path
     __ bind(slow_path);
-    __ jump_to_entry(Interpreter::entry_for_kind(Interpreter::native));
+    __ jump_to_entry(Interpreter::entry_for_kind(Interpreter::native, jportal));
     return entry;
   }
   return NULL;
@@ -229,7 +229,7 @@ address TemplateInterpreterGenerator::generate_CRC32_update_entry() {
  *   int java.util.zip.CRC32.updateBytes(int crc, byte[] b, int off, int len)
  *   int java.util.zip.CRC32.updateByteBuffer(int crc, long buf, int off, int len)
  */
-address TemplateInterpreterGenerator::generate_CRC32_updateBytes_entry(AbstractInterpreter::MethodKind kind) {
+address TemplateInterpreterGenerator::generate_CRC32_updateBytes_entry(AbstractInterpreter::MethodKind kind, bool jportal) {
   if (UseCRC32Intrinsics) {
     address entry = __ pc();
 
@@ -276,7 +276,7 @@ address TemplateInterpreterGenerator::generate_CRC32_updateBytes_entry(AbstractI
 
     // generate a vanilla native entry as the slow path
     __ bind(slow_path);
-    __ jump_to_entry(Interpreter::entry_for_kind(Interpreter::native));
+    __ jump_to_entry(Interpreter::entry_for_kind(Interpreter::native, jportal));
     return entry;
   }
   return NULL;

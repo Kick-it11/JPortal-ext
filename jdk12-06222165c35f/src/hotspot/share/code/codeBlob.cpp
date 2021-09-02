@@ -72,7 +72,7 @@ unsigned int CodeBlob::allocation_size(CodeBuffer* cb, int header_size) {
   return size;
 }
 
-CodeBlob::CodeBlob(const char* name, CompilerType type, const CodeBlobLayout& layout, int frame_complete_offset, int frame_size, ImmutableOopMapSet* oop_maps, bool caller_must_gc_arguments) :
+CodeBlob::CodeBlob(const char* name, CompilerType type, const CodeBlobLayout& layout, int frame_complete_offset, int frame_size, ImmutableOopMapSet* oop_maps, bool caller_must_gc_arguments, bool jportal) :
   _type(type),
   _size(layout.size()),
   _header_size(layout.header_size()),
@@ -87,6 +87,7 @@ CodeBlob::CodeBlob(const char* name, CompilerType type, const CodeBlobLayout& la
   _relocation_end(layout.relocation_end()),
   _oop_maps(oop_maps),
   _caller_must_gc_arguments(caller_must_gc_arguments),
+  _jportal(jportal),
   _strings(CodeStrings()),
   _name(name)
 {
@@ -100,7 +101,7 @@ CodeBlob::CodeBlob(const char* name, CompilerType type, const CodeBlobLayout& la
 #endif // COMPILER1
 }
 
-CodeBlob::CodeBlob(const char* name, CompilerType type, const CodeBlobLayout& layout, CodeBuffer* cb, int frame_complete_offset, int frame_size, OopMapSet* oop_maps, bool caller_must_gc_arguments) :
+CodeBlob::CodeBlob(const char* name, CompilerType type, const CodeBlobLayout& layout, CodeBuffer* cb, int frame_complete_offset, int frame_size, OopMapSet* oop_maps, bool caller_must_gc_arguments, bool jportal) :
   _type(type),
   _size(layout.size()),
   _header_size(layout.header_size()),
@@ -114,6 +115,7 @@ CodeBlob::CodeBlob(const char* name, CompilerType type, const CodeBlobLayout& la
   _relocation_begin(layout.relocation_begin()),
   _relocation_end(layout.relocation_end()),
   _caller_must_gc_arguments(caller_must_gc_arguments),
+  _jportal(jportal),
   _strings(CodeStrings()),
   _name(name)
 {
@@ -131,8 +133,8 @@ CodeBlob::CodeBlob(const char* name, CompilerType type, const CodeBlobLayout& la
 
 
 // Creates a simple CodeBlob. Sets up the size of the different regions.
-RuntimeBlob::RuntimeBlob(const char* name, int header_size, int size, int frame_complete, int locs_size)
-  : CodeBlob(name, compiler_none, CodeBlobLayout((address) this, size, header_size, locs_size, size), frame_complete, 0, NULL, false /* caller_must_gc_arguments */)
+RuntimeBlob::RuntimeBlob(const char* name, int header_size, int size, int frame_complete, int locs_size, bool jportal)
+  : CodeBlob(name, compiler_none, CodeBlobLayout((address) this, size, header_size, locs_size, size), frame_complete, 0, NULL, false /* caller_must_gc_arguments */, jportal)
 {
   assert(is_aligned(locs_size, oopSize), "unaligned size");
 }
@@ -148,8 +150,9 @@ RuntimeBlob::RuntimeBlob(
   int         frame_complete,
   int         frame_size,
   OopMapSet*  oop_maps,
+  bool        jportal,
   bool        caller_must_gc_arguments
-) : CodeBlob(name, compiler_none, CodeBlobLayout((address) this, size, header_size, cb), cb, frame_complete, frame_size, oop_maps, caller_must_gc_arguments) {
+) : CodeBlob(name, compiler_none, CodeBlobLayout((address) this, size, header_size, cb), cb, frame_complete, frame_size, oop_maps, caller_must_gc_arguments, jportal) {
   cb->copy_code_and_locs_to(this);
 }
 
@@ -213,11 +216,11 @@ void CodeBlob::print_code() {
 // Implementation of BufferBlob
 
 
-BufferBlob::BufferBlob(const char* name, int size)
-: RuntimeBlob(name, sizeof(BufferBlob), size, CodeOffsets::frame_never_safe, /*locs_size:*/ 0)
+BufferBlob::BufferBlob(const char* name, int size, bool jportal)
+: RuntimeBlob(name, sizeof(BufferBlob), size, CodeOffsets::frame_never_safe, /*locs_size:*/ 0, jportal)
 {}
 
-BufferBlob* BufferBlob::create(const char* name, int buffer_size) {
+BufferBlob* BufferBlob::create(const char* name, int buffer_size, bool jportal) {
   ThreadInVMfromUnknown __tiv;  // get to VM state in case we block on CodeCache_lock
 
   BufferBlob* blob = NULL;
@@ -228,7 +231,7 @@ BufferBlob* BufferBlob::create(const char* name, int buffer_size) {
   assert(name != NULL, "must provide a name");
   {
     MutexLockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
-    blob = new (size) BufferBlob(name, size);
+    blob = new (size, jportal) BufferBlob(name, size, jportal);
   }
   // Track memory usage statistic after releasing CodeCache_lock
   MemoryService::track_code_cache_memory_usage();
@@ -237,11 +240,11 @@ BufferBlob* BufferBlob::create(const char* name, int buffer_size) {
 }
 
 
-BufferBlob::BufferBlob(const char* name, int size, CodeBuffer* cb)
-  : RuntimeBlob(name, cb, sizeof(BufferBlob), size, CodeOffsets::frame_never_safe, 0, NULL)
+BufferBlob::BufferBlob(const char* name, int size, CodeBuffer* cb, bool jportal)
+  : RuntimeBlob(name, cb, sizeof(BufferBlob), size, CodeOffsets::frame_never_safe, 0, NULL, jportal)
 {}
 
-BufferBlob* BufferBlob::create(const char* name, CodeBuffer* cb) {
+BufferBlob* BufferBlob::create(const char* name, CodeBuffer* cb, bool jportal) {
   ThreadInVMfromUnknown __tiv;  // get to VM state in case we block on CodeCache_lock
 
   BufferBlob* blob = NULL;
@@ -249,7 +252,7 @@ BufferBlob* BufferBlob::create(const char* name, CodeBuffer* cb) {
   assert(name != NULL, "must provide a name");
   {
     MutexLockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
-    blob = new (size) BufferBlob(name, size, cb);
+    blob = new (size, jportal) BufferBlob(name, size, cb, jportal);
   }
   // Track memory usage statistic after releasing CodeCache_lock
   MemoryService::track_code_cache_memory_usage();
@@ -257,8 +260,8 @@ BufferBlob* BufferBlob::create(const char* name, CodeBuffer* cb) {
   return blob;
 }
 
-void* BufferBlob::operator new(size_t s, unsigned size) throw() {
-  return CodeCache::allocate(size, CodeBlobType::NonNMethod);
+void* BufferBlob::operator new(size_t s, unsigned size, bool jportal) throw() {
+  return CodeCache::allocate(size, CodeBlobType::NonNMethod, jportal);
 }
 
 void BufferBlob::free(BufferBlob *blob) {
@@ -276,19 +279,19 @@ void BufferBlob::free(BufferBlob *blob) {
 //----------------------------------------------------------------------------------------------------
 // Implementation of AdapterBlob
 
-AdapterBlob::AdapterBlob(int size, CodeBuffer* cb) :
-  BufferBlob("I2C/C2I adapters", size, cb) {
+AdapterBlob::AdapterBlob(int size, CodeBuffer* cb, bool jportal) :
+  BufferBlob("I2C/C2I adapters", size, cb, jportal) {
   CodeCache::commit(this);
 }
 
-AdapterBlob* AdapterBlob::create(CodeBuffer* cb) {
+AdapterBlob* AdapterBlob::create(CodeBuffer* cb, bool jportal) {
   ThreadInVMfromUnknown __tiv;  // get to VM state in case we block on CodeCache_lock
 
   AdapterBlob* blob = NULL;
   unsigned int size = CodeBlob::allocation_size(cb, sizeof(AdapterBlob));
   {
     MutexLockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
-    blob = new (size) AdapterBlob(size, cb);
+    blob = new (size, jportal) AdapterBlob(size, cb, jportal);
   }
   // Track memory usage statistic after releasing CodeCache_lock
   MemoryService::track_code_cache_memory_usage();
@@ -296,11 +299,11 @@ AdapterBlob* AdapterBlob::create(CodeBuffer* cb) {
   return blob;
 }
 
-VtableBlob::VtableBlob(const char* name, int size) :
-  BufferBlob(name, size) {
+VtableBlob::VtableBlob(const char* name, int size, bool jportal) :
+  BufferBlob(name, size, jportal) {
 }
 
-VtableBlob* VtableBlob::create(const char* name, int buffer_size) {
+VtableBlob* VtableBlob::create(const char* name, int buffer_size, bool jportal) {
   ThreadInVMfromUnknown __tiv;  // get to VM state in case we block on CodeCache_lock
 
   VtableBlob* blob = NULL;
@@ -311,7 +314,7 @@ VtableBlob* VtableBlob::create(const char* name, int buffer_size) {
   assert(name != NULL, "must provide a name");
   {
     MutexLockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
-    blob = new (size) VtableBlob(name, size);
+    blob = new (size, jportal) VtableBlob(name, size, jportal);
   }
   // Track memory usage statistic after releasing CodeCache_lock
   MemoryService::track_code_cache_memory_usage();
@@ -322,7 +325,7 @@ VtableBlob* VtableBlob::create(const char* name, int buffer_size) {
 //----------------------------------------------------------------------------------------------------
 // Implementation of MethodHandlesAdapterBlob
 
-MethodHandlesAdapterBlob* MethodHandlesAdapterBlob::create(int buffer_size) {
+MethodHandlesAdapterBlob* MethodHandlesAdapterBlob::create(int buffer_size, bool jportal) {
   ThreadInVMfromUnknown __tiv;  // get to VM state in case we block on CodeCache_lock
 
   MethodHandlesAdapterBlob* blob = NULL;
@@ -332,7 +335,7 @@ MethodHandlesAdapterBlob* MethodHandlesAdapterBlob::create(int buffer_size) {
   size += align_up(buffer_size, oopSize);
   {
     MutexLockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
-    blob = new (size) MethodHandlesAdapterBlob(size);
+    blob = new (size, jportal) MethodHandlesAdapterBlob(size, jportal);
     if (blob == NULL) {
       vm_exit_out_of_memory(size, OOM_MALLOC_ERROR, "CodeCache: no room for method handle adapter blob");
     }
@@ -355,7 +358,7 @@ RuntimeStub::RuntimeStub(
   OopMapSet*  oop_maps,
   bool        caller_must_gc_arguments
 )
-: RuntimeBlob(name, cb, sizeof(RuntimeStub), size, frame_complete, frame_size, oop_maps, caller_must_gc_arguments)
+: RuntimeBlob(name, cb, sizeof(RuntimeStub), size, frame_complete, frame_size, oop_maps, caller_must_gc_arguments, false)
 {
 }
 
@@ -381,14 +384,14 @@ RuntimeStub* RuntimeStub::new_runtime_stub(const char* stub_name,
 
 
 void* RuntimeStub::operator new(size_t s, unsigned size) throw() {
-  void* p = CodeCache::allocate(size, CodeBlobType::NonNMethod);
+  void* p = CodeCache::allocate(size, CodeBlobType::NonNMethod, false);
   if (!p) fatal("Initial size of CodeCache is too small");
   return p;
 }
 
 // operator new shared by all singletons:
 void* SingletonBlob::operator new(size_t s, unsigned size) throw() {
-  void* p = CodeCache::allocate(size, CodeBlobType::NonNMethod);
+  void* p = CodeCache::allocate(size, CodeBlobType::NonNMethod, false);
   if (!p) fatal("Initial size of CodeCache is too small");
   return p;
 }
@@ -564,7 +567,7 @@ void CodeBlob::print_value_on(outputStream* st) const {
 void CodeBlob::dump_for_addr(address addr, outputStream* st, bool verbose) const {
   if (is_buffer_blob()) {
     // the interpreter is generated into a buffer blob
-    InterpreterCodelet* i = Interpreter::codelet_containing(addr);
+    InterpreterCodelet* i = Interpreter::codelet_containing(addr, CodeCache::is_jportal(addr));
     if (i != NULL) {
       st->print_cr(INTPTR_FORMAT " is at code_begin+%d in an Interpreter codelet", p2i(addr), (int)(addr - i->code_begin()));
       i->print_on(st);

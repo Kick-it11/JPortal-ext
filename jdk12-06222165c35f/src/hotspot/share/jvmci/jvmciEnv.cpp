@@ -529,7 +529,7 @@ JVMCIEnv::CodeInstallResult JVMCIEnv::register_method(
                                  debug_info, dependencies, code_buffer,
                                  frame_words, oop_map_set,
                                  handler_table, &implicit_tbl,
-                                 compiler, comp_level,
+                                 compiler, comp_level, method->is_jportal() && JPortalTrace,
                                  JNIHandles::make_weak_global(installed_code),
                                  JNIHandles::make_weak_global(speculation_log));
 
@@ -540,7 +540,7 @@ JVMCIEnv::CodeInstallResult JVMCIEnv::register_method(
         {
           MutexUnlocker ml(Compile_lock);
           MutexUnlocker locker(MethodCompileQueue_lock);
-          CompileBroker::handle_full_code_cache(CodeCache::get_code_blob_type(comp_level));
+          CompileBroker::handle_full_code_cache(CodeCache::get_code_blob_type(comp_level), method->is_jportal() && JPortalTrace);
         }
       } else {
         nm->set_has_unsafe_access(has_unsafe_access);

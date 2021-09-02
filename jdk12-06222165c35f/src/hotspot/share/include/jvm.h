@@ -1131,6 +1131,7 @@ typedef jint (*check_format_fn_t)(char *class_name,
                                          JVM_ACC_BRIDGE | \
                                          JVM_ACC_VARARGS | \
                                          JVM_ACC_NATIVE | \
+                                         JVM_ACC_JPORTAL | \
                                          JVM_ACC_ABSTRACT | \
                                          JVM_ACC_STRICT | \
                                          JVM_ACC_SYNTHETIC)

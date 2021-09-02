@@ -110,17 +110,18 @@ protected:
 
   ImmutableOopMapSet* _oop_maps;                 // OopMap for this CodeBlob
   bool                _caller_must_gc_arguments;
+  bool                _jportal;
   CodeStrings         _strings;
   const char*         _name;
   S390_ONLY(int       _ctable_offset;)
 
-  CodeBlob(const char* name, CompilerType type, const CodeBlobLayout& layout, int frame_complete_offset, int frame_size, ImmutableOopMapSet* oop_maps, bool caller_must_gc_arguments);
-  CodeBlob(const char* name, CompilerType type, const CodeBlobLayout& layout, CodeBuffer* cb, int frame_complete_offset, int frame_size, OopMapSet* oop_maps, bool caller_must_gc_arguments);
+  CodeBlob(const char* name, CompilerType type, const CodeBlobLayout& layout, int frame_complete_offset, int frame_size, ImmutableOopMapSet* oop_maps, bool caller_must_gc_arguments, bool jportal);
+  CodeBlob(const char* name, CompilerType type, const CodeBlobLayout& layout, CodeBuffer* cb, int frame_complete_offset, int frame_size, OopMapSet* oop_maps, bool caller_must_gc_arguments, bool jportal);
 
 public:
   // Only used by unit test.
   CodeBlob()
-    : _type(compiler_none) {}
+    : _type(compiler_none), _jportal(false) {}
 
   // Returns the space needed for CodeBlob
   static unsigned int allocation_size(CodeBuffer* cb, int header_size);
@@ -142,6 +143,8 @@ public:
   virtual bool is_method_handles_adapter_blob() const { return false; }
   virtual bool is_aot() const                         { return false; }
   virtual bool is_compiled() const                    { return false; }
+
+  inline  bool is_jportal() const                     { return _jportal; }
 
   inline bool is_compiled_by_c1() const    { return _type == compiler_c1; };
   inline bool is_compiled_by_c2() const    { return _type == compiler_c2; };
@@ -351,7 +354,7 @@ class RuntimeBlob : public CodeBlob {
   // a) simple CodeBlob
   // frame_complete is the offset from the beginning of the instructions
   // to where the frame setup (from stackwalk viewpoint) is complete.
-  RuntimeBlob(const char* name, int header_size, int size, int frame_complete, int locs_size);
+  RuntimeBlob(const char* name, int header_size, int size, int frame_complete, int locs_size, bool jportal);
 
   // b) full CodeBlob
   RuntimeBlob(
@@ -362,6 +365,7 @@ class RuntimeBlob : public CodeBlob {
     int         frame_complete,
     int         frame_size,
     OopMapSet*  oop_maps,
+    bool jportal,
     bool        caller_must_gc_arguments = false
   );
 
@@ -395,19 +399,19 @@ class BufferBlob: public RuntimeBlob {
 
  private:
   // Creation support
-  BufferBlob(const char* name, int size);
-  BufferBlob(const char* name, int size, CodeBuffer* cb);
+  BufferBlob(const char* name, int size, bool jportal);
+  BufferBlob(const char* name, int size, CodeBuffer* cb, bool jportal);
 
   // This ordinary operator delete is needed even though not used, so the
   // below two-argument operator delete will be treated as a placement
   // delete rather than an ordinary sized delete; see C++14 3.7.4.2/p2.
   void operator delete(void* p);
-  void* operator new(size_t s, unsigned size) throw();
+  void* operator new(size_t s, unsigned size, bool jportal) throw();
 
  public:
   // Creation
-  static BufferBlob* create(const char* name, int buffer_size);
-  static BufferBlob* create(const char* name, CodeBuffer* cb);
+  static BufferBlob* create(const char* name, int buffer_size, bool jportal);
+  static BufferBlob* create(const char* name, CodeBuffer* cb, bool jportal);
 
   static void free(BufferBlob* buf);
 
@@ -429,11 +433,11 @@ class BufferBlob: public RuntimeBlob {
 
 class AdapterBlob: public BufferBlob {
 private:
-  AdapterBlob(int size, CodeBuffer* cb);
+  AdapterBlob(int size, CodeBuffer* cb, bool jportal);
 
 public:
   // Creation
-  static AdapterBlob* create(CodeBuffer* cb);
+  static AdapterBlob* create(CodeBuffer* cb, bool jportal);
 
   // Typing
   virtual bool is_adapter_blob() const { return true; }
@@ -442,11 +446,11 @@ public:
 //---------------------------------------------------------------------------------------------------
 class VtableBlob: public BufferBlob {
 private:
-  VtableBlob(const char*, int);
+  VtableBlob(const char*, int, bool);
 
 public:
   // Creation
-  static VtableBlob* create(const char* name, int buffer_size);
+  static VtableBlob* create(const char* name, int buffer_size, bool jportal);
 
   // Typing
   virtual bool is_vtable_blob() const { return true; }
@@ -457,11 +461,11 @@ public:
 
 class MethodHandlesAdapterBlob: public BufferBlob {
 private:
-  MethodHandlesAdapterBlob(int size)                 : BufferBlob("MethodHandles adapters", size) {}
+  MethodHandlesAdapterBlob(int size, bool jportal)                 : BufferBlob("MethodHandles adapters", size, jportal) {}
 
 public:
   // Creation
-  static MethodHandlesAdapterBlob* create(int buffer_size);
+  static MethodHandlesAdapterBlob* create(int buffer_size, bool jportal);
 
   // Typing
   virtual bool is_method_handles_adapter_blob() const { return true; }
@@ -539,7 +543,7 @@ class SingletonBlob: public RuntimeBlob {
      int         frame_size,
      OopMapSet*  oop_maps
    )
-   : RuntimeBlob(name, cb, header_size, size, CodeOffsets::frame_never_safe, frame_size, oop_maps)
+   : RuntimeBlob(name, cb, header_size, size, CodeOffsets::frame_never_safe, frame_size, oop_maps, false)
   {};
 
   address entry_point()                          { return code_begin(); }

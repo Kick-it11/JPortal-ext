@@ -62,7 +62,7 @@ address JNI_FastGetField::generate_fast_get_int_field0(BasicType type) {
     default:        ShouldNotReachHere();
   }
   ResourceMark rm;
-  BufferBlob* blob = BufferBlob::create(name, BUFFER_SIZE);
+  BufferBlob* blob = BufferBlob::create(name, BUFFER_SIZE, false);
   CodeBuffer cbuf(blob);
   MacroAssembler* masm = new MacroAssembler(&cbuf);
   address fast_entry = __ pc();
@@ -151,7 +151,7 @@ address JNI_FastGetField::generate_fast_get_float_field0(BasicType type) {
     default:          ShouldNotReachHere();
   }
   ResourceMark rm;
-  BufferBlob* blob = BufferBlob::create(name, BUFFER_SIZE);
+  BufferBlob* blob = BufferBlob::create(name, BUFFER_SIZE, false);
   CodeBuffer cbuf(blob);
   MacroAssembler* masm = new MacroAssembler(&cbuf);
   address fast_entry = __ pc();

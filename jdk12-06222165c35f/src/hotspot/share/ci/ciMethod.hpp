@@ -328,6 +328,7 @@ class ciMethod : public ciMetadata {
   bool is_interface   () const                   { return flags().is_interface(); }
   bool is_abstract    () const                   { return flags().is_abstract(); }
   bool is_strict      () const                   { return flags().is_strict(); }
+  bool is_jportal     () const                   { return flags().is_jportal(); }
 
   // Other flags
   bool is_empty_method() const;

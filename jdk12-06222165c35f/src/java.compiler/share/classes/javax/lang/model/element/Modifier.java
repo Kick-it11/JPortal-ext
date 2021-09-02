@@ -64,7 +64,8 @@ public enum Modifier {
     /** The modifier {@code volatile} */        VOLATILE,
     /** The modifier {@code synchronized} */    SYNCHRONIZED,
     /** The modifier {@code native} */          NATIVE,
-    /** The modifier {@code strictfp} */        STRICTFP;
+    /** The modifier {@code strictfp} */        STRICTFP,
+    /** The modifier {@code jportal} */         JPORTAL;
 
     /**
      * Returns this modifier's name in lowercase.

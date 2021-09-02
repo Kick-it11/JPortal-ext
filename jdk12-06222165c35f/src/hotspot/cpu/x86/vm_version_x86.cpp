@@ -1594,7 +1594,7 @@ void VM_Version::initialize() {
   ResourceMark rm;
   // Making this stub must be FIRST use of assembler
 
-  stub_blob = BufferBlob::create("get_cpu_info_stub", stub_size);
+  stub_blob = BufferBlob::create("get_cpu_info_stub", stub_size, false);
   if (stub_blob == NULL) {
     vm_exit_during_initialization("Unable to allocate get_cpu_info_stub");
   }

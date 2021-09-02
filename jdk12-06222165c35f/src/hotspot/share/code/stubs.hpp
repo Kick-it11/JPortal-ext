@@ -174,7 +174,7 @@ class StubQueue: public CHeapObj<mtCode> {
 
  public:
   StubQueue(StubInterface* stub_interface, int buffer_size, Mutex* lock,
-            const char* name);
+            const char* name, bool jportal);
   ~StubQueue();
 
   // General queue info

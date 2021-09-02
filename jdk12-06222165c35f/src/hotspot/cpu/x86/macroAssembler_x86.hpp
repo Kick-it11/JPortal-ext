@@ -64,11 +64,12 @@ class MacroAssembler: public Assembler {
     Register java_thread,              // the thread if computed before     ; use noreg otherwise
     Register last_java_sp,             // to set up last_Java_frame in stubs; use noreg otherwise
     address  entry_point,              // the entry point
+    bool     jportal,
     int      number_of_arguments,      // the number of arguments (w/o thread) to pop after the call
     bool     check_exceptions          // whether to check for pending exceptions after return
   );
 
-  void call_VM_helper(Register oop_result, address entry_point, int number_of_arguments, bool check_exceptions = true);
+  void call_VM_helper(Register oop_result, address entry_point, bool jportal, int number_of_arguments, bool check_exceptions = true);
 
   // helpers for FPU flag access
   // tmp is a temporary register, if none is available use noreg
@@ -81,8 +82,8 @@ class MacroAssembler: public Assembler {
  // These routines should emit JVMTI PopFrame and ForceEarlyReturn handling code.
  // The implementation is only non-empty for the InterpreterMacroAssembler,
  // as only the interpreter handles PopFrame and ForceEarlyReturn requests.
- virtual void check_and_handle_popframe(Register java_thread);
- virtual void check_and_handle_earlyret(Register java_thread);
+ virtual void check_and_handle_popframe(Register java_thread, bool jportal);
+ virtual void check_and_handle_earlyret(Register java_thread, bool jportal);
 
   Address as_Address(AddressLiteral adr);
   Address as_Address(ArrayAddress adr);
@@ -215,40 +216,48 @@ class MacroAssembler: public Assembler {
 
   void call_VM(Register oop_result,
                address entry_point,
+               bool jportal,
                bool check_exceptions = true);
   void call_VM(Register oop_result,
                address entry_point,
                Register arg_1,
+               bool jportal,
                bool check_exceptions = true);
   void call_VM(Register oop_result,
                address entry_point,
                Register arg_1, Register arg_2,
+               bool jportal,
                bool check_exceptions = true);
   void call_VM(Register oop_result,
                address entry_point,
                Register arg_1, Register arg_2, Register arg_3,
+               bool jportal,
                bool check_exceptions = true);
 
   // Overloadings with last_Java_sp
   void call_VM(Register oop_result,
                Register last_java_sp,
                address entry_point,
+               bool jportal,
                int number_of_arguments = 0,
                bool check_exceptions = true);
   void call_VM(Register oop_result,
                Register last_java_sp,
                address entry_point,
-               Register arg_1, bool
-               check_exceptions = true);
+               Register arg_1,
+               bool jportal,
+               bool check_exceptions = true);
   void call_VM(Register oop_result,
                Register last_java_sp,
                address entry_point,
                Register arg_1, Register arg_2,
+               bool jportal,
                bool check_exceptions = true);
   void call_VM(Register oop_result,
                Register last_java_sp,
                address entry_point,
                Register arg_1, Register arg_2, Register arg_3,
+               bool jportal,
                bool check_exceptions = true);
 
   void get_vm_result  (Register oop_result, Register thread);
@@ -256,11 +265,11 @@ class MacroAssembler: public Assembler {
 
   // These always tightly bind to MacroAssembler::call_VM_base
   // bypassing the virtual implementation
-  void super_call_VM(Register oop_result, Register last_java_sp, address entry_point, int number_of_arguments = 0, bool check_exceptions = true);
-  void super_call_VM(Register oop_result, Register last_java_sp, address entry_point, Register arg_1, bool check_exceptions = true);
-  void super_call_VM(Register oop_result, Register last_java_sp, address entry_point, Register arg_1, Register arg_2, bool check_exceptions = true);
-  void super_call_VM(Register oop_result, Register last_java_sp, address entry_point, Register arg_1, Register arg_2, Register arg_3, bool check_exceptions = true);
-  void super_call_VM(Register oop_result, Register last_java_sp, address entry_point, Register arg_1, Register arg_2, Register arg_3, Register arg_4, bool check_exceptions = true);
+  void super_call_VM(Register oop_result, Register last_java_sp, address entry_point, bool jportal, int number_of_arguments = 0, bool check_exceptions = true);
+  void super_call_VM(Register oop_result, Register last_java_sp, address entry_point, Register arg_1, bool jportal, bool check_exceptions = true);
+  void super_call_VM(Register oop_result, Register last_java_sp, address entry_point, Register arg_1, Register arg_2, bool jportal, bool check_exceptions = true);
+  void super_call_VM(Register oop_result, Register last_java_sp, address entry_point, Register arg_1, Register arg_2, Register arg_3, bool jportal, bool check_exceptions = true);
+  void super_call_VM(Register oop_result, Register last_java_sp, address entry_point, Register arg_1, Register arg_2, Register arg_3, Register arg_4, bool jportal, bool check_exceptions = true);
 
   void call_VM_leaf0(address entry_point);
   void call_VM_leaf(address entry_point,

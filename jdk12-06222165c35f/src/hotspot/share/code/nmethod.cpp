@@ -443,7 +443,8 @@ nmethod* nmethod::new_native_nmethod(const methodHandle& method,
   int frame_size,
   ByteSize basic_lock_owner_sp_offset,
   ByteSize basic_lock_sp_offset,
-  OopMapSet* oop_maps) {
+  OopMapSet* oop_maps,
+  bool jportal) {
   code_buffer->finalize_oop_references(method);
   // create nmethod
   nmethod* nm = NULL;
@@ -453,11 +454,11 @@ nmethod* nmethod::new_native_nmethod(const methodHandle& method,
     CodeOffsets offsets;
     offsets.set_value(CodeOffsets::Verified_Entry, vep_offset);
     offsets.set_value(CodeOffsets::Frame_Complete, frame_complete);
-    nm = new (native_nmethod_size, CompLevel_none) nmethod(method(), compiler_none, native_nmethod_size,
+    nm = new (native_nmethod_size, CompLevel_none, jportal) nmethod(method(), compiler_none, native_nmethod_size,
                                             compile_id, &offsets,
                                             code_buffer, frame_size,
                                             basic_lock_owner_sp_offset,
-                                            basic_lock_sp_offset, oop_maps);
+                                            basic_lock_sp_offset, oop_maps, jportal);
     NOT_PRODUCT(if (nm != NULL)  native_nmethod_stats.note_native_nmethod(nm));
   }
 
@@ -483,7 +484,8 @@ nmethod* nmethod::new_nmethod(const methodHandle& method,
   ExceptionHandlerTable* handler_table,
   ImplicitExceptionTable* nul_chk_table,
   AbstractCompiler* compiler,
-  int comp_level
+  int comp_level,
+  bool jportal
 #if INCLUDE_JVMCI
   , jweak installed_code,
   jweak speculationLog
@@ -503,14 +505,15 @@ nmethod* nmethod::new_nmethod(const methodHandle& method,
       + align_up(nul_chk_table->size_in_bytes()    , oopSize)
       + align_up(debug_info->data_size()           , oopSize);
 
-    nm = new (nmethod_size, comp_level)
+    nm = new (nmethod_size, comp_level, jportal)
     nmethod(method(), compiler->type(), nmethod_size, compile_id, entry_bci, offsets,
             orig_pc_offset, debug_info, dependencies, code_buffer, frame_size,
             oop_maps,
             handler_table,
             nul_chk_table,
             compiler,
-            comp_level
+            comp_level,
+            jportal
 #if INCLUDE_JVMCI
             , installed_code,
             speculationLog
@@ -563,8 +566,9 @@ nmethod::nmethod(
   int frame_size,
   ByteSize basic_lock_owner_sp_offset,
   ByteSize basic_lock_sp_offset,
-  OopMapSet* oop_maps )
-  : CompiledMethod(method, "native nmethod", type, nmethod_size, sizeof(nmethod), code_buffer, offsets->value(CodeOffsets::Frame_Complete), frame_size, oop_maps, false),
+  OopMapSet* oop_maps,
+  bool jportal)
+  : CompiledMethod(method, "native nmethod", type, nmethod_size, sizeof(nmethod), code_buffer, offsets->value(CodeOffsets::Frame_Complete), frame_size, oop_maps, false, jportal),
   _is_unloading_state(0),
   _native_receiver_sp_offset(basic_lock_owner_sp_offset),
   _native_basic_lock_sp_offset(basic_lock_sp_offset)
@@ -647,8 +651,8 @@ nmethod::nmethod(
   }
 }
 
-void* nmethod::operator new(size_t size, int nmethod_size, int comp_level) throw () {
-  return CodeCache::allocate(nmethod_size, CodeCache::get_code_blob_type(comp_level));
+void* nmethod::operator new(size_t size, int nmethod_size, int comp_level, bool jportal) throw () {
+  return CodeCache::allocate(nmethod_size, CodeCache::get_code_blob_type(comp_level), jportal);
 }
 
 nmethod::nmethod(
@@ -667,13 +671,14 @@ nmethod::nmethod(
   ExceptionHandlerTable* handler_table,
   ImplicitExceptionTable* nul_chk_table,
   AbstractCompiler* compiler,
-  int comp_level
+  int comp_level,
+  bool jportal
 #if INCLUDE_JVMCI
   , jweak installed_code,
   jweak speculation_log
 #endif
   )
-  : CompiledMethod(method, "nmethod", type, nmethod_size, sizeof(nmethod), code_buffer, offsets->value(CodeOffsets::Frame_Complete), frame_size, oop_maps, false),
+  : CompiledMethod(method, "nmethod", type, nmethod_size, sizeof(nmethod), code_buffer, offsets->value(CodeOffsets::Frame_Complete), frame_size, oop_maps, false, jportal),
   _is_unloading_state(0),
   _native_receiver_sp_offset(in_ByteSize(-1)),
   _native_basic_lock_sp_offset(in_ByteSize(-1))
@@ -1347,7 +1352,7 @@ void nmethod::flush() {
     tty->print_cr("*flushing %s nmethod %3d/" INTPTR_FORMAT ". Live blobs:" UINT32_FORMAT
                   "/Free CodeCache:" SIZE_FORMAT "Kb",
                   is_osr_method() ? "osr" : "",_compile_id, p2i(this), CodeCache::blob_count(),
-                  CodeCache::unallocated_capacity(CodeCache::get_code_blob_type(this))/1024);
+                  CodeCache::unallocated_capacity(CodeCache::get_code_blob_type(this), is_jportal() && JPortalTrace)/1024);
   }
 
   // We need to deallocate any ExceptionCache data.

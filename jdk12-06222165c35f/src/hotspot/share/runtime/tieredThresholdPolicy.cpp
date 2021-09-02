@@ -474,8 +474,8 @@ void TieredThresholdPolicy::print_specific(EventType type, const methodHandle& m
   if (mh->prev_time() == 0) tty->print("n/a");
   else tty->print("%f", mh->rate());
 
-  tty->print(" k=%.2lf,%.2lf", threshold_scale(CompLevel_full_profile, Tier3LoadFeedback),
-                               threshold_scale(CompLevel_full_optimization, Tier4LoadFeedback));
+  tty->print(" k=%.2lf,%.2lf", threshold_scale(CompLevel_full_profile, Tier3LoadFeedback, mh->is_jportal() && JPortalTrace),
+                               threshold_scale(CompLevel_full_optimization, Tier4LoadFeedback, mh->is_jportal() && JPortalTrace));
 
 }
 
@@ -566,7 +566,7 @@ bool TieredThresholdPolicy::is_method_profiled(Method* method) {
   return false;
 }
 
-double TieredThresholdPolicy::threshold_scale(CompLevel level, int feedback_k) {
+double TieredThresholdPolicy::threshold_scale(CompLevel level, int feedback_k, bool jportal) {
   double queue_size = CompileBroker::queue_size(level);
   int comp_count = compiler_count(level);
   double k = queue_size / (feedback_k * comp_count) + 1;
@@ -576,7 +576,7 @@ double TieredThresholdPolicy::threshold_scale(CompLevel level, int feedback_k) {
   // The main intention is to keep enough free space for C2 compiled code
   // to achieve peak performance if the code cache is under stress.
   if ((TieredStopAtLevel == CompLevel_full_optimization) && (level != CompLevel_full_optimization))  {
-    double current_reverse_free_ratio = CodeCache::reverse_free_ratio(CodeCache::get_code_blob_type(level));
+    double current_reverse_free_ratio = CodeCache::reverse_free_ratio(CodeCache::get_code_blob_type(level), jportal);
     if (current_reverse_free_ratio > _increase_threshold_at_ratio) {
       k *= exp(current_reverse_free_ratio - _increase_threshold_at_ratio);
     }
@@ -593,16 +593,16 @@ double TieredThresholdPolicy::threshold_scale(CompLevel level, int feedback_k) {
 bool TieredThresholdPolicy::loop_predicate(int i, int b, CompLevel cur_level, Method* method) {
   switch(cur_level) {
   case CompLevel_aot: {
-    double k = threshold_scale(CompLevel_full_profile, Tier3LoadFeedback);
+    double k = threshold_scale(CompLevel_full_profile, Tier3LoadFeedback, method->is_jportal() && JPortalTrace);
     return loop_predicate_helper<CompLevel_aot>(i, b, k, method);
   }
   case CompLevel_none:
   case CompLevel_limited_profile: {
-    double k = threshold_scale(CompLevel_full_profile, Tier3LoadFeedback);
+    double k = threshold_scale(CompLevel_full_profile, Tier3LoadFeedback, method->is_jportal() && JPortalTrace);
     return loop_predicate_helper<CompLevel_none>(i, b, k, method);
   }
   case CompLevel_full_profile: {
-    double k = threshold_scale(CompLevel_full_optimization, Tier4LoadFeedback);
+    double k = threshold_scale(CompLevel_full_optimization, Tier4LoadFeedback, method->is_jportal() && JPortalTrace);
     return loop_predicate_helper<CompLevel_full_profile>(i, b, k, method);
   }
   default:
@@ -613,16 +613,16 @@ bool TieredThresholdPolicy::loop_predicate(int i, int b, CompLevel cur_level, Me
 bool TieredThresholdPolicy::call_predicate(int i, int b, CompLevel cur_level, Method* method) {
   switch(cur_level) {
   case CompLevel_aot: {
-    double k = threshold_scale(CompLevel_full_profile, Tier3LoadFeedback);
+    double k = threshold_scale(CompLevel_full_profile, Tier3LoadFeedback, method->is_jportal() && JPortalTrace);
     return call_predicate_helper<CompLevel_aot>(i, b, k, method);
   }
   case CompLevel_none:
   case CompLevel_limited_profile: {
-    double k = threshold_scale(CompLevel_full_profile, Tier3LoadFeedback);
+    double k = threshold_scale(CompLevel_full_profile, Tier3LoadFeedback, method->is_jportal() && JPortalTrace);
     return call_predicate_helper<CompLevel_none>(i, b, k, method);
   }
   case CompLevel_full_profile: {
-    double k = threshold_scale(CompLevel_full_optimization, Tier4LoadFeedback);
+    double k = threshold_scale(CompLevel_full_optimization, Tier4LoadFeedback, method->is_jportal() && JPortalTrace);
     return call_predicate_helper<CompLevel_full_profile>(i, b, k, method);
   }
   default:

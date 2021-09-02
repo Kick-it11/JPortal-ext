@@ -139,14 +139,15 @@ class InlineCacheBuffer: public AllStatic {
 
   static int ic_stub_code_size();
 
-  static StubQueue* _buffer;
+  static StubQueue* _normal_buffer;
+  static StubQueue* _jportal_buffer;
 
   static CompiledICHolder* _pending_released;
   static int _pending_count;
 
-  static StubQueue* buffer()                         { return _buffer;         }
+  static StubQueue* buffer(bool jportal)                         { return jportal?_jportal_buffer:_normal_buffer; }
 
-  static ICStub* new_ic_stub();
+  static ICStub* new_ic_stub(bool jportal);
 
   // Machine-dependent implementation of ICBuffer
   static void    assemble_ic_buffer_code(address code_begin, void* cached_value, address entry_point);
@@ -173,7 +174,7 @@ class InlineCacheBuffer: public AllStatic {
   static int pending_icholder_count() { return _pending_count; }
 
   // New interface
-  static bool    create_transition_stub(CompiledIC *ic, void* cached_value, address entry);
+  static bool    create_transition_stub(CompiledIC *ic, void* cached_value, address entry, bool jportal);
   static address ic_destination_for(CompiledIC *ic);
   static void*   cached_value_for(CompiledIC *ic);
 };

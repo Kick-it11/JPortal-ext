@@ -90,6 +90,10 @@ define_pd_global(uintx,  ReservedCodeCacheSize,      32*M);
 define_pd_global(uintx,  NonProfiledCodeHeapSize,    0);
 define_pd_global(uintx,  ProfiledCodeHeapSize,       0);
 define_pd_global(uintx,  NonNMethodCodeHeapSize,     32*M);
+define_pd_global(uintx,  JPortalReservedCodeCacheSize, 32*M);
+define_pd_global(uintx,  JPortalNonProfiledCodeHeapSize, 0);
+define_pd_global(uintx,  JPortalProfiledCodeHeapSize, 0);
+define_pd_global(uintx,  JPortalNonNMethodCodeHeapSize, 32*M);
 
 define_pd_global(uintx,  CodeCacheExpansionSize,     32*K);
 define_pd_global(uintx,  CodeCacheMinBlockLength,    1);
@@ -126,6 +130,12 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
 #else
 #define trueInProduct  false
 #define falseInProduct true
+#endif
+
+#if defined(__linux__)
+#if defined(__x86_64__)
+#define JPORTAL 1
+#endif
 #endif
 
 // develop flags are settable / visible only during development and are constant in the PRODUCT version
@@ -1894,6 +1904,22 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
           "Size of code heap with non-nmethods (in bytes)")                 \
           range(os::vm_page_size(), max_uintx)                              \
                                                                             \
+  product_pd(uintx, JPortalReservedCodeCacheSize,                           \
+          "Jportal Reserved code cache size (in bytes)")                    \
+          range(os::vm_page_size(), max_uintx)                              \
+                                                                            \
+  product_pd(uintx, JPortalNonProfiledCodeHeapSize,                                \
+          "Size of Jportal code heap with non-profiled methods (in bytes)") \
+          range(0, max_uintx)                                               \
+                                                                            \
+  product_pd(uintx, JPortalProfiledCodeHeapSize,                                   \
+          "Size of JPortal code heap with profiled methods (in bytes)")     \
+          range(0, max_uintx)                                               \
+                                                                            \
+  product_pd(uintx, JPortalNonNMethodCodeHeapSize,                                 \
+          "Size of Jportal code heap with non-nmethods (in bytes)")         \
+          range(os::vm_page_size(), max_uintx)                              \
+                                                                            \
   product_pd(uintx, CodeCacheExpansionSize,                                 \
           "Code cache expansion size (in bytes)")                           \
           range(32*K, max_uintx)                                            \
@@ -2481,6 +2507,9 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
                                                                             \
   product(bool, DTraceMonitorProbes, false,                                 \
           "Enable dtrace probes for monitor events")                        \
+                                                                            \
+  product(bool, JPortalTrace, false,                                        \
+          "Enable JPortal Trace")                                           \
                                                                             \
   product(bool, RelaxAccessControlCheck, false,                             \
           "Relax the access control checks in the verifier")                \

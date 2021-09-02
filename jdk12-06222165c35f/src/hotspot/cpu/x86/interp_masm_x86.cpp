@@ -283,6 +283,7 @@ void InterpreterMacroAssembler::call_VM_base(Register oop_result,
                                              Register java_thread,
                                              Register last_java_sp,
                                              address  entry_point,
+                                             bool     jportal,
                                              int      number_of_arguments,
                                              bool     check_exceptions) {
   // interpreter specific
@@ -305,14 +306,14 @@ void InterpreterMacroAssembler::call_VM_base(Register oop_result,
 #endif /* ASSERT */
   // super call
   MacroAssembler::call_VM_base(oop_result, noreg, last_java_sp,
-                               entry_point, number_of_arguments,
+                               entry_point, jportal, number_of_arguments,
                                check_exceptions);
   // interpreter specific
   restore_bcp();
   restore_locals();
 }
 
-void InterpreterMacroAssembler::check_and_handle_popframe(Register java_thread) {
+void InterpreterMacroAssembler::check_and_handle_popframe(Register java_thread, bool jportal) {
   if (JvmtiExport::can_pop_frame()) {
     Label L;
     // Initiate popframe handling only if it is not already being
@@ -330,7 +331,13 @@ void InterpreterMacroAssembler::check_and_handle_popframe(Register java_thread) 
     jcc(Assembler::notZero, L);
     // Call Interpreter::remove_activation_preserving_args_entry() to get the
     // address of the same-named entrypoint in the generated interpreter code.
-    call_VM_leaf(CAST_FROM_FN_PTR(address, Interpreter::remove_activation_preserving_args_entry));
+    Register jportal_reg;
+    if (jportal) {
+      movl(jportal_reg, true);
+    } else {
+      movl(jportal_reg, false);
+    }
+    call_VM_leaf(CAST_FROM_FN_PTR(address, Interpreter::remove_activation_preserving_args_entry), jportal_reg);
     jmp(rax);
     bind(L);
     NOT_LP64(get_thread(java_thread);)
@@ -390,11 +397,12 @@ void InterpreterMacroAssembler::load_earlyret_value(TosState state) {
 }
 
 
-void InterpreterMacroAssembler::check_and_handle_earlyret(Register java_thread) {
+void InterpreterMacroAssembler::check_and_handle_earlyret(Register java_thread, bool jportal) {
   if (JvmtiExport::can_force_early_return()) {
     Label L;
     Register tmp = LP64_ONLY(c_rarg0) NOT_LP64(java_thread);
     Register rthread = LP64_ONLY(r15_thread) NOT_LP64(java_thread);
+    Register jportal = LP64_ONLY(r15_thread) NOT_LP64(java_thread);
 
     movptr(tmp, Address(rthread, JavaThread::jvmti_thread_state_offset()));
     testptr(tmp, tmp);
@@ -413,10 +421,17 @@ void InterpreterMacroAssembler::check_and_handle_earlyret(Register java_thread) 
     movptr(tmp, Address(rthread, JavaThread::jvmti_thread_state_offset()));
 #ifdef _LP64
     movl(tmp, Address(tmp, JvmtiThreadState::earlyret_tos_offset()));
-    call_VM_leaf(CAST_FROM_FN_PTR(address, Interpreter::remove_activation_early_entry), tmp);
+    Register jportal_reg;
+    if (jportal) {
+      movl(jportal_reg, true);
+    } else {
+      movl(jportal_reg, false);
+    }
+    call_VM_leaf(CAST_FROM_FN_PTR(address, Interpreter::remove_activation_early_entry), tmp, jportal_reg);
 #else
+    jportal?pushl(true):pushl(false);
     pushl(Address(tmp, JvmtiThreadState::earlyret_tos_offset()));
-    call_VM_leaf(CAST_FROM_FN_PTR(address, Interpreter::remove_activation_early_entry), 1);
+    call_VM_leaf(CAST_FROM_FN_PTR(address, Interpreter::remove_activation_early_entry), 2);    
 #endif // _LP64
     jmp(rax);
     bind(L);
@@ -801,12 +816,13 @@ void InterpreterMacroAssembler::dispatch_prolog(TosState state, int step) {
   // Nothing x86 specific to be done here
 }
 
-void InterpreterMacroAssembler::dispatch_epilog(TosState state, int step) {
-  dispatch_next(state, step);
+void InterpreterMacroAssembler::dispatch_epilog(TosState state, bool jportal, int step) {
+  dispatch_next(state, jportal, step);
 }
 
 void InterpreterMacroAssembler::dispatch_base(TosState state,
                                               address* table,
+                                              bool jportal,
                                               bool verifyoop,
                                               bool generate_poll) {
   verify_FPU(1, state);
@@ -826,7 +842,7 @@ void InterpreterMacroAssembler::dispatch_base(TosState state,
     verify_oop(rax, state);
   }
 
-  address* const safepoint_table = Interpreter::safept_table(state);
+  address* const safepoint_table = Interpreter::safept_table(state, jportal);
 #ifdef _LP64
   Label no_safepoint, dispatch;
   if (SafepointMechanism::uses_thread_local_poll() && table != safepoint_table && generate_poll) {
@@ -865,31 +881,31 @@ void InterpreterMacroAssembler::dispatch_base(TosState state,
 #endif // _LP64
 }
 
-void InterpreterMacroAssembler::dispatch_only(TosState state, bool generate_poll) {
-  dispatch_base(state, Interpreter::dispatch_table(state), true, generate_poll);
+void InterpreterMacroAssembler::dispatch_only(TosState state, bool jportal, bool generate_poll) {
+  dispatch_base(state, Interpreter::dispatch_table(state, jportal), jportal, true, generate_poll);
 }
 
-void InterpreterMacroAssembler::dispatch_only_normal(TosState state) {
-  dispatch_base(state, Interpreter::normal_table(state));
+void InterpreterMacroAssembler::dispatch_only_normal(TosState state, bool jportal) {
+  dispatch_base(state, Interpreter::normal_table(state, jportal), jportal);
 }
 
-void InterpreterMacroAssembler::dispatch_only_noverify(TosState state) {
-  dispatch_base(state, Interpreter::normal_table(state), false);
+void InterpreterMacroAssembler::dispatch_only_noverify(TosState state, bool jportal) {
+  dispatch_base(state, Interpreter::normal_table(state, jportal), jportal, false);
 }
 
 
-void InterpreterMacroAssembler::dispatch_next(TosState state, int step, bool generate_poll) {
+void InterpreterMacroAssembler::dispatch_next(TosState state, bool jportal, int step, bool generate_poll) {
   // load next bytecode (load before advancing _bcp_register to prevent AGI)
   load_unsigned_byte(rbx, Address(_bcp_register, step));
   // advance _bcp_register
   increment(_bcp_register, step);
-  dispatch_base(state, Interpreter::dispatch_table(state), true, generate_poll);
+  dispatch_base(state, Interpreter::dispatch_table(state, jportal), jportal, true, generate_poll);
 }
 
-void InterpreterMacroAssembler::dispatch_via(TosState state, address* table) {
+void InterpreterMacroAssembler::dispatch_via(TosState state, address* table, bool jportal) {
   // load current bytecode
   load_unsigned_byte(rbx, Address(_bcp_register, 0));
-  dispatch_base(state, table);
+  dispatch_base(state, table, jportal);
 }
 
 void InterpreterMacroAssembler::narrow(Register result) {
@@ -953,6 +969,7 @@ void InterpreterMacroAssembler::narrow(Register result) {
 void InterpreterMacroAssembler::remove_activation(
         TosState state,
         Register ret_addr,
+        bool jportal,
         bool throw_monitor_exception,
         bool install_monitor_exception,
         bool notify_jvmdi) {
@@ -1005,7 +1022,7 @@ void InterpreterMacroAssembler::remove_activation(
     // Entry already unlocked, need to throw exception
     NOT_LP64(empty_FPU_stack();)  // remove possible return value from FPU-stack, otherwise stack could overflow
     call_VM(noreg, CAST_FROM_FN_PTR(address,
-                   InterpreterRuntime::throw_illegal_monitor_state_exception));
+                   InterpreterRuntime::throw_illegal_monitor_state_exception), jportal);
     should_not_reach_here();
   } else {
     // Monitor already unlocked during a stack unroll. If requested,
@@ -1014,13 +1031,13 @@ void InterpreterMacroAssembler::remove_activation(
     if (install_monitor_exception) {
       NOT_LP64(empty_FPU_stack();)
       call_VM(noreg, CAST_FROM_FN_PTR(address,
-                     InterpreterRuntime::new_illegal_monitor_state_exception));
+                     InterpreterRuntime::new_illegal_monitor_state_exception), jportal);
     }
     jmp(unlocked);
   }
 
   bind(unlock);
-  unlock_object(robj);
+  unlock_object(robj, jportal);
   pop(state);
 
   // Check that for block-structured locking (i.e., that all locked
@@ -1055,7 +1072,7 @@ void InterpreterMacroAssembler::remove_activation(
       NOT_LP64(empty_FPU_stack();)
       MacroAssembler::call_VM(noreg,
                               CAST_FROM_FN_PTR(address, InterpreterRuntime::
-                                   throw_illegal_monitor_state_exception));
+                                   throw_illegal_monitor_state_exception), jportal);
       should_not_reach_here();
     } else {
       // Stack unrolling. Unlock object and install illegal_monitor_exception.
@@ -1064,14 +1081,14 @@ void InterpreterMacroAssembler::remove_activation(
 
       push(state);
       mov(robj, rmon);   // nop if robj and rmon are the same
-      unlock_object(robj);
+      unlock_object(robj, jportal);
       pop(state);
 
       if (install_monitor_exception) {
         NOT_LP64(empty_FPU_stack();)
         call_VM(noreg, CAST_FROM_FN_PTR(address,
                                         InterpreterRuntime::
-                                        new_illegal_monitor_state_exception));
+                                        new_illegal_monitor_state_exception), jportal);
       }
 
       jmp(restart);
@@ -1092,9 +1109,9 @@ void InterpreterMacroAssembler::remove_activation(
 
   // jvmti support
   if (notify_jvmdi) {
-    notify_method_exit(state, NotifyJVMTI);    // preserve TOSCA
+    notify_method_exit(state, NotifyJVMTI, jportal);    // preserve TOSCA
   } else {
-    notify_method_exit(state, SkipNotifyJVMTI); // preserve TOSCA
+    notify_method_exit(state, SkipNotifyJVMTI, jportal); // preserve TOSCA
   }
 
   // remove activation
@@ -1117,7 +1134,7 @@ void InterpreterMacroAssembler::remove_activation(
     call_VM_leaf(
       CAST_FROM_FN_PTR(address, SharedRuntime::enable_stack_reserved_zone), rthread);
     call_VM(noreg, CAST_FROM_FN_PTR(address,
-                   InterpreterRuntime::throw_delayed_StackOverflowError));
+                   InterpreterRuntime::throw_delayed_StackOverflowError), jportal);
     should_not_reach_here();
 
     bind(no_reserved_zone_enabling);
@@ -1128,13 +1145,13 @@ void InterpreterMacroAssembler::remove_activation(
 }
 
 void InterpreterMacroAssembler::get_method_counters(Register method,
-                                                    Register mcs, Label& skip) {
+                                                    Register mcs, Label& skip, bool jportal) {
   Label has_counters;
   movptr(mcs, Address(method, Method::method_counters_offset()));
   testptr(mcs, mcs);
   jcc(Assembler::notZero, has_counters);
   call_VM(noreg, CAST_FROM_FN_PTR(address,
-          InterpreterRuntime::build_method_counters), method);
+          InterpreterRuntime::build_method_counters), method, jportal);
   movptr(mcs, Address(method,Method::method_counters_offset()));
   testptr(mcs, mcs);
   jcc(Assembler::zero, skip); // No MethodCounters allocated, OutOfMemory
@@ -1149,14 +1166,14 @@ void InterpreterMacroAssembler::get_method_counters(Register method,
 //
 // Kills:
 //      rax, rbx
-void InterpreterMacroAssembler::lock_object(Register lock_reg) {
+void InterpreterMacroAssembler::lock_object(Register lock_reg, bool jportal) {
   assert(lock_reg == LP64_ONLY(c_rarg1) NOT_LP64(rdx),
          "The argument is only for looks. It must be c_rarg1");
 
   if (UseHeavyMonitors) {
     call_VM(noreg,
             CAST_FROM_FN_PTR(address, InterpreterRuntime::monitorenter),
-            lock_reg);
+            lock_reg, jportal);
   } else {
     Label done;
 
@@ -1227,7 +1244,7 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg) {
     // Call the runtime routine for slow case
     call_VM(noreg,
             CAST_FROM_FN_PTR(address, InterpreterRuntime::monitorenter),
-            lock_reg);
+            lock_reg, jportal);
 
     bind(done);
   }
@@ -1246,14 +1263,14 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg) {
 //      c_rarg0, c_rarg1, c_rarg2, c_rarg3, ... (param regs)
 //      rscratch1 (scratch reg)
 // rax, rbx, rcx, rdx
-void InterpreterMacroAssembler::unlock_object(Register lock_reg) {
+void InterpreterMacroAssembler::unlock_object(Register lock_reg, bool jportal) {
   assert(lock_reg == LP64_ONLY(c_rarg1) NOT_LP64(rdx),
          "The argument is only for looks. It must be c_rarg1");
 
   if (UseHeavyMonitors) {
     call_VM(noreg,
             CAST_FROM_FN_PTR(address, InterpreterRuntime::monitorexit),
-            lock_reg);
+            lock_reg, jportal);
   } else {
     Label done;
 
@@ -1299,7 +1316,7 @@ void InterpreterMacroAssembler::unlock_object(Register lock_reg) {
          obj_reg); // restore obj
     call_VM(noreg,
             CAST_FROM_FN_PTR(address, InterpreterRuntime::monitorexit),
-            lock_reg);
+            lock_reg, jportal);
 
     bind(done);
 
@@ -1484,12 +1501,12 @@ void InterpreterMacroAssembler::update_mdp_by_constant(Register mdp_in,
 }
 
 
-void InterpreterMacroAssembler::update_mdp_for_ret(Register return_bci) {
+void InterpreterMacroAssembler::update_mdp_for_ret(Register return_bci, bool jportal) {
   assert(ProfileInterpreter, "must be profiling interpreter");
   push(return_bci); // save/restore across call_VM
   call_VM(noreg,
           CAST_FROM_FN_PTR(address, InterpreterRuntime::update_mdp_for_ret),
-          return_bci);
+          return_bci, jportal);
   pop(return_bci);
 }
 
@@ -1784,7 +1801,8 @@ void InterpreterMacroAssembler::record_klass_in_profile(Register receiver,
 }
 
 void InterpreterMacroAssembler::profile_ret(Register return_bci,
-                                            Register mdp) {
+                                            Register mdp,
+                                            bool jportal) {
   if (ProfileInterpreter) {
     Label profile_continue;
     uint row;
@@ -1814,7 +1832,7 @@ void InterpreterMacroAssembler::profile_ret(Register return_bci,
       bind(next_test);
     }
 
-    update_mdp_for_ret(return_bci);
+    update_mdp_for_ret(return_bci, jportal);
 
     bind(profile_continue);
   }
@@ -1969,7 +1987,7 @@ void InterpreterMacroAssembler::increment_mask_and_jump(Address counter_addr,
   }
 }
 
-void InterpreterMacroAssembler::notify_method_entry() {
+void InterpreterMacroAssembler::notify_method_entry(bool jportal) {
   // Whenever JVMTI is interp_only_mode, method entry/exit events are sent to
   // track stack depth.  If it is possible to enter interp_only_mode we add
   // the code to check if the event should be sent.
@@ -1982,7 +2000,7 @@ void InterpreterMacroAssembler::notify_method_entry() {
     testl(rdx, rdx);
     jcc(Assembler::zero, L);
     call_VM(noreg, CAST_FROM_FN_PTR(address,
-                                    InterpreterRuntime::post_method_entry));
+                                    InterpreterRuntime::post_method_entry), jportal);
     bind(L);
   }
 
@@ -2006,7 +2024,7 @@ void InterpreterMacroAssembler::notify_method_entry() {
 
 
 void InterpreterMacroAssembler::notify_method_exit(
-    TosState state, NotifyMethodExitMode mode) {
+    TosState state, NotifyMethodExitMode mode, bool jportal) {
   // Whenever JVMTI is interp_only_mode, method entry/exit events are sent to
   // track stack depth.  If it is possible to enter interp_only_mode we add
   // the code to check if the event should be sent.
@@ -2026,7 +2044,7 @@ void InterpreterMacroAssembler::notify_method_exit(
     testl(rdx, rdx);
     jcc(Assembler::zero, L);
     call_VM(noreg,
-            CAST_FROM_FN_PTR(address, InterpreterRuntime::post_method_exit));
+            CAST_FROM_FN_PTR(address, InterpreterRuntime::post_method_exit), jportal);
     bind(L);
     pop(state);
   }

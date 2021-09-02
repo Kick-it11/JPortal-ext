@@ -719,7 +719,8 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
                                     int total_args_passed,
                                     int comp_args_on_stack,
                                     const BasicType *sig_bt,
-                                    const VMRegPair *regs) {
+                                    const VMRegPair *regs,
+                                    bool jportal) {
 
   // Note: r13 contains the senderSP on entry. We must preserve it since
   // we may do a i2c -> c2i transition if we lose a race where compiled
@@ -751,16 +752,16 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
   __ movptr(rax, Address(rsp, 0));
 
   if (VerifyAdapterCalls &&
-      (Interpreter::code() != NULL || StubRoutines::code1() != NULL)) {
+      (Interpreter::code(jportal) != NULL || StubRoutines::code1() != NULL)) {
     // So, let's test for cascading c2i/i2c adapters right now.
     //  assert(Interpreter::contains($return_addr) ||
     //         StubRoutines::contains($return_addr),
     //         "i2c adapter must return to an interpreter frame");
     __ block_comment("verify_i2c { ");
     Label L_ok;
-    if (Interpreter::code() != NULL)
+    if (Interpreter::code(jportal) != NULL)
       range_check(masm, rax, r11,
-                  Interpreter::code()->code_start(), Interpreter::code()->code_end(),
+                  Interpreter::code(jportal)->code_start(), Interpreter::code(jportal)->code_end(),
                   L_ok);
     if (StubRoutines::code1() != NULL)
       range_check(masm, rax, r11,
@@ -930,10 +931,11 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
                                                             int comp_args_on_stack,
                                                             const BasicType *sig_bt,
                                                             const VMRegPair *regs,
-                                                            AdapterFingerPrint* fingerprint) {
+                                                            AdapterFingerPrint* fingerprint,
+                                                            bool jportal) {
   address i2c_entry = __ pc();
 
-  gen_i2c_adapter(masm, total_args_passed, comp_args_on_stack, sig_bt, regs);
+  gen_i2c_adapter(masm, total_args_passed, comp_args_on_stack, sig_bt, regs, jportal);
 
   // -------------------------------------------------------------------------
   // Generate a C2I adapter.  On entry we know rbx holds the Method* during calls
@@ -1917,7 +1919,8 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
                                        stack_slots / VMRegImpl::slots_per_word,
                                        in_ByteSize(-1),
                                        in_ByteSize(-1),
-                                       (OopMapSet*)NULL);
+                                       (OopMapSet*)NULL,
+                                       method->is_jportal() && JPortalTrace);
   }
   bool is_critical_native = true;
   address native_func = method->critical_native_function();
@@ -2827,7 +2830,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
                                             stack_slots / VMRegImpl::slots_per_word,
                                             (is_static ? in_ByteSize(klass_offset) : in_ByteSize(receiver_offset)),
                                             in_ByteSize(lock_slot_offset*VMRegImpl::stack_slot_size),
-                                            oop_maps);
+                                            oop_maps, method->is_jportal() && JPortalTrace);
 
   if (is_critical_native) {
     nm->set_lazy_critical_native(true);

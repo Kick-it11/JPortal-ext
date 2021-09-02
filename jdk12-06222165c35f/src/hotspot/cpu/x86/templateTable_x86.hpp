@@ -26,6 +26,7 @@
 #define CPU_X86_VM_TEMPLATETABLE_X86_HPP
 
   static void prepare_invoke(int byte_no,
+                             bool jportal,
                              Register method,         // linked method (or i-klass)
                              Register index = noreg,  // itable index, MethodType, etc.
                              Register recv  = noreg,  // if caller wants to see it
@@ -36,11 +37,11 @@
   static void volatile_barrier(Assembler::Membar_mask_bits order_constraint);
 
   // Helpers
-  static void index_check(Register array, Register index);
-  static void index_check_without_pop(Register array, Register index);
+  static void index_check(Register array, Register index, bool jportal);
+  static void index_check_without_pop(Register array, Register index, bool jportal);
 
   static void putfield_or_static_helper(int byte_no, bool is_static, RewriteControl rc,
-                                        Register obj, Register off, Register flags);
+                                        Register obj, Register off, Register flags, bool jportal);
   static void fast_storefield_helper(Address field, Register rax);
 
 #endif // CPU_X86_VM_TEMPLATETABLE_X86_HPP

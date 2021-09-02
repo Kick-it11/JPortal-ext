@@ -61,7 +61,7 @@ class WhiteBox : public AllStatic {
   static const char* lookup_jstring(const char* field_name, oop object);
   static bool lookup_bool(const char* field_name, oop object);
   static int get_blob_type(const CodeBlob* code);
-  static CodeHeap* get_code_heap(int blob_type);
+  static CodeHeap* get_code_heap(int blob_type, bool jportal);
   static CodeBlob* allocate_code_blob(int size, int blob_type);
   static int array_bytes_to_length(size_t bytes);
   static void register_methods(JNIEnv* env, jclass wbclass, JavaThread* thread,

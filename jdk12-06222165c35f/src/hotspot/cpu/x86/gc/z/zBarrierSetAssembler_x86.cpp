@@ -447,7 +447,7 @@ void ZBarrierSetAssembler::barrier_stubs_init() {
   int stub_code_size = 256 * 16; // Rough estimate of code size
 
   ResourceMark rm;
-  BufferBlob* bb = BufferBlob::create("zgc_load_barrier_stubs", stub_code_size);
+  BufferBlob* bb = BufferBlob::create("zgc_load_barrier_stubs", stub_code_size, false);
   CodeBuffer buf(bb);
   StubCodeGenerator cgen(&buf);
 

@@ -781,7 +781,7 @@ void VMError::report(outputStream* st, bool _verbose) {
        if (cb != NULL) {
          if (Interpreter::contains(_pc)) {
            // The interpreter CodeBlob is very large so try to print the codelet instead.
-           InterpreterCodelet* codelet = Interpreter::codelet_containing(_pc);
+           InterpreterCodelet* codelet = Interpreter::codelet_containing(_pc, CodeCache::is_jportal(_pc));
            if (codelet != NULL) {
              codelet->print_on(st);
              Disassembler::decode(codelet->code_begin(), codelet->code_end(), st);

@@ -99,6 +99,7 @@ class CodeHeap : public CHeapObj<mtCode> {
 
   const char*  _name;                            // Name of the CodeHeap
   const int    _code_blob_type;                  // CodeBlobType it contains
+  bool         _jportal;                         // if this is a jportal heap
   int          _blob_count;                      // Number of CodeBlobs
   int          _nmethod_count;                   // Number of nmethods
   int          _adapter_count;                   // Number of adapters
@@ -136,7 +137,7 @@ class CodeHeap : public CHeapObj<mtCode> {
   void clear();                                 // clears all heap contents
 
  public:
-  CodeHeap(const char* name, const int code_blob_type);
+  CodeHeap(const char* name, const int code_blob_type, bool jportal);
 
   // Heap extents
   bool  reserve(ReservedSpace rs, size_t committed_size, size_t segment_size);
@@ -204,6 +205,7 @@ class CodeHeap : public CHeapObj<mtCode> {
                                                           (_code_blob_type == code_blob_type); }
   int code_blob_type() const                     { return _code_blob_type; }
 
+  bool is_jportal() const                        { return _jportal; }
   // Debugging / Profiling
   const char* name() const                       { return _name; }
   int         blob_count()                       { return _blob_count; }

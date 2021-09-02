@@ -59,7 +59,7 @@ class SignatureHandlerGenerator: public NativeSignatureIterator {
   SignatureHandlerGenerator(const methodHandle& method, CodeBuffer* buffer);
 
   // Code generation
-  void generate(uint64_t fingerprint);
+  void generate(uint64_t fingerprint, bool jportal);
 
   // Code generation support
   static Register from();

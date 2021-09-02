@@ -73,7 +73,7 @@ const int locals_offset = frame::interpreter_frame_locals_offset * wordSize;
 
 //-----------------------------------------------------------------------------
 
-address TemplateInterpreterGenerator::generate_StackOverflowError_handler() {
+address TemplateInterpreterGenerator::generate_StackOverflowError_handler(bool jportal) {
   address entry = __ pc();
 
 #ifdef ASSERT
@@ -99,11 +99,11 @@ address TemplateInterpreterGenerator::generate_StackOverflowError_handler() {
   // throw exception
   __ call_VM(noreg,
              CAST_FROM_FN_PTR(address,
-                              InterpreterRuntime::throw_StackOverflowError));
+                              InterpreterRuntime::throw_StackOverflowError), jportal);
   return entry;
 }
 
-address TemplateInterpreterGenerator::generate_ArrayIndexOutOfBounds_handler() {
+address TemplateInterpreterGenerator::generate_ArrayIndexOutOfBounds_handler(bool jportal) {
   address entry = __ pc();
   // The expression stack must be empty before entering the VM if an
   // exception happened.
@@ -117,11 +117,11 @@ address TemplateInterpreterGenerator::generate_ArrayIndexOutOfBounds_handler() {
              CAST_FROM_FN_PTR(address,
                               InterpreterRuntime::
                               throw_ArrayIndexOutOfBoundsException),
-             rarg, rbx);
+             rarg, rbx, jportal);
   return entry;
 }
 
-address TemplateInterpreterGenerator::generate_ClassCastException_handler() {
+address TemplateInterpreterGenerator::generate_ClassCastException_handler(bool jportal) {
   address entry = __ pc();
 
   // object is at TOS
@@ -136,12 +136,12 @@ address TemplateInterpreterGenerator::generate_ClassCastException_handler() {
              CAST_FROM_FN_PTR(address,
                               InterpreterRuntime::
                               throw_ClassCastException),
-             rarg);
+             rarg, jportal);
   return entry;
 }
 
 address TemplateInterpreterGenerator::generate_exception_handler_common(
-        const char* name, const char* message, bool pass_oop) {
+        const char* name, const char* message, bool pass_oop, bool jportal) {
   assert(!pass_oop || message == NULL, "either oop or message but not both");
   address entry = __ pc();
 
@@ -161,19 +161,19 @@ address TemplateInterpreterGenerator::generate_exception_handler_common(
     __ call_VM(rax, CAST_FROM_FN_PTR(address,
                                      InterpreterRuntime::
                                      create_klass_exception),
-               rarg, rarg2);
+               rarg, rarg2, jportal);
   } else {
     __ lea(rarg2, ExternalAddress((address)message));
     __ call_VM(rax,
                CAST_FROM_FN_PTR(address, InterpreterRuntime::create_exception),
-               rarg, rarg2);
+               rarg, rarg2, jportal);
   }
   // throw exception
-  __ jump(ExternalAddress(Interpreter::throw_exception_entry()));
+  __ jump(ExternalAddress(Interpreter::throw_exception_entry(jportal)));
   return entry;
 }
 
-address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, int step, size_t index_size) {
+address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, int step, size_t index_size, bool jportal) {
   address entry = __ pc();
 
 #ifndef _LP64
@@ -226,20 +226,20 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
    const Register java_thread = NOT_LP64(rcx) LP64_ONLY(r15_thread);
    if (JvmtiExport::can_pop_frame()) {
      NOT_LP64(__ get_thread(java_thread));
-     __ check_and_handle_popframe(java_thread);
+     __ check_and_handle_popframe(java_thread, jportal);
    }
    if (JvmtiExport::can_force_early_return()) {
      NOT_LP64(__ get_thread(java_thread));
-     __ check_and_handle_earlyret(java_thread);
+     __ check_and_handle_earlyret(java_thread, jportal);
    }
 
-  __ dispatch_next(state, step);
+  __ dispatch_next(state, jportal, step);
 
   return entry;
 }
 
 
-address TemplateInterpreterGenerator::generate_deopt_entry_for(TosState state, int step, address continuation) {
+address TemplateInterpreterGenerator::generate_deopt_entry_for(TosState state, int step, bool jportal, address continuation) {
   address entry = __ pc();
 
 #ifndef _LP64
@@ -268,7 +268,7 @@ address TemplateInterpreterGenerator::generate_deopt_entry_for(TosState state, i
     // Satisfy calling convention for lock_method().
     __ get_method(rbx);
     // Take lock.
-    lock_method();
+    lock_method(jportal);
     __ bind(L);
   } else {
 #ifdef ASSERT
@@ -289,12 +289,12 @@ address TemplateInterpreterGenerator::generate_deopt_entry_for(TosState state, i
     __ jcc(Assembler::zero, L);
     __ call_VM(noreg,
                CAST_FROM_FN_PTR(address,
-                                InterpreterRuntime::throw_pending_exception));
+                                InterpreterRuntime::throw_pending_exception), jportal);
     __ should_not_reach_here();
     __ bind(L);
   }
   if (continuation == NULL) {
-    __ dispatch_next(state, step);
+    __ dispatch_next(state, jportal, step);
   } else {
     __ jump_to_entry(continuation);
   }
@@ -361,11 +361,13 @@ address TemplateInterpreterGenerator::generate_result_handler_for(
 
 address TemplateInterpreterGenerator::generate_safept_entry_for(
         TosState state,
-        address runtime_entry) {
+        address runtime_entry,
+        bool jportal) {
   address entry = __ pc();
   __ push(state);
-  __ call_VM(noreg, runtime_entry);
-  __ dispatch_via(vtos, Interpreter::_normal_table.table_for(vtos));
+  __ call_VM(noreg, runtime_entry, jportal);
+  __ dispatch_via(vtos, jportal?Interpreter::_jportal_normal_table.table_for(vtos):
+                                Interpreter::_normal_normal_table.table_for(vtos), jportal);
   return entry;
 }
 
@@ -386,7 +388,8 @@ address TemplateInterpreterGenerator::generate_safept_entry_for(
 void TemplateInterpreterGenerator::generate_counter_incr(
         Label* overflow,
         Label* profile_method,
-        Label* profile_method_continue) {
+        Label* profile_method_continue,
+        bool jportal) {
   Label done;
   // Note: In tiered we increment either counters in Method* or in MDO depending if we're profiling or not.
   if (TieredCompilation) {
@@ -409,7 +412,7 @@ void TemplateInterpreterGenerator::generate_counter_incr(
     const Address invocation_counter(rax,
                   MethodCounters::invocation_counter_offset() +
                   InvocationCounter::counter_offset());
-    __ get_method_counters(rbx, rax, done);
+    __ get_method_counters(rbx, rax, done, jportal);
     const Address mask(rax, in_bytes(MethodCounters::invoke_mask_offset()));
     __ increment_mask_and_jump(invocation_counter, increment, mask, rcx,
                                false, Assembler::zero, overflow);
@@ -422,7 +425,7 @@ void TemplateInterpreterGenerator::generate_counter_incr(
                   MethodCounters::invocation_counter_offset() +
                   InvocationCounter::counter_offset());
 
-    __ get_method_counters(rbx, rax, done);
+    __ get_method_counters(rbx, rax, done, jportal);
 
     if (ProfileInterpreter) {
       __ incrementl(Address(rax,
@@ -458,7 +461,7 @@ void TemplateInterpreterGenerator::generate_counter_incr(
   }
 }
 
-void TemplateInterpreterGenerator::generate_counter_overflow(Label& do_continue) {
+void TemplateInterpreterGenerator::generate_counter_overflow(Label& do_continue, bool jportal) {
 
   // Asm interpreter on entry
   // r14/rdi - locals
@@ -483,7 +486,7 @@ void TemplateInterpreterGenerator::generate_counter_overflow(Label& do_continue)
   __ call_VM(noreg,
              CAST_FROM_FN_PTR(address,
                               InterpreterRuntime::frequency_counter_overflow),
-             rarg);
+             rarg, jportal);
 
   __ movptr(rbx, Address(rbp, method_offset));   // restore Method*
   // Preserve invariant that r13/r14 contain bcp/locals of sender frame
@@ -595,7 +598,7 @@ void TemplateInterpreterGenerator::generate_stack_overflow_check(void) {
 //      rax
 //      c_rarg0, c_rarg1, c_rarg2, c_rarg3, ...(param regs)
 //      rscratch1, rscratch2 (scratch regs)
-void TemplateInterpreterGenerator::lock_method() {
+void TemplateInterpreterGenerator::lock_method(bool jportal) {
   // synchronize method
   const Address access_flags(rbx, Method::access_flags_offset());
   const Address monitor_block_top(
@@ -645,7 +648,7 @@ void TemplateInterpreterGenerator::lock_method() {
   __ movptr(Address(rsp, BasicObjectLock::obj_offset_in_bytes()), rax);
   const Register lockreg = NOT_LP64(rdx) LP64_ONLY(c_rarg1);
   __ movptr(lockreg, rsp); // object address
-  __ lock_object(lockreg);
+  __ lock_object(lockreg, jportal);
 }
 
 // Generate a fixed interpreter frame. This is identical setup for
@@ -698,7 +701,7 @@ void TemplateInterpreterGenerator::generate_fixed_frame(bool native_call) {
 // End of helpers
 
 // Method entry for java.lang.ref.Reference.get.
-address TemplateInterpreterGenerator::generate_Reference_get_entry(void) {
+address TemplateInterpreterGenerator::generate_Reference_get_entry(bool jportal) {
   // Code: _aload_0, _getfield, _areturn
   // parameter size = 1
   //
@@ -754,7 +757,7 @@ address TemplateInterpreterGenerator::generate_Reference_get_entry(void) {
 
   // generate a vanilla interpreter entry as the slow path
   __ bind(slow_path);
-  __ jump_to_entry(Interpreter::entry_for_kind(Interpreter::zerolocals));
+  __ jump_to_entry(Interpreter::entry_for_kind(Interpreter::zerolocals, jportal));
   return entry;
 }
 
@@ -783,7 +786,7 @@ void TemplateInterpreterGenerator::bang_stack_shadow_pages(bool native_call) {
 // Interpreter stub for calling a native method. (asm interpreter)
 // This sets up a somewhat different looking stack for calling the
 // native method than the typical interpreter frame setup.
-address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
+address TemplateInterpreterGenerator::generate_native_entry(bool synchronized, bool jportal) {
   // determine code generation flags
   bool inc_counter  = UseCompiler || CountCompiledCalls || LogTouchedMethods;
 
@@ -860,7 +863,7 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
   // increment invocation count & check for overflow
   Label invocation_counter_overflow;
   if (inc_counter) {
-    generate_counter_incr(&invocation_counter_overflow, NULL, NULL);
+    generate_counter_incr(&invocation_counter_overflow, NULL, NULL, jportal);
   }
 
   Label continue_after_compile;
@@ -876,7 +879,7 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
   // Must happen AFTER invocation_counter check and stack overflow check,
   // so method is not locked if overflows.
   if (synchronized) {
-    lock_method();
+    lock_method(jportal);
   } else {
     // no synchronization necessary
 #ifdef ASSERT
@@ -906,7 +909,7 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
 #endif
 
   // jvmti support
-  __ notify_method_entry();
+  __ notify_method_entry(jportal);
 
   // work registers
   const Register method = rbx;
@@ -940,7 +943,7 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
     __ call_VM(noreg,
                CAST_FROM_FN_PTR(address,
                                 InterpreterRuntime::prepare_native_call),
-               method);
+               method, jportal);
     __ get_method(method);
     __ movptr(t, Address(method, Method::signature_handler_offset()));
     __ bind(L);
@@ -1000,7 +1003,7 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
     __ call_VM(noreg,
                CAST_FROM_FN_PTR(address,
                                 InterpreterRuntime::prepare_native_call),
-               method);
+               method, jportal);
     __ get_method(method);
     __ movptr(rax, Address(method, Method::native_function_offset()));
     __ bind(L);
@@ -1067,8 +1070,8 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
 
   { Label L;
     Label push_double;
-    ExternalAddress float_handler(AbstractInterpreter::result_handler(T_FLOAT));
-    ExternalAddress double_handler(AbstractInterpreter::result_handler(T_DOUBLE));
+    ExternalAddress float_handler(AbstractInterpreter::result_handler(T_FLOAT, jportal));
+    ExternalAddress double_handler(AbstractInterpreter::result_handler(T_DOUBLE, jportal));
     __ cmpptr(Address(rbp, (frame::interpreter_frame_oop_temp_offset + 1)*wordSize),
               float_handler.addr());
     __ jcc(Assembler::equal, push_double);
@@ -1162,7 +1165,7 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
 
   {
     Label no_oop;
-    __ lea(t, ExternalAddress(AbstractInterpreter::result_handler(T_OBJECT)));
+    __ lea(t, ExternalAddress(AbstractInterpreter::result_handler(T_OBJECT, jportal)));
     __ cmpptr(t, Address(rbp, frame::interpreter_frame_result_handler_offset*wordSize));
     __ jcc(Assembler::notEqual, no_oop);
     // retrieve result
@@ -1222,7 +1225,7 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
     // here because the rsp is not correctly set at this point.
     __ MacroAssembler::call_VM(noreg,
                                CAST_FROM_FN_PTR(address,
-                               InterpreterRuntime::throw_pending_exception));
+                               InterpreterRuntime::throw_pending_exception), jportal);
     __ should_not_reach_here();
     __ bind(L);
   }
@@ -1256,11 +1259,11 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
       // Entry already unlocked, need to throw exception
       __ MacroAssembler::call_VM(noreg,
                                  CAST_FROM_FN_PTR(address,
-                   InterpreterRuntime::throw_illegal_monitor_state_exception));
+                   InterpreterRuntime::throw_illegal_monitor_state_exception), jportal);
       __ should_not_reach_here();
 
       __ bind(unlock);
-      __ unlock_object(regmon);
+      __ unlock_object(regmon, jportal);
     }
     __ bind(L);
   }
@@ -1270,7 +1273,7 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
   //       the exception handler code notifies the runtime of method exits
   //       too. If this happens before, method entry/exit notifications are
   //       not properly paired (was bug - gri 11/22/99).
-  __ notify_method_exit(vtos, InterpreterMacroAssembler::NotifyJVMTI);
+  __ notify_method_exit(vtos, InterpreterMacroAssembler::NotifyJVMTI, jportal);
 
   // restore potential result in edx:eax, call result handler to
   // restore potential result in ST0 & handle result
@@ -1294,7 +1297,7 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
   if (inc_counter) {
     // Handle overflow of counter and compile method
     __ bind(invocation_counter_overflow);
-    generate_counter_overflow(continue_after_compile);
+    generate_counter_overflow(continue_after_compile, jportal);
   }
 
   return entry_point;
@@ -1302,7 +1305,7 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
 
 // Abstract method entry
 // Attempt to execute abstract method. Throw exception
-address TemplateInterpreterGenerator::generate_abstract_entry(void) {
+address TemplateInterpreterGenerator::generate_abstract_entry(bool jportal) {
 
   address entry_point = __ pc();
 
@@ -1314,7 +1317,7 @@ address TemplateInterpreterGenerator::generate_abstract_entry(void) {
   __ restore_locals();   // make sure locals pointer is correct as well (was destroyed)
 
   // throw exception
-  __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::throw_AbstractMethodErrorWithMethod), rbx);
+  __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::throw_AbstractMethodErrorWithMethod), rbx, jportal);
   // the call_VM checks for exception, so we should never return here.
   __ should_not_reach_here();
 
@@ -1324,7 +1327,7 @@ address TemplateInterpreterGenerator::generate_abstract_entry(void) {
 //
 // Generic interpreted method entry to (asm) interpreter
 //
-address TemplateInterpreterGenerator::generate_normal_entry(bool synchronized) {
+address TemplateInterpreterGenerator::generate_normal_entry(bool synchronized, bool jportal) {
   // determine code generation flags
   bool inc_counter  = UseCompiler || CountCompiledCalls || LogTouchedMethods;
 
@@ -1419,7 +1422,8 @@ address TemplateInterpreterGenerator::generate_normal_entry(bool synchronized) {
   if (inc_counter) {
     generate_counter_incr(&invocation_counter_overflow,
                           &profile_method,
-                          &profile_method_continue);
+                          &profile_method_continue,
+                          jportal);
     if (ProfileInterpreter) {
       __ bind(profile_method_continue);
     }
@@ -1440,7 +1444,7 @@ address TemplateInterpreterGenerator::generate_normal_entry(bool synchronized) {
   // so method is not locked if overflows.
   if (synchronized) {
     // Allocate monitor and lock method
-    lock_method();
+    lock_method(jportal);
   } else {
     // no synchronization necessary
 #ifdef ASSERT
@@ -1470,23 +1474,23 @@ address TemplateInterpreterGenerator::generate_normal_entry(bool synchronized) {
 #endif
 
   // jvmti support
-  __ notify_method_entry();
+  __ notify_method_entry(jportal);
 
-  __ dispatch_next(vtos);
+  __ dispatch_next(vtos, jportal);
 
   // invocation counter overflow
   if (inc_counter) {
     if (ProfileInterpreter) {
       // We have decided to profile this method in the interpreter
       __ bind(profile_method);
-      __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::profile_method));
+      __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::profile_method), jportal);
       __ set_method_data_pointer_for_bcp();
       __ get_method(rbx);
       __ jmp(profile_method_continue);
     }
     // Handle overflow of counter and compile method
     __ bind(invocation_counter_overflow);
-    generate_counter_overflow(continue_after_compile);
+    generate_counter_overflow(continue_after_compile, jportal);
   }
 
   return entry_point;
@@ -1495,10 +1499,10 @@ address TemplateInterpreterGenerator::generate_normal_entry(bool synchronized) {
 //-----------------------------------------------------------------------------
 // Exceptions
 
-void TemplateInterpreterGenerator::generate_throw_exception() {
+void TemplateInterpreterGenerator::generate_throw_exception(bool jportal) {
   // Entry point in previous activation (i.e., if the caller was
   // interpreted)
-  Interpreter::_rethrow_exception_entry = __ pc();
+  (jportal?Interpreter::_jportal_rethrow_exception_entry:Interpreter::_normal_rethrow_exception_entry) = __ pc();
   // Restore sp to interpreter_frame_last_sp even though we are going
   // to empty the expression stack for the exception processing.
   __ movptr(Address(rbp, frame::interpreter_frame_last_sp_offset * wordSize), (int32_t)NULL_WORD);
@@ -1508,7 +1512,7 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
   __ restore_locals();
   LP64_ONLY(__ reinit_heapbase());  // restore r12 as heapbase.
   // Entry point for exceptions thrown within interpreter code
-  Interpreter::_throw_exception_entry = __ pc();
+  (jportal?Interpreter::_jportal_throw_exception_entry:Interpreter::_normal_throw_exception_entry) = __ pc();
   // expression stack is undefined here
   // rax: exception
   // r13/rsi: exception bcp
@@ -1523,7 +1527,7 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
   __ call_VM(rdx,
              CAST_FROM_FN_PTR(address,
                           InterpreterRuntime::exception_handler_for_exception),
-             rarg);
+             rarg, jportal);
   // rax: exception handler entry point
   // rdx: preserved exception oop
   // r13/rsi: bcp for exception handler
@@ -1547,7 +1551,7 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
   // JVMTI PopFrame support
   //
 
-  Interpreter::_remove_activation_preserving_args_entry = __ pc();
+  (jportal?Interpreter::_jportal_remove_activation_preserving_args_entry:Interpreter::_normal_remove_activation_preserving_args_entry) = __ pc();
   __ empty_expression_stack();
   // Set the popframe_processing bit in pending_popframe_condition
   // indicating that we are currently handling popframe, so that
@@ -1595,7 +1599,7 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
                                            popframe_preserve_args),
                           thread, rax, rlocals);
 
-    __ remove_activation(vtos, rdx,
+    __ remove_activation(vtos, rdx, jportal,
                          /* throw_monitor_exception */ false,
                          /* install_monitor_exception */ false,
                          /* notify_jvmdi */ false);
@@ -1612,7 +1616,7 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
     __ bind(caller_not_deoptimized);
   }
 
-  __ remove_activation(vtos, rdx, /* rdx result (retaddr) is not used */
+  __ remove_activation(vtos, rdx, /* rdx result (retaddr) is not used */ jportal,
                        /* throw_monitor_exception */ false,
                        /* install_monitor_exception */ false,
                        /* notify_jvmdi */ false);
@@ -1675,7 +1679,7 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
 
     __ get_method(rdx);
     __ movptr(rax, Address(local0, 0));
-    __ call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::member_name_arg_or_null), rax, rdx, rbcp);
+    __ call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::member_name_arg_or_null), rax, rdx, rbcp, jportal);
 
     __ testptr(rax, rax);
     __ jcc(Assembler::zero, L_done);
@@ -1685,17 +1689,17 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
   }
 #endif // INCLUDE_JVMTI
 
-  __ dispatch_next(vtos);
+  __ dispatch_next(vtos, jportal);
   // end of PopFrame support
 
-  Interpreter::_remove_activation_entry = __ pc();
+  (jportal?Interpreter::_jportal_remove_activation_entry:Interpreter::_normal_remove_activation_entry) = __ pc();
 
   // preserve exception over this code sequence
   __ pop_ptr(rax);
   NOT_LP64(__ get_thread(thread));
   __ movptr(Address(thread, JavaThread::vm_result_offset()), rax);
   // remove the activation (without doing throws on illegalMonitorExceptions)
-  __ remove_activation(vtos, rdx, false, true, false);
+  __ remove_activation(vtos, rdx, jportal, false, true, false);
   // restore exception
   NOT_LP64(__ get_thread(thread));
   __ get_vm_result(rax, thread);
@@ -1725,7 +1729,7 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
 //
 // JVMTI ForceEarlyReturn support
 //
-address TemplateInterpreterGenerator::generate_earlyret_entry_for(TosState state) {
+address TemplateInterpreterGenerator::generate_earlyret_entry_for(TosState state, bool jportal) {
   address entry = __ pc();
 
   __ restore_bcp();
@@ -1741,7 +1745,7 @@ address TemplateInterpreterGenerator::generate_earlyret_entry_for(TosState state
   // Clear the earlyret state
   __ movl(cond_addr, JvmtiThreadState::earlyret_inactive);
 
-  __ remove_activation(state, rsi,
+  __ remove_activation(state, rsi, jportal,
                        false, /* throw_monitor_exception */
                        false, /* install_monitor_exception */
                        true); /* notify_jvmdi */
@@ -1763,7 +1767,8 @@ void TemplateInterpreterGenerator::set_vtos_entry_points(Template* t,
                                                          address& lep,
                                                          address& fep,
                                                          address& dep,
-                                                         address& vep) {
+                                                         address& vep,
+                                                         bool jportal) {
   assert(t->is_valid() && t->tos_in() == vtos, "illegal template");
   Label L;
   aep = __ pc();     // atos entry point
@@ -1791,7 +1796,7 @@ void TemplateInterpreterGenerator::set_vtos_entry_points(Template* t,
       __ push_i();
   vep = __ pc();    // vtos entry point
   __ bind(L);
-  generate_and_dispatch(t);
+  generate_and_dispatch(t, jportal);
 }
 
 //-----------------------------------------------------------------------------
@@ -1799,7 +1804,7 @@ void TemplateInterpreterGenerator::set_vtos_entry_points(Template* t,
 // Non-product code
 #ifndef PRODUCT
 
-address TemplateInterpreterGenerator::generate_trace_code(TosState state) {
+address TemplateInterpreterGenerator::generate_trace_code(TosState state, bool jportal) {
   address entry = __ pc();
 
 #ifndef _LP64
@@ -1808,7 +1813,7 @@ address TemplateInterpreterGenerator::generate_trace_code(TosState state) {
   __ push(state);       // save tosca
 
   // pass tosca registers as arguments & call tracer
-  __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::trace_bytecode), rcx, rax, rdx);
+  __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::trace_bytecode), rcx, rax, rdx, jportal);
   __ mov(rcx, rax);     // make sure return address is not destroyed by pop(state)
   __ pop(state);        // restore tosca
 
@@ -1826,7 +1831,7 @@ address TemplateInterpreterGenerator::generate_trace_code(TosState state) {
 #endif
   __ call_VM(noreg,
              CAST_FROM_FN_PTR(address, InterpreterRuntime::trace_bytecode),
-             c_rarg1, c_rarg2, c_rarg3);
+             c_rarg1, c_rarg2, c_rarg3, jportal);
   __ pop(c_rarg3);
   __ pop(c_rarg2);
   __ pop(c_rarg1);
@@ -1858,19 +1863,19 @@ void TemplateInterpreterGenerator::histogram_bytecode_pair(Template* t) {
 }
 
 
-void TemplateInterpreterGenerator::trace_bytecode(Template* t) {
+void TemplateInterpreterGenerator::trace_bytecode(Template* t, bool jportal) {
   // Call a little run-time stub to avoid blow-up for each bytecode.
   // The run-time runtime saves the right registers, depending on
   // the tosca in-state for the given template.
 
-  assert(Interpreter::trace_code(t->tos_in()) != NULL,
+  assert(Interpreter::trace_code(t->tos_in(), jportal) != NULL,
          "entry must have been generated");
 #ifndef _LP64
-  __ call(RuntimeAddress(Interpreter::trace_code(t->tos_in())));
+  __ call(RuntimeAddress(Interpreter::trace_code(t->tos_in(), jportal)));
 #else
   __ mov(r12, rsp); // remember sp (can only use r12 if not using call_VM)
   __ andptr(rsp, -16); // align stack as required by ABI
-  __ call(RuntimeAddress(Interpreter::trace_code(t->tos_in())));
+  __ call(RuntimeAddress(Interpreter::trace_code(t->tos_in(), jportal)));
   __ mov(rsp, r12); // restore sp
   __ reinit_heapbase();
 #endif // _LP64

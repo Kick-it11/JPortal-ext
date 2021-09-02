@@ -91,6 +91,7 @@ DEF_STUB_INTERFACE(InterpreterCodelet);
 
 class CodeletMark: ResourceMark {
  private:
+  bool                        _jportal;
   InterpreterCodelet*         _clet;
   InterpreterMacroAssembler** _masm;
   CodeBuffer                  _cb;
@@ -98,7 +99,7 @@ class CodeletMark: ResourceMark {
   int codelet_size() {
     // Request the whole code buffer (minus a little for alignment).
     // The commit call below trims it back for each codelet.
-    int codelet_size = AbstractInterpreter::code()->available_space() - 2*K;
+    int codelet_size = AbstractInterpreter::code(_jportal)->available_space() - 2*K;
 
     // Guarantee there's a little bit of code space left.
     guarantee(codelet_size > 0 && (size_t)codelet_size > 2*K,
@@ -110,6 +111,7 @@ class CodeletMark: ResourceMark {
  public:
   CodeletMark(InterpreterMacroAssembler*& masm,
               const char* description,
+              bool jportal,
               Bytecodes::Code bytecode = Bytecodes::_illegal);
   ~CodeletMark();
 };

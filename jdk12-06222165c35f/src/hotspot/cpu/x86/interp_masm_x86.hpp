@@ -45,11 +45,12 @@ class InterpreterMacroAssembler: public MacroAssembler {
                             Register java_thread,
                             Register last_java_sp,
                             address  entry_point,
+                            bool jportal,
                             int number_of_arguments,
                             bool check_exceptions);
 
   // base routine for all dispatches
-  void dispatch_base(TosState state, address* table, bool verifyoop = true, bool generate_poll = false);
+  void dispatch_base(TosState state, address* table, bool jportal, bool verifyoop = true, bool generate_poll = false);
 
  public:
   InterpreterMacroAssembler(CodeBuffer* code) : MacroAssembler(code),
@@ -58,8 +59,8 @@ class InterpreterMacroAssembler: public MacroAssembler {
 
   void jump_to_entry(address entry);
 
- virtual void check_and_handle_popframe(Register java_thread);
- virtual void check_and_handle_earlyret(Register java_thread);
+ virtual void check_and_handle_popframe(Register java_thread, bool jportal);
+ virtual void check_and_handle_earlyret(Register java_thread, bool jportal);
 
   void load_earlyret_value(TosState state);
 
@@ -182,16 +183,16 @@ class InterpreterMacroAssembler: public MacroAssembler {
 
   // Dispatching
   void dispatch_prolog(TosState state, int step = 0);
-  void dispatch_epilog(TosState state, int step = 0);
+  void dispatch_epilog(TosState state, bool jportal, int step = 0);
   // dispatch via rbx (assume rbx is loaded already)
-  void dispatch_only(TosState state, bool generate_poll = false);
+  void dispatch_only(TosState state, bool jportal, bool generate_poll = false);
   // dispatch normal table via rbx (assume rbx is loaded already)
-  void dispatch_only_normal(TosState state);
-  void dispatch_only_noverify(TosState state);
+  void dispatch_only_normal(TosState state, bool jportal);
+  void dispatch_only_noverify(TosState state, bool jportal);
   // load rbx from [_bcp_register + step] and dispatch via rbx
-  void dispatch_next(TosState state, int step = 0, bool generate_poll = false);
+  void dispatch_next(TosState state, bool jportal, int step = 0, bool generate_poll = false);
   // load rbx from [_bcp_register] and dispatch via rbx and table
-  void dispatch_via (TosState state, address* table);
+  void dispatch_via (TosState state, address* table, bool jportal);
 
   // jump to an invoked target
   void prepare_to_jump_from_interpreted();
@@ -213,14 +214,15 @@ class InterpreterMacroAssembler: public MacroAssembler {
   // In earlyReturn case we only want to skip throwing an exception
   // and installing an exception.
   void remove_activation(TosState state, Register ret_addr,
+                         bool jportal,
                          bool throw_monitor_exception = true,
                          bool install_monitor_exception = true,
                          bool notify_jvmdi = true);
-  void get_method_counters(Register method, Register mcs, Label& skip);
+  void get_method_counters(Register method, Register mcs, Label& skip, bool jportal);
 
   // Object locking
-  void lock_object  (Register lock_reg);
-  void unlock_object(Register lock_reg);
+  void lock_object  (Register lock_reg, bool jportal);
+  void unlock_object(Register lock_reg, bool jportal);
 
   // Interpreter profiling operations
   void set_method_data_pointer_for_bcp();
@@ -255,7 +257,7 @@ class InterpreterMacroAssembler: public MacroAssembler {
   void update_mdp_by_offset(Register mdp_in, int offset_of_offset);
   void update_mdp_by_offset(Register mdp_in, Register reg, int offset_of_disp);
   void update_mdp_by_constant(Register mdp_in, int constant);
-  void update_mdp_for_ret(Register return_bci);
+  void update_mdp_for_ret(Register return_bci, bool jportal);
 
   void profile_taken_branch(Register mdp, Register bumped_count);
   void profile_not_taken_branch(Register mdp);
@@ -265,7 +267,7 @@ class InterpreterMacroAssembler: public MacroAssembler {
                             Register scratch2,
                             bool receiver_can_be_null = false);
   void profile_called_method(Register method, Register mdp, Register reg2) NOT_JVMCI_RETURN;
-  void profile_ret(Register return_bci, Register mdp);
+  void profile_ret(Register return_bci, Register mdp, bool jportal);
   void profile_null_seen(Register mdp);
   void profile_typecheck(Register mdp, Register klass, Register scratch);
   void profile_typecheck_failed(Register mdp);
@@ -282,8 +284,8 @@ class InterpreterMacroAssembler: public MacroAssembler {
   typedef enum { NotifyJVMTI, SkipNotifyJVMTI } NotifyMethodExitMode;
 
   // support for jvmti/dtrace
-  void notify_method_entry();
-  void notify_method_exit(TosState state, NotifyMethodExitMode mode);
+  void notify_method_entry(bool jportal);
+  void notify_method_exit(TosState state, NotifyMethodExitMode mode, bool jportal);
 
  private:
 

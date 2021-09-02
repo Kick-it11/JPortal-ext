@@ -53,7 +53,7 @@
 // Implementation of platform independent aspects of Interpreter
 
 void AbstractInterpreter::initialize() {
-  if (_code != NULL) return;
+  if (_normal_code != NULL) return;
 
   // make sure 'imported' classes are initialized
   if (CountBytecodes || TraceBytecodes || StopInterpreterAt) BytecodeCounter::reset();
@@ -69,16 +69,29 @@ void AbstractInterpreter::print() {
   tty->print_cr("----------------------------------------------------------------------");
   tty->print_cr("Interpreter");
   tty->cr();
-  tty->print_cr("code size        = %6dK bytes", (int)_code->used_space()/1024);
-  tty->print_cr("total space      = %6dK bytes", (int)_code->total_space()/1024);
-  tty->print_cr("wasted space     = %6dK bytes", (int)_code->available_space()/1024);
+  tty->print_cr("normal code size        = %6dK bytes", (int)_normal_code->used_space()/1024);
+  tty->print_cr("normal total space      = %6dK bytes", (int)_normal_code->total_space()/1024);
+  tty->print_cr("normal wasted space     = %6dK bytes", (int)_normal_code->available_space()/1024);
   tty->cr();
-  tty->print_cr("# of codelets    = %6d"      , _code->number_of_stubs());
-  if (_code->number_of_stubs() != 0) {
-    tty->print_cr("avg codelet size = %6d bytes", _code->used_space() / _code->number_of_stubs());
+  tty->print_cr("# of normal codelets    = %6d"      , _normal_code->number_of_stubs());
+  if (_normal_code->number_of_stubs() != 0) {
+    tty->print_cr("avg normal codelet size = %6d bytes", _normal_code->used_space() / _normal_code->number_of_stubs());
     tty->cr();
   }
-  _code->print();
+  _normal_code->print();
+  if (JPortalTrace) {
+    tty->cr();
+    tty->print_cr("normal code size        = %6dK bytes", (int)_jportal_code->used_space()/1024);
+    tty->print_cr("normal total space      = %6dK bytes", (int)_jportal_code->total_space()/1024);
+    tty->print_cr("normal wasted space     = %6dK bytes", (int)_jportal_code->available_space()/1024);
+    tty->cr();
+    tty->print_cr("# of normal codelets    = %6d"      , _jportal_code->number_of_stubs());
+    if (_jportal_code->number_of_stubs() != 0) {
+      tty->print_cr("avg normal codelet size = %6d bytes", _jportal_code->used_space() / _jportal_code->number_of_stubs());
+      tty->cr();
+    }
+    _jportal_code->print();
+  }
   tty->print_cr("----------------------------------------------------------------------");
   tty->cr();
 }
@@ -87,21 +100,31 @@ void AbstractInterpreter::print() {
 //------------------------------------------------------------------------------------------------------------------------
 // Implementation of interpreter
 
-StubQueue* AbstractInterpreter::_code                                       = NULL;
+StubQueue* AbstractInterpreter::_normal_code                                       = NULL;
 bool       AbstractInterpreter::_notice_safepoints                          = false;
-address    AbstractInterpreter::_rethrow_exception_entry                    = NULL;
+address    AbstractInterpreter::_normal_rethrow_exception_entry                    = NULL;
 
-address    AbstractInterpreter::_native_entry_begin                         = NULL;
-address    AbstractInterpreter::_native_entry_end                           = NULL;
-address    AbstractInterpreter::_slow_signature_handler;
-address    AbstractInterpreter::_entry_table            [AbstractInterpreter::number_of_method_entries];
-address    AbstractInterpreter::_cds_entry_table        [AbstractInterpreter::number_of_method_entries];
-address    AbstractInterpreter::_native_abi_to_tosca    [AbstractInterpreter::number_of_result_handlers];
+address    AbstractInterpreter::_normal_native_entry_begin                         = NULL;
+address    AbstractInterpreter::_normal_native_entry_end                           = NULL;
+address    AbstractInterpreter::_normal_slow_signature_handler;
+address    AbstractInterpreter::_normal_entry_table            [AbstractInterpreter::number_of_method_entries];
+address    AbstractInterpreter::_normal_cds_entry_table        [AbstractInterpreter::number_of_method_entries];
+address    AbstractInterpreter::_normal_native_abi_to_tosca    [AbstractInterpreter::number_of_result_handlers];
+
+StubQueue* AbstractInterpreter::_jportal_code                                       = NULL;
+address    AbstractInterpreter::_jportal_rethrow_exception_entry                    = NULL;
+
+address    AbstractInterpreter::_jportal_native_entry_begin                         = NULL;
+address    AbstractInterpreter::_jportal_native_entry_end                           = NULL;
+address    AbstractInterpreter::_jportal_slow_signature_handler;
+address    AbstractInterpreter::_jportal_entry_table            [AbstractInterpreter::number_of_method_entries];
+address    AbstractInterpreter::_jportal_cds_entry_table        [AbstractInterpreter::number_of_method_entries];
+address    AbstractInterpreter::_jportal_native_abi_to_tosca    [AbstractInterpreter::number_of_result_handlers];
 
 //------------------------------------------------------------------------------------------------------------------------
 // Generation of complete interpreter
 
-AbstractInterpreterGenerator::AbstractInterpreterGenerator(StubQueue* _code) {
+AbstractInterpreterGenerator::AbstractInterpreterGenerator(StubQueue* _code, StubQueue* _jportal_code) {
   _masm                      = NULL;
 }
 
@@ -211,14 +234,14 @@ address AbstractInterpreter::get_trampoline_code_buffer(AbstractInterpreter::Met
   return addr;
 }
 
-void AbstractInterpreter::update_cds_entry_table(AbstractInterpreter::MethodKind kind) {
+void AbstractInterpreter::update_cds_entry_table(AbstractInterpreter::MethodKind kind, bool jportal) {
   if (DumpSharedSpaces || UseSharedSpaces) {
     address trampoline = get_trampoline_code_buffer(kind);
-    _cds_entry_table[kind] = trampoline;
+    (jportal?_jportal_cds_entry_table[kind]:_normal_cds_entry_table[kind]) = trampoline;
 
     CodeBuffer buffer(trampoline, (int)(SharedRuntime::trampoline_size()));
     MacroAssembler _masm(&buffer);
-    SharedRuntime::generate_trampoline(&_masm, _entry_table[kind]);
+    SharedRuntime::generate_trampoline(&_masm, jportal?_jportal_entry_table[kind]:_normal_entry_table[kind]);
 
     if (PrintInterpreter) {
       Disassembler::decode(buffer.insts_begin(), buffer.insts_end());
@@ -228,13 +251,14 @@ void AbstractInterpreter::update_cds_entry_table(AbstractInterpreter::MethodKind
 
 #endif
 
-void AbstractInterpreter::set_entry_for_kind(AbstractInterpreter::MethodKind kind, address entry) {
+void AbstractInterpreter::set_entry_for_kind(AbstractInterpreter::MethodKind kind, address entry, bool jportal) {
   assert(kind >= method_handle_invoke_FIRST &&
          kind <= method_handle_invoke_LAST, "late initialization only for MH entry points");
-  assert(_entry_table[kind] == _entry_table[abstract], "previous value must be AME entry");
-  _entry_table[kind] = entry;
+  assert(jportal?(_jportal_entry_table[kind] == _jportal_entry_table[abstract]):
+            (_normal_entry_table[kind] == _normal_entry_table[abstract]), "previous value must be AME entry");
+  (jportal?_jportal_entry_table[kind]:_normal_entry_table[kind]) = entry;
 
-  update_cds_entry_table(kind);
+  update_cds_entry_table(kind, jportal);
 }
 
 // Return true if the interpreter can prove that the given bytecode has
@@ -249,8 +273,8 @@ bool AbstractInterpreter::is_not_reached(const methodHandle& method, int bci) {
 
   // the bytecode might not be rewritten if the method is an accessor, etc.
   address ientry = method->interpreter_entry();
-  if (ientry != entry_for_kind(AbstractInterpreter::zerolocals) &&
-      ientry != entry_for_kind(AbstractInterpreter::zerolocals_synchronized))
+  if (ientry != entry_for_kind(AbstractInterpreter::zerolocals, method->is_jportal() && JPortalTrace) &&
+      ientry != entry_for_kind(AbstractInterpreter::zerolocals_synchronized, method->is_jportal() && JPortalTrace))
     return false;  // interpreter does not run this method!
 
   // otherwise, we can be sure this bytecode has never been executed
@@ -369,8 +393,8 @@ address AbstractInterpreter::deopt_continue_after_entry(Method* method, address 
   // return entry point for computed continuation state & bytecode length
   return
     is_top_frame
-    ? Interpreter::deopt_entry (as_TosState(type), length)
-    : Interpreter::return_entry(as_TosState(type), length, code);
+    ? Interpreter::deopt_entry (as_TosState(type), length, method->is_jportal() && JPortalTrace)
+    : Interpreter::return_entry(as_TosState(type), length, code, method->is_jportal() && JPortalTrace);
 }
 
 // If deoptimization happens, this function returns the point where the interpreter reexecutes
@@ -382,10 +406,10 @@ address AbstractInterpreter::deopt_reexecute_entry(Method* method, address bcp) 
   Bytecodes::Code code   = Bytecodes::java_code_at(method, bcp);
 #if defined(COMPILER1) || INCLUDE_JVMCI
   if(code == Bytecodes::_athrow ) {
-    return Interpreter::rethrow_exception_entry();
+    return Interpreter::rethrow_exception_entry(method->is_jportal() && JPortalTrace);
   }
 #endif /* COMPILER1 || INCLUDE_JVMCI */
-  return Interpreter::deopt_entry(vtos, 0);
+  return Interpreter::deopt_entry(vtos, 0, method->is_jportal() && JPortalTrace);
 }
 
 // If deoptimization happens, the interpreter should reexecute these bytecodes.
@@ -437,11 +461,12 @@ bool AbstractInterpreter::bytecode_should_reexecute(Bytecodes::Code code) {
   }
 }
 
-void AbstractInterpreter::initialize_method_handle_entries() {
+void AbstractInterpreter::initialize_method_handle_entries(bool jportal) {
   // method handle entry kinds are generated later in MethodHandlesAdapterGenerator::generate:
   for (int i = method_handle_invoke_FIRST; i <= method_handle_invoke_LAST; i++) {
     MethodKind kind = (MethodKind) i;
-    _entry_table[kind] = _entry_table[Interpreter::abstract];
-    Interpreter::update_cds_entry_table(kind);
+    jportal?(_jportal_entry_table[kind] = _jportal_entry_table[Interpreter::abstract]):
+            (_normal_entry_table[kind] = _normal_entry_table[Interpreter::abstract]);
+    Interpreter::update_cds_entry_table(kind, jportal);
   }
 }

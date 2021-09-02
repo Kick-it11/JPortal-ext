@@ -252,7 +252,7 @@ bool CompiledIC::set_to_megamorphic(CallInfo* call_info, Bytecodes::Code bytecod
   if (call_info->call_kind() == CallInfo::itable_call) {
     assert(bytecode == Bytecodes::_invokeinterface, "");
     int itable_index = call_info->itable_index();
-    entry = VtableStubs::find_itable_stub(itable_index);
+    entry = VtableStubs::find_itable_stub(itable_index, _method->is_jportal() && JPortalTrace);
     if (entry == NULL) {
       return false;
     }
@@ -265,7 +265,7 @@ bool CompiledIC::set_to_megamorphic(CallInfo* call_info, Bytecodes::Code bytecod
     CompiledICHolder* holder = new CompiledICHolder(call_info->resolved_method()->method_holder(),
                                                     call_info->resolved_klass(), false);
     holder->claim();
-    if (!InlineCacheBuffer::create_transition_stub(this, holder, entry)) {
+    if (!InlineCacheBuffer::create_transition_stub(this, holder, entry, _method->is_jportal() && JPortalTrace)) {
       delete holder;
       needs_ic_stub_refill = true;
       return false;
@@ -275,11 +275,11 @@ bool CompiledIC::set_to_megamorphic(CallInfo* call_info, Bytecodes::Code bytecod
     // Can be different than selected_method->vtable_index(), due to package-private etc.
     int vtable_index = call_info->vtable_index();
     assert(call_info->resolved_klass()->verify_vtable_index(vtable_index), "sanity check");
-    entry = VtableStubs::find_vtable_stub(vtable_index);
+    entry = VtableStubs::find_vtable_stub(vtable_index, _method->is_jportal() && JPortalTrace);
     if (entry == NULL) {
       return false;
     }
-    if (!InlineCacheBuffer::create_transition_stub(this, NULL, entry)) {
+    if (!InlineCacheBuffer::create_transition_stub(this, NULL, entry, _method->is_jportal() && JPortalTrace)) {
       needs_ic_stub_refill = true;
       return false;
     }
@@ -386,7 +386,7 @@ bool CompiledIC::set_to_clean(bool in_use) {
     }
   } else {
     // Unsafe transition - create stub.
-    if (!InlineCacheBuffer::create_transition_stub(this, NULL, entry)) {
+    if (!InlineCacheBuffer::create_transition_stub(this, NULL, entry, _method->is_jportal() && JPortalTrace)) {
       return false;
     }
   }
@@ -446,7 +446,7 @@ bool CompiledIC::set_to_monomorphic(CompiledICInfo& info) {
     } else {
       // Call via method-klass-holder
       CompiledICHolder* holder = info.claim_cached_icholder();
-      if (!InlineCacheBuffer::create_transition_stub(this, holder, info.entry())) {
+      if (!InlineCacheBuffer::create_transition_stub(this, holder, info.entry(), _method->is_jportal() && JPortalTrace)) {
         delete holder;
         return false;
       }
@@ -469,7 +469,7 @@ bool CompiledIC::set_to_monomorphic(CompiledICInfo& info) {
                 (!is_in_transition_state() && (info.is_optimized() || static_bound || is_clean()));
 
     if (!safe) {
-      if (!InlineCacheBuffer::create_transition_stub(this, info.cached_metadata(), info.entry())) {
+      if (!InlineCacheBuffer::create_transition_stub(this, info.cached_metadata(), info.entry(), _method->is_jportal() && JPortalTrace)) {
         return false;
       }
     } else {

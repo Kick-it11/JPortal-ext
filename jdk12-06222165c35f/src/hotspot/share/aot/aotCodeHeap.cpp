@@ -233,7 +233,7 @@ AOTLib::AOTLib(void* handle, const char* name, int dso_id) : _valid(true), _dl_h
 }
 
 AOTCodeHeap::AOTCodeHeap(AOTLib* lib) :
-    CodeHeap("CodeHeap 'AOT'", CodeBlobType::AOT), _lib(lib), _classes(NULL), _code_to_aot(NULL) {
+    CodeHeap("CodeHeap 'AOT'", CodeBlobType::AOT, false), _lib(lib), _classes(NULL), _code_to_aot(NULL) {
   assert(_lib->is_valid(), "invalid library");
 
   _lib_symbols_initialized = false;

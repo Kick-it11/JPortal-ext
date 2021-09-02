@@ -498,7 +498,7 @@ address SharedRuntime::raw_exception_handler_for_return_address(JavaThread* thre
   }
   // Interpreted code
   if (Interpreter::contains(return_address)) {
-    return Interpreter::rethrow_exception_entry();
+    return Interpreter::rethrow_exception_entry(blob->is_jportal() && JPortalTrace);
   }
 
   guarantee(blob == NULL || !blob->is_runtime_stub(), "caller should have skipped stub");
@@ -785,9 +785,9 @@ address SharedRuntime::continuation_for_implicit_exception(JavaThread* thread,
     ShouldNotReachHere();
 #else
     switch (exception_kind) {
-      case IMPLICIT_NULL:           return Interpreter::throw_NullPointerException_entry();
-      case IMPLICIT_DIVIDE_BY_ZERO: return Interpreter::throw_ArithmeticException_entry();
-      case STACK_OVERFLOW:          return Interpreter::throw_StackOverflowError_entry();
+      case IMPLICIT_NULL:           return Interpreter::throw_NullPointerException_entry(CodeCache::is_jportal(pc));
+      case IMPLICIT_DIVIDE_BY_ZERO: return Interpreter::throw_ArithmeticException_entry(CodeCache::is_jportal(pc));
+      case STACK_OVERFLOW:          return Interpreter::throw_StackOverflowError_entry(CodeCache::is_jportal(pc));
       default:                      ShouldNotReachHere();
     }
 #endif // !CC_INTERP
@@ -2590,7 +2590,7 @@ BufferBlob* AdapterHandlerLibrary::_buffer = NULL;
 BufferBlob* AdapterHandlerLibrary::buffer_blob() {
   // Should be called only when AdapterHandlerLibrary_lock is active.
   if (_buffer == NULL) // Initialize lazily
-      _buffer = BufferBlob::create("adapters", AdapterHandlerLibrary_size);
+      _buffer = BufferBlob::create("adapters", AdapterHandlerLibrary_size, false);
   return _buffer;
 }
 
@@ -2722,7 +2722,8 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter0(const methodHandle& met
                                                      comp_args_on_stack,
                                                      sig_bt,
                                                      regs,
-                                                     fingerprint);
+                                                     fingerprint,
+                                                     method->is_jportal() && JPortalTrace);
 #ifdef ASSERT
       if (VerifyAdapterSharing) {
         if (shared_entry != NULL) {
@@ -2736,7 +2737,7 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter0(const methodHandle& met
       }
 #endif
 
-      new_adapter = AdapterBlob::create(&buffer);
+      new_adapter = AdapterBlob::create(&buffer, method->is_jportal() && JPortalTrace);
       NOT_PRODUCT(insts_size = buffer.insts_size());
     }
     if (new_adapter == NULL) {

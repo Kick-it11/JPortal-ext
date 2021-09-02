@@ -50,7 +50,7 @@ address VtableStub::_chunk_end         = NULL;
 VMReg   VtableStub::_receiver_location = VMRegImpl::Bad();
 
 
-void* VtableStub::operator new(size_t size, int code_size) throw() {
+void* VtableStub::operator new(size_t size, int code_size, bool jportal) throw() {
   assert_lock_strong(VtableStubs_lock);
   assert(size == sizeof(VtableStub), "mismatched size");
   // compute real VtableStub size (rounded to nearest word)
@@ -62,7 +62,7 @@ void* VtableStub::operator new(size_t size, int code_size) throw() {
 
    // There is a dependency on the name of the blob in src/share/vm/prims/jvmtiCodeBlobEvents.cpp
    // If changing the name, update the other file accordingly.
-    VtableBlob* blob = VtableBlob::create("vtable chunks", bytes);
+    VtableBlob* blob = VtableBlob::create("vtable chunks", bytes, jportal);
     if (blob == NULL) {
       return NULL;
     }
@@ -206,7 +206,7 @@ void VtableStubs::bookkeeping(MacroAssembler* masm, outputStream* out, VtableStu
 }
 
 
-address VtableStubs::find_stub(bool is_vtable_stub, int vtable_index) {
+address VtableStubs::find_stub(bool is_vtable_stub, int vtable_index, bool jportal) {
   assert(vtable_index >= 0, "must be positive");
 
   VtableStub* s;
@@ -215,9 +215,9 @@ address VtableStubs::find_stub(bool is_vtable_stub, int vtable_index) {
     s = ShareVtableStubs ? lookup(is_vtable_stub, vtable_index) : NULL;
     if (s == NULL) {
       if (is_vtable_stub) {
-        s = create_vtable_stub(vtable_index);
+        s = create_vtable_stub(vtable_index, jportal);
       } else {
-        s = create_itable_stub(vtable_index);
+        s = create_itable_stub(vtable_index, jportal);
       }
 
       // Creation of vtable or itable can fail if there is not enough free space in the code cache.

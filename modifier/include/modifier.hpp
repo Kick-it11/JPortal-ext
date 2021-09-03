@@ -12,13 +12,14 @@ class Modifier {
     // JPORTAL flag
     const int JPORTAL = 0x2000;
 
-    // filters
-    double random_rate = 0.0;
-    set<string>* enables = nullptr;
-    set<string>* disables = nullptr;
+    bool enable_all;
+    bool disable_all;
 
-    bool enable_all = true;
-    bool disable_all = false;
+    // filters
+    double random_rate;
+    set<string>* enables;
+    set<string>* disables;
+
     string class_name;
 
     // Constant pool parsing
@@ -39,8 +40,8 @@ class Modifier {
                       map<string, set<string>> &df);
 
   public:
-    Modifier(string path, double rate, map<string, set<string>> &ef,
-              map<string, set<string>> &df);
+    Modifier(string path, bool ea, bool da, double rate,
+              map<string, set<string>> &ef, map<string, set<string>> &df);
 
     ~Modifier() {};
 };

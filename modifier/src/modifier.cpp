@@ -40,31 +40,38 @@
 
 #define RAND (double)rand()/((double)RAND_MAX)
 
-Modifier::Modifier(string path, double rate,
-              map<string, set<string>> &ef, map<string, set<string>> &df) {
+Modifier::Modifier(string path, bool ea, bool da, double rate,
+              map<string, set<string>> &ef, map<string, set<string>> &df) :
+    enable_all(ea), disable_all(da),
+    random_rate(rate), enables(nullptr), disables(nullptr) {
     // check if file exists
+    if (enable_all && disable_all) {
+        cerr << "modifier: Filter conflict" << endl;
+        return;
+    }
     struct stat st;
     if (stat(path.c_str(), &st) == 0) {
         // found file, open it
-        ifstream file_handle(path);
-        if (file_handle.is_open()) {
+        ifstream file_read(path);
+        if (file_read.is_open()) {
             BufferStream stream(st.st_size);
             // read contents into resource array
-            file_handle.read((char *)stream.get_buffer_begin(), st.st_size);
-            assert(file_handle.peek() == EOF);
+            file_read.read((char *)stream.get_buffer_begin(), st.st_size);
+            assert(file_read.peek() == EOF);
             // close file
-            file_handle.close();
-            if (rate != 0.0) {
-                enable_all = false;
-                random_rate = rate;
-            }
+            file_read.close();
             parse_class(stream, ef, df);
-            if (stream.get_change())
-                cout << "change " << path << endl;
+            if (!stream.get_change())
+                return;
+            ofstream file_write(path);
+            if (file_write.is_open()) {
+                file_write.write((char *)stream.get_buffer_begin(), stream.get_size());
+                file_write.close();
+                return;
+            }
         }
-    } else {
-        cerr << "modifier: Cannot open file:" << path << endl;
     }
+    cerr << "modifier: Cannot open file: " << path << endl;
 }
 
 void Modifier::parse_class(BufferStream &stream, map<string, set<string>> &ef,
@@ -88,27 +95,29 @@ void Modifier::parse_class(BufferStream &stream, map<string, set<string>> &ef,
     // This class
     u2 this_class_index = stream.get_u2();
     class_name = cp.symbol_at(this_class_index);
-    cout << class_name << endl;
-    map<string, set<string>>::iterator iter;
-    iter = ef.find(class_name);
-    if (iter != ef.end() && !iter->second.empty()) {
-        enable_all = false;
-        enables = &(iter->second);
-    } else if (iter != ef.end() && iter->second.empty()) {
-        ef.erase(iter);
-    }
-    iter = df.find(class_name);
-    if (iter != df.end() && !iter->second.empty()) {
-        enable_all = false;
-        disables = &(iter->second); 
-    } else if (iter != df.end() && iter->second.empty()) {
-        enable_all = false;
-        disable_all = true;
-        df.erase(iter);
-    }
-    if (enable_all && disable_all) {
-        cerr << "modifier: Filter conflict" << endl;
-        return;
+    map<string, set<string>>::iterator iter1;
+    map<string, set<string>>::iterator iter2;
+    if (!enable_all && !disable_all) {
+        iter1 = ef.find(class_name);
+        if (iter1 != ef.end() && !iter1->second.empty()) {
+            enable_all = false;
+            enables = &(iter1->second);
+        } else if (iter1 != ef.end() && iter1->second.empty()) {
+            enable_all = true;
+            ef.erase(iter1);
+        }
+        iter2 = df.find(class_name);
+        if (iter2 != df.end() && !iter2->second.empty()) {
+            disable_all = false;
+            disables = &(iter2->second); 
+        } else if (iter2 != df.end() && iter2->second.empty()) {
+            disable_all = true;
+            df.erase(iter2);
+        }
+        if (enable_all && disable_all) {
+            cerr << "modifier: Filter conflict." << endl;
+            return;
+        }
     }
     // Super class
     stream.skip_u2(1);
@@ -127,11 +136,11 @@ void Modifier::parse_class(BufferStream &stream, map<string, set<string>> &ef,
     parse_classfile_attributes(stream);
 
     if (enables && enables->empty()) {
-        ef.erase(iter);
+        ef.erase(iter1);
         enables = nullptr;
     }
     if (disables && disables->empty()) {
-        df.erase(iter);
+        df.erase(iter2);
         disables = nullptr;
     }
     return;
@@ -337,44 +346,40 @@ void Modifier::parse_method(BufferStream &stream, ConstantPool &cp) {
     const string method_signature = cp.symbol_at(signature_index);
 
     bool enable = false;
-    if (!enable_all && !disable_all) {
+    if (enable_all) {
+        enable = true;
+    } else if (disable_all) {
+        enable = false;
+    } else {
+        bool enable_set = false;
         if (enables) {
             auto iter = enables->find(method_name+method_signature);
             if (iter != enables->end()) {
                 enable = true;
+                enable_set = true;
                 enables->erase(iter);
             }
         }
-        if (disables) {
+        if (disables && !enable_set) {
             auto iter = disables->find(method_name+method_signature);
-            if (iter == disables->end()) {
-                enable = true;
-            } else {
-                if (enable) {
-                    cerr << "modifier: filter conflict" << endl;
-                    return;
-                }
+            if (iter != disables->end()) {
+                enable = false;
+                enable_set = true;
                 enables->erase(iter);
             }
         }
-        if (!enables && !disables && random_rate != 0.0) {
+        if (!enable_set && random_rate != 0.0) {
             if (RAND < random_rate)
                 enable = true;
         }
-    } else if (enable_all && disable_all) {
-        cerr << "modifier: filter conflict" << endl;
-        return;
-    } else if (enable_all) {
-        enable = true;
-    } else if (disable_all) {
-        enable = false;
     }
     u2 new_flags = enable?(flags | JPORTAL):(flags & ~JPORTAL);
     if (flags != new_flags) {
-        cout << method_name << method_signature << endl;
         stream.set_u2(offset, new_flags);
+        if (enable) cout << "modifier: Enable: ";
+        else cout << "modifier: Disable: ";
+        cout << class_name << "." << method_name << method_signature << endl;
     }
-    // flags |= JPORTAL;
     u2 method_attributes_count = stream.get_u2();
     while (method_attributes_count--) {
         const u2 method_attribute_name_index = stream.get_u2();
@@ -442,32 +447,33 @@ int main(int argc, char **argv) {
         cerr << "modifer: Missing argumen, try modifier --help." << endl;
         return 1;
     }
+    bool enable_all = true;
+    bool disable_all = false;
     map<string, set<string>> enables;
     map<string,set<string>> disables;
     double random_rate = 0.0;
     string file_path;
     for (int i = 1; i < argc;) {
         string arg = argv[i++];
-
         if (arg == "--help") {
             cout << endl;
-            cout << "  usage: modifier [--help] [--enable/--diable \"filters\"]/[--random rate] path" << endl;
+            cout << "  usage: modifier [--help] [--enable/--diable \"filters\"/all]/[--random rate] path" << endl;
             cout << "    --help: Display this." << endl;
             cout << "    --enable or --disable: Enable or disable certain methods in specified files, \
-otherwise enable all. Method with classname[:methodname], classes separated by space, methods separated \
-by comma. Classname with zero methodnames specified means enable or diable all. None means enables all. \
-[Exclude each other and random]" << endl;
+otherwise enable all. Method with classname[:methodname], classes separated by space,\
+methods separated by comma. Classname with zero methodnames specified means enable or diable all. \
+If neither of enable/disable/random is set, enable all. [Exclude each other and random]" << endl;
             cout << "    --random: Random enable method with percentage of 1/num. [Exclude with enable/diable]" << endl;
             return 0;
         }
 
         if (arg == "--enable" || arg == "--disable") {
             if (random_rate != 0.0) {
-                cerr << "modifier: Enable/Disable methods set after random set." << endl;
+                cerr << "modifier: Filter conflict." << endl;
                 return 1;
             }
             if (!enables.empty() || !disables.empty()) {
-                cerr << "modifier: Enable/Disable methods set multiple times." << endl;
+                cerr << "modifier: Filter conflict." << endl;
                 return 1;
             }
             if (i == argc) {
@@ -475,13 +481,21 @@ by comma. Classname with zero methodnames specified means enable or diable all. 
                 return 1;
             }
             string filter = argv[i++];
-            get_filter(filter, (arg == "--enable")?enables:disables);
+            if (filter == "all" && arg == "--enable") {
+                enable_all = true;
+            } else if (filter == "all" && arg == "--disable") {
+                enable_all = false;
+                disable_all = true;
+            } else {
+                enable_all = false;
+                get_filter(filter, (arg == "--enable")?enables:disables);
+            }
             continue;
         }
 
         if (arg == "--random") {
             if (!enables.empty() || !disables.empty()) {
-                cerr << "modifier: Random set after enable/diable set." << endl;
+                cerr << "modifier: Filter conflict.5" << endl;
                 return 1; 
             }
             if (i == argc) {
@@ -494,6 +508,7 @@ by comma. Classname with zero methodnames specified means enable or diable all. 
                 return 1;
             }
             random_rate = (double)1/rate;
+            enable_all = false;
             srand(time(NULL));
             continue;
         }
@@ -501,7 +516,7 @@ by comma. Classname with zero methodnames specified means enable or diable all. 
         break;
     }
     if (file_path == "") {
-        cerr << "modifier: File path missing" << endl;
+        cerr << "modifier: File path missing." << endl;
         return 1;
     }
 
@@ -512,8 +527,12 @@ by comma. Classname with zero methodnames specified means enable or diable all. 
         string path = recursive_paths.front();
         recursive_paths.pop_front();
         DIR *dir = opendir(path.c_str());
-        if (!dir) {
-            cerr << "modifier: Cannot find path: " << path << endl;
+        if (!dir && path.length() > 6 &&
+                0 == path.compare(path.length() - 6, 6, ".class")) {
+            Modifier md(path, enable_all, disable_all, random_rate, enables, disables);
+            break;
+        } else if (!dir) {
+            cerr << "modifier: File not supported: " << path << endl;
             return 1;
         }
         while ((d_ent = readdir(dir)) != NULL) {
@@ -528,7 +547,7 @@ by comma. Classname with zero methodnames specified means enable or diable all. 
                 if (name.length() > 6 &&
                       0 == name.compare(name.length() - 6, 6, ".class")) {
                     string klass_path = path + "/" + name;
-                    Modifier md(klass_path, random_rate, enables, disables);
+                    Modifier md(klass_path, enable_all, disable_all, random_rate, enables, disables);
                 }
             }
         }
@@ -536,7 +555,7 @@ by comma. Classname with zero methodnames specified means enable or diable all. 
     }
 
     if (!enables.empty() || !disables.empty()) {
-        cerr << "modifier: cannot find filter:" << endl;
+        cerr << "modifier: Cannot find filter:" << endl;
     }
     for (auto&& klass : enables) {
         if (klass.second.empty())

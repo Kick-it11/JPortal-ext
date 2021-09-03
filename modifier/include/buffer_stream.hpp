@@ -25,7 +25,8 @@ class BufferStream {
     }
     bool get_change() const { return change; }
     const u1 *current() const { return _current; }
-    u1 *get_buffer_begin() { return _buffer_begin; }
+    const u1 *get_buffer_begin() const { return _buffer_begin; }
+    size_t get_size() const { return _buffer_end - _buffer_begin; }
     int get_offset() const { return _current - _buffer_begin; }
     // Read u1 from stream;
     u1 get_u1() const {
@@ -71,37 +72,39 @@ class BufferStream {
 
     // write u1 from stream;
     void set_u1(int offset, u1 uc) {
-        u1 *buffer = _buffer_begin + offset + 1;
-        assert (buffer > _buffer_begin && buffer < _buffer_end);
+        u1 *buffer = _buffer_begin + offset;
+        assert (buffer + 1 > buffer && buffer + 1 < _buffer_end);
         *buffer++ = uc;
         change = true;
     }
 
     // write u2 from Big-Endian stream;
     void set_u2(int offset, u2 _us) {
-        u1 *buffer = _buffer_begin + offset + 2;
+        u1 *buffer = _buffer_begin + offset;
         assert (buffer > _buffer_begin && buffer < _buffer_end);
         u1 *us = (u1 *)&_us;
         *buffer++ = us[1];
         *buffer++ = us[0];
+        assert (buffer > _buffer_begin && buffer < _buffer_end);
         change = true;
     }
 
     // write u4 from Big-Endian stream;
     void set_u4(int offset, u4 _ui) {
-        u1 *buffer = _buffer_begin + offset + 4;
+        u1 *buffer = _buffer_begin + offset;
         assert (buffer > _buffer_begin && buffer < _buffer_end);
         u1 *ui = (u1 *)&_ui;
         *buffer++ = ui[3];
         *buffer++ = ui[2];
         *buffer++ = ui[1];
         *buffer++ = ui[0];
+        assert (buffer > _buffer_begin && buffer < _buffer_end);
         change = true;
     }
 
     // write u8 from Big-Endian stream;
     void set_u8(int offset, u8 _ul) {
-        u1 *buffer = _buffer_begin + offset + 8;
+        u1 *buffer = _buffer_begin + offset;
         assert (buffer > _buffer_begin && buffer < _buffer_end);
         u1 *ul = (u1 *)&_ul;
         *buffer++ = ul[7];
@@ -112,6 +115,7 @@ class BufferStream {
         *buffer++ = ul[2];
         *buffer++ = ul[1];
         *buffer++ = ul[0];
+        assert (buffer > _buffer_begin && buffer < _buffer_end);
         change = true;
     }
 

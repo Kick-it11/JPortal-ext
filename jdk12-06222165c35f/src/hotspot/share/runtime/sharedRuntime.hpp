@@ -430,15 +430,13 @@ class SharedRuntime: AllStatic {
                                                       int max_arg,
                                                       const BasicType *sig_bt,
                                                       const VMRegPair *regs,
-                                                      AdapterFingerPrint* fingerprint,
-                                                      bool jportal);
+                                                      AdapterFingerPrint* fingerprint);
 
   static void gen_i2c_adapter(MacroAssembler *_masm,
                               int total_args_passed,
                               int comp_args_on_stack,
                               const BasicType *sig_bt,
-                              const VMRegPair *regs,
-                              bool jportal);
+                              const VMRegPair *regs);
 
   // OSR support
 

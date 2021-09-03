@@ -2722,8 +2722,7 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter0(const methodHandle& met
                                                      comp_args_on_stack,
                                                      sig_bt,
                                                      regs,
-                                                     fingerprint,
-                                                     method->is_jportal() && JPortalTrace);
+                                                     fingerprint);
 #ifdef ASSERT
       if (VerifyAdapterSharing) {
         if (shared_entry != NULL) {

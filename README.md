@@ -4,12 +4,26 @@
 
 ## Contents
 
-​jdk12-06222165c35f:           the extended Openjdk12 where online information collection is added
+​jdk12-06222165c35f:     the extended Openjdk12 where online information collection is added
 
-​trace:                                       used to trace cpu instructions
+​trace:                  used to enable Intel Processor Trace
 
-​decode:                      used to decode hardware tracing data
+dump:                   used to dump JVM runtime infomation needed
 
-modifier:                   used to enable/disable jportal methods
+​decode:                 used to decode hardware tracing data
 
-​README:                                 this file
+modifier:               used to enable/disable jportal methods
+
+​README:                 this file
+
+## Building on Ubuntu
+
+This part describes how to build JPortal on Ubuntu. First you need to git clone JPortal and promote to top-level source directory.
+
+## Build trace and dump
+
+Build executables for trace and dump separately.
+
+### Build Openjdk
+
+​Before building extended openjdk, replace the path of JPortalTracer && JPortalDumper of openjdk source codes with path to your built trace && dump executables.**Note: you should build a debug version of Openjdk.**

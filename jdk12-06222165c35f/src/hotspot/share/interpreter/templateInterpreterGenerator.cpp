@@ -262,7 +262,7 @@ void TemplateInterpreterGenerator::generate_all() {
     Interpreter::_normal_deopt_reexecute_return_entry = generate_deopt_entry_for(vtos, 0, false, return_continuation);
   }
 
-if (JPortalTrace) {
+if (JPortal) {
   { CodeletMark cm(_masm, "slow signature handler", true);
     AbstractInterpreter::_jportal_slow_signature_handler = generate_slow_signature_handler(true);
   }

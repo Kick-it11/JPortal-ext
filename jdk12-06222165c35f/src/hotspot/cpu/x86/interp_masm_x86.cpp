@@ -2004,6 +2004,14 @@ void InterpreterMacroAssembler::notify_method_entry(bool jportal) {
     bind(L);
   }
 
+  // JPortal
+  if (JPortal && JPortalMethod && jportal) {
+    NOT_LP64(get_thread(rthread);)
+    get_method(rarg);
+    call_VM_leaf(CAST_FROM_FN_PTR(address, JPortalEnable::jportal_method_entry),
+                 rthread, rarg);
+  }
+
   {
     SkipIfEqual skip(this, &DTraceMethodProbes, false);
     NOT_LP64(get_thread(rthread);)
@@ -2046,6 +2054,16 @@ void InterpreterMacroAssembler::notify_method_exit(
     call_VM(noreg,
             CAST_FROM_FN_PTR(address, InterpreterRuntime::post_method_exit), jportal);
     bind(L);
+    pop(state);
+  }
+
+  // JPortal
+  if (JPortal && JPortalMethod && jportal) {
+    push(state);
+    NOT_LP64(get_thread(rthread);)
+    get_method(rarg);
+    call_VM_leaf(CAST_FROM_FN_PTR(address, JPortalEnable::jportal_method_exit),
+                 rthread, rarg);
     pop(state);
   }
 

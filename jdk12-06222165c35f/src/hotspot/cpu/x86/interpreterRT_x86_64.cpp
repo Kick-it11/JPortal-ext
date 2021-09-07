@@ -508,5 +508,5 @@ IRT_ENTRY(address,
   SlowSignatureHandler(m, (address)from, to + 1).iterate((uint64_t)CONST64(-1));
 
   // return result handler
-  return Interpreter::result_handler(m->result_type(), m->is_jportal() && JPortalTrace);
+  return Interpreter::result_handler(m->result_type(), JPortal && m->is_jportal());
 IRT_END

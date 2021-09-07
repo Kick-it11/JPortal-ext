@@ -79,7 +79,7 @@ void AbstractInterpreter::print() {
     tty->cr();
   }
   _normal_code->print();
-  if (JPortalTrace) {
+  if (JPortal) {
     tty->cr();
     tty->print_cr("normal code size        = %6dK bytes", (int)_jportal_code->used_space()/1024);
     tty->print_cr("normal total space      = %6dK bytes", (int)_jportal_code->total_space()/1024);
@@ -273,8 +273,8 @@ bool AbstractInterpreter::is_not_reached(const methodHandle& method, int bci) {
 
   // the bytecode might not be rewritten if the method is an accessor, etc.
   address ientry = method->interpreter_entry();
-  if (ientry != entry_for_kind(AbstractInterpreter::zerolocals, method->is_jportal() && JPortalTrace) &&
-      ientry != entry_for_kind(AbstractInterpreter::zerolocals_synchronized, method->is_jportal() && JPortalTrace))
+  if (ientry != entry_for_kind(AbstractInterpreter::zerolocals, JPortal && method->is_jportal()) &&
+      ientry != entry_for_kind(AbstractInterpreter::zerolocals_synchronized, JPortal && method->is_jportal()))
     return false;  // interpreter does not run this method!
 
   // otherwise, we can be sure this bytecode has never been executed
@@ -393,8 +393,8 @@ address AbstractInterpreter::deopt_continue_after_entry(Method* method, address 
   // return entry point for computed continuation state & bytecode length
   return
     is_top_frame
-    ? Interpreter::deopt_entry (as_TosState(type), length, method->is_jportal() && JPortalTrace)
-    : Interpreter::return_entry(as_TosState(type), length, code, method->is_jportal() && JPortalTrace);
+    ? Interpreter::deopt_entry (as_TosState(type), length, JPortal && method->is_jportal())
+    : Interpreter::return_entry(as_TosState(type), length, code, JPortal && method->is_jportal());
 }
 
 // If deoptimization happens, this function returns the point where the interpreter reexecutes
@@ -406,10 +406,10 @@ address AbstractInterpreter::deopt_reexecute_entry(Method* method, address bcp) 
   Bytecodes::Code code   = Bytecodes::java_code_at(method, bcp);
 #if defined(COMPILER1) || INCLUDE_JVMCI
   if(code == Bytecodes::_athrow ) {
-    return Interpreter::rethrow_exception_entry(method->is_jportal() && JPortalTrace);
+    return Interpreter::rethrow_exception_entry(JPortal && method->is_jportal());
   }
 #endif /* COMPILER1 || INCLUDE_JVMCI */
-  return Interpreter::deopt_entry(vtos, 0, method->is_jportal() && JPortalTrace);
+  return Interpreter::deopt_entry(vtos, 0, JPortal && method->is_jportal());
 }
 
 // If deoptimization happens, the interpreter should reexecute these bytecodes.

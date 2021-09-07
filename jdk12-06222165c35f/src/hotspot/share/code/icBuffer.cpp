@@ -143,7 +143,7 @@ void InlineCacheBuffer::initialize() {
   if (_normal_buffer != NULL || _jportal_buffer != NULL) return; // already initialized
   _normal_buffer = new StubQueue(new ICStubInterface, 10*K, InlineCacheBuffer_lock, "InlineCacheBuffer", false);
   assert (_normal_buffer != NULL, "cannot allocate InlineCacheBuffer");
-  if (JPortalTrace) {
+  if (JPortal) {
     _jportal_buffer = new StubQueue(new ICStubInterface, 10*K, InlineCacheBuffer_lock, "JPortalInlineCacheBuffer", true);
     assert (_jportal_buffer != NULL, "cannot allocate JPortal InlineCacheBuffer");
   }
@@ -183,7 +183,7 @@ void InlineCacheBuffer::update_inline_caches() {
     }
     buffer(false)->remove_all();
   }
-  if (JPortalTrace) {
+  if (JPortal) {
     if (buffer(true)->number_of_stubs() > 0) {
       if (TraceICBuffer) {
         tty->print_cr("[updating inline caches with %d stubs]", buffer(false)->number_of_stubs());

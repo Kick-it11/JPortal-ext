@@ -458,7 +458,7 @@ nmethod* nmethod::new_native_nmethod(const methodHandle& method,
                                             compile_id, &offsets,
                                             code_buffer, frame_size,
                                             basic_lock_owner_sp_offset,
-                                            basic_lock_sp_offset, oop_maps, jportal);
+                                            basic_lock_sp_offset, oop_maps);
     NOT_PRODUCT(if (nm != NULL)  native_nmethod_stats.note_native_nmethod(nm));
   }
 
@@ -512,8 +512,7 @@ nmethod* nmethod::new_nmethod(const methodHandle& method,
             handler_table,
             nul_chk_table,
             compiler,
-            comp_level,
-            jportal
+            comp_level
 #if INCLUDE_JVMCI
             , installed_code,
             speculationLog
@@ -566,9 +565,8 @@ nmethod::nmethod(
   int frame_size,
   ByteSize basic_lock_owner_sp_offset,
   ByteSize basic_lock_sp_offset,
-  OopMapSet* oop_maps,
-  bool jportal)
-  : CompiledMethod(method, "native nmethod", type, nmethod_size, sizeof(nmethod), code_buffer, offsets->value(CodeOffsets::Frame_Complete), frame_size, oop_maps, false, jportal),
+  OopMapSet* oop_maps)
+  : CompiledMethod(method, "native nmethod", type, nmethod_size, sizeof(nmethod), code_buffer, offsets->value(CodeOffsets::Frame_Complete), frame_size, oop_maps, false),
   _is_unloading_state(0),
   _native_receiver_sp_offset(basic_lock_owner_sp_offset),
   _native_basic_lock_sp_offset(basic_lock_sp_offset)
@@ -671,14 +669,13 @@ nmethod::nmethod(
   ExceptionHandlerTable* handler_table,
   ImplicitExceptionTable* nul_chk_table,
   AbstractCompiler* compiler,
-  int comp_level,
-  bool jportal
+  int comp_level
 #if INCLUDE_JVMCI
   , jweak installed_code,
   jweak speculation_log
 #endif
   )
-  : CompiledMethod(method, "nmethod", type, nmethod_size, sizeof(nmethod), code_buffer, offsets->value(CodeOffsets::Frame_Complete), frame_size, oop_maps, false, jportal),
+  : CompiledMethod(method, "nmethod", type, nmethod_size, sizeof(nmethod), code_buffer, offsets->value(CodeOffsets::Frame_Complete), frame_size, oop_maps, false),
   _is_unloading_state(0),
   _native_receiver_sp_offset(in_ByteSize(-1)),
   _native_basic_lock_sp_offset(in_ByteSize(-1))
@@ -1240,6 +1237,12 @@ bool nmethod::make_not_entrant_or_zombie(int state) {
     if (!is_osr_method() && !is_not_entrant()) {
       NativeJump::patch_verified_entry(entry_point(), verified_entry_point(),
                   SharedRuntime::get_handle_wrong_method_stub());
+
+      // JPortal
+      if (JPortal && CodeCache::is_jportal((address)this)) {
+        JPortalEnable::jportal_inline_cache_add(verified_entry_point(),
+                  SharedRuntime::get_handle_wrong_method_stub());
+      }
     }
 
     if (is_in_use() && update_recompile_counts()) {
@@ -1352,7 +1355,7 @@ void nmethod::flush() {
     tty->print_cr("*flushing %s nmethod %3d/" INTPTR_FORMAT ". Live blobs:" UINT32_FORMAT
                   "/Free CodeCache:" SIZE_FORMAT "Kb",
                   is_osr_method() ? "osr" : "",_compile_id, p2i(this), CodeCache::blob_count(),
-                  CodeCache::unallocated_capacity(CodeCache::get_code_blob_type(this), is_jportal() && JPortalTrace)/1024);
+                  CodeCache::unallocated_capacity(CodeCache::get_code_blob_type(this), JPortal && CodeCache::is_jportal((address)this))/1024);
   }
 
   // We need to deallocate any ExceptionCache data.
@@ -1462,6 +1465,11 @@ void nmethod::post_compiled_method_load_event() {
     JvmtiDeferredEventQueue::enqueue(
       JvmtiDeferredEvent::compiled_method_load_event(this));
   }
+
+  // JPortal
+  if (JPortal && CodeCache::is_jportal((address)this)) {
+    JPortalEnable::jportal_compiled_method_load(moop, this);
+  }
 }
 
 jmethodID nmethod::get_and_cache_jmethod_id() {
@@ -1498,6 +1506,11 @@ void nmethod::post_compiled_method_unload() {
           _jmethod_id, insts_begin());
     MutexLockerEx ml(Service_lock, Mutex::_no_safepoint_check_flag);
     JvmtiDeferredEventQueue::enqueue(event);
+  }
+
+  // JPortal
+  if (JPortal && CodeCache::is_jportal((address)this)) {
+    JPortalEnable::jportal_compiled_method_unload(method(), this);
   }
 
   // The JVMTI CompiledMethodUnload event can be enabled or disabled at

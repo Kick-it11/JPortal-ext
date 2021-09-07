@@ -188,8 +188,7 @@ class nmethod : public CompiledMethod {
           int frame_size,
           ByteSize basic_lock_owner_sp_offset, /* synchronized natives only */
           ByteSize basic_lock_sp_offset,       /* synchronized natives only */
-          OopMapSet* oop_maps,
-          bool       jportal);
+          OopMapSet* oop_maps);
 
   // Creation support
   nmethod(Method* method,
@@ -207,8 +206,7 @@ class nmethod : public CompiledMethod {
           ExceptionHandlerTable* handler_table,
           ImplicitExceptionTable* nul_chk_table,
           AbstractCompiler* compiler,
-          int comp_level,
-          bool jportal
+          int comp_level
 #if INCLUDE_JVMCI
           , jweak installed_code,
           jweak speculation_log

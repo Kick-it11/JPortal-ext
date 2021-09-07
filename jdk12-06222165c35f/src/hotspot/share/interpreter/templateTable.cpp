@@ -530,7 +530,7 @@ void TemplateTable::initialize() {
   def(Bytecodes::_shouldnotreachhere   , ____|____|____|____, vtos, vtos, shouldnotreachhere ,  _,false     );
   
   // JPortal
-  if (JPortalTrace) {
+  if (JPortal) {
     def(Bytecodes::_nop                 , ____|____|____|____, vtos, vtos, nop                 ,  _,true      );
     def(Bytecodes::_aconst_null         , ____|____|____|____, vtos, atos, aconst_null         ,  _,true      );
     def(Bytecodes::_iconst_m1           , ____|____|____|____, vtos, itos, iconst              , -1,true      );

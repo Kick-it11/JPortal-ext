@@ -85,7 +85,7 @@ void MethodHandles::generate_adapters() {
   MethodHandlesAdapterGenerator g(&code);
   g.generate(false);
   code.log_section_sizes("MethodHandlesAdapterBlob");
-  if (JPortalTrace) {
+  if (JPortal) {
     _jportal_adapter_code = MethodHandlesAdapterBlob::create(adapter_code_size, true);
     CodeBuffer jportal_code(_jportal_adapter_code);
     MethodHandlesAdapterGenerator jportal_g(&jportal_code);

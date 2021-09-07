@@ -2508,8 +2508,20 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   product(bool, DTraceMonitorProbes, false,                                 \
           "Enable dtrace probes for monitor events")                        \
                                                                             \
-  product(bool, JPortalTrace, false,                                        \
+  product(bool, JPortal, false,                                             \
           "Enable JPortal Trace")                                           \
+                                                                            \
+  product(bool, JPortalMethod, false,                                       \
+          "Enable JPortal Dump Method Entry and Exit")                      \
+                                                                            \
+  product(uintx, JPortalMMAPPages, 1024,                                    \
+          "JPortal Trace MMAP Pages(power of 2)")                           \
+                                                                            \
+  product(uintx, JPortalAUXPages, 1024 * 4,                                 \
+          "JPortal Trace AUX Pages(power of 2)")                            \
+                                                                            \
+  product(uintx, JPortalShmVolume, 1024 * 1024 * 4,                         \
+          "JPortal Dump Sharing Memory Volume")                             \
                                                                             \
   product(bool, RelaxAccessControlCheck, false,                             \
           "Relax the access control checks in the verifier")                \

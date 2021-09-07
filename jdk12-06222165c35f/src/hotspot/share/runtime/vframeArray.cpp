@@ -185,7 +185,7 @@ void vframeArrayElement::unpack_on_stack(int caller_actual_parameters,
   if (raw_bci() == SynchronizationEntryBCI) {
     // We are deoptimizing while hanging in prologue code for synchronized method
     bcp = method()->bcp_from(0); // first byte code
-    pc  = Interpreter::deopt_entry(vtos, 0, method()->is_jportal() && JPortalTrace); // step = 0 since we don't skip current bytecode
+    pc  = Interpreter::deopt_entry(vtos, 0, JPortal && method()->is_jportal()); // step = 0 since we don't skip current bytecode
   } else if (should_reexecute()) { //reexecute this bytecode
     assert(is_top_frame, "reexecute allowed only for the top frame");
     bcp = method()->bcp_from(bci());
@@ -227,16 +227,16 @@ void vframeArrayElement::unpack_on_stack(int caller_actual_parameters,
       if (thread->has_pending_popframe()) {
         // Pop top frame after deoptimization
 #ifndef CC_INTERP
-        pc = Interpreter::remove_activation_preserving_args_entry(method()->is_jportal() && JPortalTrace);
+        pc = Interpreter::remove_activation_preserving_args_entry(JPortal && method()->is_jportal());
 #else
         // Do an uncommon trap type entry. c++ interpreter will know
         // to pop frame and preserve the args
-        pc = Interpreter::deopt_entry(vtos, 0, method()->is_jportal() && JPortalTrace);
+        pc = Interpreter::deopt_entry(vtos, 0, JPortal && method()->is_jportal());
         use_next_mdp = false;
 #endif
       } else {
         // Reexecute invoke in top frame
-        pc = Interpreter::deopt_entry(vtos, 0, method()->is_jportal() && JPortalTrace);
+        pc = Interpreter::deopt_entry(vtos, 0, JPortal && method()->is_jportal());
         use_next_mdp = false;
         popframe_preserved_args_size_in_bytes = in_bytes(thread->popframe_preserved_args_size());
         // Note: the PopFrame-related extension of the expression stack size is done in
@@ -246,7 +246,7 @@ void vframeArrayElement::unpack_on_stack(int caller_actual_parameters,
     } else if (!realloc_failure_exception && JvmtiExport::can_force_early_return() && state != NULL && state->is_earlyret_pending()) {
       // Force early return from top frame after deoptimization
 #ifndef CC_INTERP
-      pc = Interpreter::remove_activation_early_entry(state->earlyret_tos(), method()->is_jportal() && JPortalTrace);
+      pc = Interpreter::remove_activation_early_entry(state->earlyret_tos(), JPortal && method()->is_jportal());
 #endif
     } else {
       if (realloc_failure_exception && JvmtiExport::can_force_early_return() && state != NULL && state->is_earlyret_pending()) {
@@ -269,7 +269,7 @@ void vframeArrayElement::unpack_on_stack(int caller_actual_parameters,
       case Deoptimization::Unpack_uncommon_trap:
       case Deoptimization::Unpack_reexecute:
         // redo last byte code
-        pc  = Interpreter::deopt_entry(vtos, 0, method()->is_jportal() && JPortalTrace);
+        pc  = Interpreter::deopt_entry(vtos, 0, JPortal && method()->is_jportal());
         use_next_mdp = false;
         break;
       default:

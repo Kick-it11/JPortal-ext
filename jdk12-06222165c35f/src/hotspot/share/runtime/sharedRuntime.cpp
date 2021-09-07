@@ -498,7 +498,7 @@ address SharedRuntime::raw_exception_handler_for_return_address(JavaThread* thre
   }
   // Interpreted code
   if (Interpreter::contains(return_address)) {
-    return Interpreter::rethrow_exception_entry(blob->is_jportal() && JPortalTrace);
+    return Interpreter::rethrow_exception_entry(CodeCache::is_jportal(return_address));
   }
 
   guarantee(blob == NULL || !blob->is_runtime_stub(), "caller should have skipped stub");
@@ -1978,6 +1978,11 @@ IRT_LEAF(void, SharedRuntime::fixup_callers_callsite(Method* method, address cal
       address destination = call->destination();
       if (should_fixup_call_destination(destination, entry_point, caller_pc, moop, cb)) {
         call->set_destination_mt_safe(entry_point);
+
+        // JPortal
+        if (JPortal && CodeCache::is_jportal(call->instruction_address())) {
+          JPortalEnable::jportal_inline_cache_add(call->instruction_address(), entry_point);
+        }
       }
     }
   }
@@ -2736,7 +2741,7 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter0(const methodHandle& met
       }
 #endif
 
-      new_adapter = AdapterBlob::create(&buffer, method->is_jportal() && JPortalTrace);
+      new_adapter = AdapterBlob::create(&buffer, JPortal && method->is_jportal());
       NOT_PRODUCT(insts_size = buffer.insts_size());
     }
     if (new_adapter == NULL) {
@@ -2783,6 +2788,11 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter0(const methodHandle& met
 
     if (JvmtiExport::should_post_dynamic_code_generated()) {
       JvmtiExport::post_dynamic_code_generated(blob_id, new_adapter->content_begin(), new_adapter->content_end());
+    }
+
+    // JPortal
+    if (JPortal && method->is_jportal()) {
+      JPortalEnable::jportal_dynamic_code_generated(blob_id, new_adapter->content_begin(), new_adapter->content_size());
     }
   }
   return entry;

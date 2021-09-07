@@ -148,12 +148,12 @@ class AbstractInterpreter: AllStatic {
     assert(0 <= k && k < number_of_method_entries, "illegal kind");
     return jportal?_jportal_entry_table[k]:_normal_entry_table[k];
   }
-  static address    entry_for_method(const methodHandle& m)     {return entry_for_kind(method_kind(m), m->is_jportal() && JPortalTrace); }
+  static address    entry_for_method(const methodHandle& m)     {return entry_for_kind(method_kind(m), JPortal && m->is_jportal()); }
 
   static address entry_for_cds_method(const methodHandle& m) {
     MethodKind k = method_kind(m);
     assert(0 <= k && k < number_of_method_entries, "illegal kind");
-    return (m->is_jportal() && JPortalTrace)?_jportal_cds_entry_table[k]:_normal_cds_entry_table[k];
+    return (JPortal && m->is_jportal())?_jportal_cds_entry_table[k]:_normal_cds_entry_table[k];
   }
 
   // used by class data sharing

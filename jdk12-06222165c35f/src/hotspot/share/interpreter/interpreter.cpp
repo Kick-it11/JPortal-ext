@@ -126,7 +126,7 @@ void interpreter_init() {
     AbstractInterpreter::code(false)->code_start(),
     AbstractInterpreter::code(false)->code_end()
   );
-  if (JPortalTrace) {
+  if (JPortal) {
     Forte::register_stub(
       "Interpreter",
       AbstractInterpreter::code(true)->code_start(),
@@ -138,7 +138,7 @@ void interpreter_init() {
     JvmtiExport::post_dynamic_code_generated("Interpreter",
                                              AbstractInterpreter::code(false)->code_start(),
                                              AbstractInterpreter::code(false)->code_end());
-    if (JPortalTrace) {
+    if (JPortal) {
       JvmtiExport::post_dynamic_code_generated("Interpreter",
                                               AbstractInterpreter::code(true)->code_start(),
                                               AbstractInterpreter::code(true)->code_end());

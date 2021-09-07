@@ -53,16 +53,72 @@ void TemplateInterpreter::initialize() {
     NOT_PRODUCT(code_size *= 4;)  // debug uses extra interpreter code space
     _normal_code = new StubQueue(new InterpreterCodeletInterface, code_size, NULL,
                           "Interpreter", false);
-    if (JPortalTrace) {
+    if (JPortal) {
       _jportal_code = new StubQueue(new InterpreterCodeletInterface, code_size, NULL,
                             "Interpreter", true);
     }
     TemplateInterpreterGenerator g(_normal_code, _jportal_code);
     // Free the unused memory not occupied by the interpreter and the stubs
     _normal_code->deallocate_unused_tail();
-    if (JPortalTrace) {
+    if (JPortal) {
       _jportal_code->deallocate_unused_tail();
     }
+  }
+
+  // JPortal
+  if (JPortal) {
+    JPortalEnable::InterpreterInfo inter(sizeof(JPortalEnable::InterpreterInfo));
+    int inter_pointer = 0;
+    inter.codelets_address[inter_pointer++] = (uint64_t)CodeCache::low_bound(true);
+    inter.codelets_address[inter_pointer++] = (uint64_t)CodeCache::high_bound(true);
+#ifndef PRODUCT
+    inter.TraceBytecodes = TraceBytecodes;
+#elif
+    inter.TraceBytecodes = false;
+#endif
+    _jportal_code->stub_addresses(inter.codelets_address, inter_pointer);
+    int dispatch_cnt = 0;
+    int dispatch_state;
+    for (dispatch_cnt = 0; dispatch_cnt < (int)Bytecodes::number_of_codes; dispatch_cnt++)
+      for (dispatch_state = 0; dispatch_state < number_of_states; dispatch_state++)
+        inter.codelets_address[inter_pointer++] = (uint64_t)_jportal_normal_table.entry(dispatch_cnt).entry((TosState)dispatch_state);
+    inter.codelets_address[inter_pointer++] = (uint64_t)_jportal_slow_signature_handler;
+#ifndef PRODUCT
+    if (TraceBytecodes)
+      for (dispatch_state = 0; dispatch_state < number_of_states; dispatch_state++)
+        inter.codelets_address[inter_pointer++] = (uint64_t)_jportal_trace_code.entry((TosState)dispatch_state);
+#endif
+    for (dispatch_cnt = 0; dispatch_cnt < number_of_return_entries; dispatch_cnt++)
+      for (dispatch_state = 0; dispatch_state < number_of_states; dispatch_state++)
+        inter.codelets_address[inter_pointer++] = (uint64_t)_jportal_return_entry[dispatch_cnt].entry((TosState)dispatch_state);
+    
+    for (dispatch_cnt = 0; dispatch_cnt < number_of_return_addrs; dispatch_cnt++) {
+      inter.codelets_address[inter_pointer++] = (uint64_t)_jportal_invoke_return_entry[dispatch_cnt];
+      inter.codelets_address[inter_pointer++] = (uint64_t)_jportal_invokeinterface_return_entry[dispatch_cnt];
+      inter.codelets_address[inter_pointer++] = (uint64_t)_jportal_invokedynamic_return_entry[dispatch_cnt];
+    }
+    for (dispatch_state = 0; dispatch_state < number_of_states; dispatch_state++)
+      inter.codelets_address[inter_pointer++] = (uint64_t)_jportal_earlyret_entry.entry((TosState)dispatch_state);
+    for (dispatch_cnt = 0; dispatch_cnt < number_of_result_handlers; dispatch_cnt++)
+      inter.codelets_address[inter_pointer++] = (uint64_t)_jportal_native_abi_to_tosca[dispatch_cnt];
+    for (dispatch_state = 0; dispatch_state < number_of_states; dispatch_state++)
+      inter.codelets_address[inter_pointer++] = (uint64_t)_jportal_safept_entry.entry((TosState)dispatch_state);
+    inter.codelets_address[inter_pointer++] = (uint64_t)Interpreter::_jportal_rethrow_exception_entry; 
+    inter.codelets_address[inter_pointer++] = (uint64_t)Interpreter::_jportal_throw_exception_entry;
+    inter.codelets_address[inter_pointer++] = (uint64_t)Interpreter::_jportal_remove_activation_preserving_args_entry;
+    inter.codelets_address[inter_pointer++] = (uint64_t)Interpreter::_jportal_remove_activation_entry;
+    inter.codelets_address[inter_pointer++] = (uint64_t)Interpreter::_jportal_throw_ArrayIndexOutOfBoundsException_entry;
+    inter.codelets_address[inter_pointer++] = (uint64_t)Interpreter::_jportal_throw_ArrayStoreException_entry;
+    inter.codelets_address[inter_pointer++] = (uint64_t)Interpreter::_jportal_throw_ArithmeticException_entry;
+    inter.codelets_address[inter_pointer++] = (uint64_t)Interpreter::_jportal_throw_ClassCastException_entry;
+    inter.codelets_address[inter_pointer++] = (uint64_t)Interpreter::_jportal_throw_NullPointerException_entry;
+    inter.codelets_address[inter_pointer++] = (uint64_t)Interpreter::_jportal_throw_StackOverflowError_entry;
+    for (dispatch_cnt = 0; dispatch_cnt < number_of_method_entries; dispatch_cnt++)
+      inter.codelets_address[inter_pointer++] = (uint64_t)_jportal_entry_table[dispatch_cnt];
+    for (dispatch_cnt = 0; dispatch_cnt < number_of_deopt_entries; dispatch_cnt++)
+      for (dispatch_state = 0; dispatch_state < number_of_states; dispatch_state++)
+        inter.codelets_address[inter_pointer++] = (uint64_t)_jportal_deopt_entry[dispatch_cnt].entry((TosState)dispatch_state);
+    JPortalEnable::jportal_interpreter_codelets(inter);
   }
 
   if (PrintInterpreter) {
@@ -365,7 +421,7 @@ address TemplateInterpreter::deopt_reexecute_entry(Method* method, address bcp) 
     // the standard return vtos bytecode to pop the frame normally.
     // reexecuting the real bytecode would cause double registration
     // of the finalizable object.
-    return Interpreter::deopt_reexecute_return_entry(method->is_jportal() && JPortalTrace);
+    return Interpreter::deopt_reexecute_return_entry(JPortal && method->is_jportal());
   } else {
     return AbstractInterpreter::deopt_reexecute_entry(method, bcp);
   }

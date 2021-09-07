@@ -252,7 +252,7 @@ bool CompiledIC::set_to_megamorphic(CallInfo* call_info, Bytecodes::Code bytecod
   if (call_info->call_kind() == CallInfo::itable_call) {
     assert(bytecode == Bytecodes::_invokeinterface, "");
     int itable_index = call_info->itable_index();
-    entry = VtableStubs::find_itable_stub(itable_index, _method->is_jportal() && JPortalTrace);
+    entry = VtableStubs::find_itable_stub(itable_index, CodeCache::is_jportal(instruction_address()));
     if (entry == NULL) {
       return false;
     }
@@ -265,7 +265,7 @@ bool CompiledIC::set_to_megamorphic(CallInfo* call_info, Bytecodes::Code bytecod
     CompiledICHolder* holder = new CompiledICHolder(call_info->resolved_method()->method_holder(),
                                                     call_info->resolved_klass(), false);
     holder->claim();
-    if (!InlineCacheBuffer::create_transition_stub(this, holder, entry, _method->is_jportal() && JPortalTrace)) {
+    if (!InlineCacheBuffer::create_transition_stub(this, holder, entry, CodeCache::is_jportal(instruction_address()))) {
       delete holder;
       needs_ic_stub_refill = true;
       return false;
@@ -275,11 +275,11 @@ bool CompiledIC::set_to_megamorphic(CallInfo* call_info, Bytecodes::Code bytecod
     // Can be different than selected_method->vtable_index(), due to package-private etc.
     int vtable_index = call_info->vtable_index();
     assert(call_info->resolved_klass()->verify_vtable_index(vtable_index), "sanity check");
-    entry = VtableStubs::find_vtable_stub(vtable_index, _method->is_jportal() && JPortalTrace);
+    entry = VtableStubs::find_vtable_stub(vtable_index, CodeCache::is_jportal(instruction_address()));
     if (entry == NULL) {
       return false;
     }
-    if (!InlineCacheBuffer::create_transition_stub(this, NULL, entry, _method->is_jportal() && JPortalTrace)) {
+    if (!InlineCacheBuffer::create_transition_stub(this, NULL, entry, CodeCache::is_jportal(instruction_address()))) {
       needs_ic_stub_refill = true;
       return false;
     }
@@ -292,6 +292,10 @@ bool CompiledIC::set_to_megamorphic(CallInfo* call_info, Bytecodes::Code bytecod
                    p2i(instruction_address()), call_info->selected_method()->print_value_string(), p2i(entry));
   }
 
+  // JPortal
+  if (JPortal && CodeCache::is_jportal(instruction_address())) {
+    JPortalEnable::jportal_inline_cache_add(instruction_address(), entry);
+  }
   // We can't check this anymore. With lazy deopt we could have already
   // cleaned this IC entry before we even return. This is possible if
   // we ran out of space in the inline cache buffer trying to do the
@@ -386,9 +390,14 @@ bool CompiledIC::set_to_clean(bool in_use) {
     }
   } else {
     // Unsafe transition - create stub.
-    if (!InlineCacheBuffer::create_transition_stub(this, NULL, entry, _method->is_jportal() && JPortalTrace)) {
+    if (!InlineCacheBuffer::create_transition_stub(this, NULL, entry, CodeCache::is_jportal(instruction_address()))) {
       return false;
     }
+  }
+
+  // JPortal
+  if (JPortal && CodeCache::is_jportal(instruction_address())) {
+    JPortalEnable::jportal_inline_cache_clear(instruction_address());
   }
   // We can't check this anymore. With lazy deopt we could have already
   // cleaned this IC entry before we even return. This is possible if
@@ -446,13 +455,18 @@ bool CompiledIC::set_to_monomorphic(CompiledICInfo& info) {
     } else {
       // Call via method-klass-holder
       CompiledICHolder* holder = info.claim_cached_icholder();
-      if (!InlineCacheBuffer::create_transition_stub(this, holder, info.entry(), _method->is_jportal() && JPortalTrace)) {
+      if (!InlineCacheBuffer::create_transition_stub(this, holder, info.entry(), CodeCache::is_jportal(instruction_address()))) {
         delete holder;
         return false;
       }
       if (TraceICs) {
          ResourceMark rm(thread);
          tty->print_cr ("IC@" INTPTR_FORMAT ": monomorphic to interpreter via icholder ", p2i(instruction_address()));
+      }
+
+      // JPortal
+      if (JPortal && CodeCache::is_jportal(instruction_address())) {
+        JPortalEnable::jportal_inline_cache_add(instruction_address(), info.entry());
       }
     }
   } else {
@@ -469,7 +483,7 @@ bool CompiledIC::set_to_monomorphic(CompiledICInfo& info) {
                 (!is_in_transition_state() && (info.is_optimized() || static_bound || is_clean()));
 
     if (!safe) {
-      if (!InlineCacheBuffer::create_transition_stub(this, info.cached_metadata(), info.entry(), _method->is_jportal() && JPortalTrace)) {
+      if (!InlineCacheBuffer::create_transition_stub(this, info.cached_metadata(), info.entry(), CodeCache::is_jportal(instruction_address()))) {
         return false;
       }
     } else {
@@ -487,6 +501,11 @@ bool CompiledIC::set_to_monomorphic(CompiledICInfo& info) {
         p2i(instruction_address()),
         ((Klass*)info.cached_metadata())->print_value_string(),
         (safe) ? "" : "via stub");
+    }
+
+    // JPortal
+    if (JPortal && CodeCache::is_jportal(instruction_address())) {
+      JPortalEnable::jportal_inline_cache_add(instruction_address(), info.entry());
     }
   }
   // We can't check this anymore. With lazy deopt we could have already
@@ -595,6 +614,11 @@ bool CompiledStaticCall::set_to_clean(bool in_use) {
   // Do not reset stub here:  It is too expensive to call find_stub.
   // Instead, rely on caller (nmethod::clear_inline_caches) to clear
   // both the call and its stub.
+
+  // JPortal
+  if (JPortal && CodeCache::is_jportal(instruction_address())) {
+    JPortalEnable::jportal_inline_cache_clear(instruction_address());
+  }
   return true;
 }
 
@@ -631,6 +655,11 @@ void CompiledStaticCall::set_to_compiled(address entry) {
   // Call to compiled code
   assert(CodeCache::contains(entry), "wrong entry point");
   set_destination_mt_safe(entry);
+
+  // JPortal
+  if (JPortal && CodeCache::is_jportal(instruction_address())) {
+    JPortalEnable::jportal_inline_cache_add(instruction_address(), entry);
+  }
 }
 
 void CompiledStaticCall::set(const StaticCallInfo& info) {

@@ -238,6 +238,11 @@ address VtableStubs::find_stub(bool is_vtable_stub, int vtable_index, bool jport
         JvmtiExport::post_dynamic_code_generated_while_holding_locks(is_vtable_stub? "vtable stub": "itable stub",
                                                                      s->code_begin(), s->code_end());
       }
+      // JPortal
+      if (JPortal && jportal) {
+        JPortalEnable::jportal_dynamic_code_generated(is_vtable_stub? "vtable stub": "itable stub",
+                                                      s->code_begin(), s->code_end() - s->code_begin());
+      }
     }
   }
   return s->entry_point();

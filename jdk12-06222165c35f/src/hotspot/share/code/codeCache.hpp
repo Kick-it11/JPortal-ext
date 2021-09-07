@@ -232,8 +232,10 @@ class CodeCache : AllStatic {
 
   // The full limits of the codeCache
   static address low_bound()                          { return _low_bound; }
+  static address low_bound(bool jportal)              { return jportal?_jportal_low_bound:_normal_low_bound; }
   static address low_bound(int code_blob_type, bool jportal);
   static address high_bound()                         { return _high_bound; }
+  static address high_bound(bool jportal)             { return jportal?_jportal_high_bound:_normal_high_bound; }
   static address high_bound(int code_blob_type, bool jportal);
 
   static bool is_jportal(address pc) { return (pc >= _jportal_low_bound && pc < _jportal_high_bound); }
@@ -438,5 +440,276 @@ struct NMethodFilter {
 
 typedef CodeBlobIterator<CompiledMethod, CompiledMethodFilter> CompiledMethodIterator;
 typedef CodeBlobIterator<nmethod, NMethodFilter> NMethodIterator;
+
+class JPortalEnable {
+  private:
+    static bool enable_is_initialized;
+    static bool dump_is_initialized;
+    static pthread_mutex_t dumper_lock;
+
+    /* shared memory identifier */
+    static int shm_id;
+
+    /* start address of shared memory */
+    static address shm_addr;
+    /* size of shared momory */
+    static size_t shm_volume;
+
+    /* data area of shared momory */
+    /* start address of data area */
+    static address data_begin;
+    /* end address of data area */
+    static address data_end;
+    /* size address of data area */
+    static size_t data_volume;
+
+    /* dump process pipe */
+    static int dump_pipe[2];
+
+    static GrowableArray<Method *> *method_array;
+
+  public:
+    struct ShmHeader {
+      uint64_t data_head;
+      uint64_t data_tail;
+    };
+
+    enum DumpInfoType {
+      _method_entry_initial,
+      _method_entry,
+      _method_exit,
+      _compiled_method_load,
+      _compiled_method_unload,
+      _thread_start,
+      _interpreter_info,
+      _dynamic_code_generated,
+      _inline_cache_add,
+      _inline_cache_clear
+    };
+
+    struct DumpInfo {
+      DumpInfoType type;
+      uint64_t size;
+      uint64_t time;
+    };
+
+    struct InterpreterInfo {
+      struct DumpInfo info;
+      bool TraceBytecodes;
+      uint64_t codelets_address[3200];
+
+      InterpreterInfo(uint64_t _size) {
+        info.type = _interpreter_info;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
+    };
+
+    struct MethodEntryInitial {
+      struct DumpInfo info;
+      int idx;
+      uint64_t tid;
+      int klass_name_length;
+      int method_name_length;
+      int method_signature_length;
+
+      MethodEntryInitial(int _idx, uint64_t _tid, int _klass_name_length,
+                  int _method_name_length, int _method_signature_length,
+                  uint64_t _size):
+        idx(_idx), tid(_tid),
+        klass_name_length(_klass_name_length),
+        method_name_length(_method_name_length),
+        method_signature_length(_method_signature_length) {
+        info.type = _method_entry_initial;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
+    };
+
+    struct MethodEntryInfo {
+      struct DumpInfo info;
+      int idx;
+      uint64_t tid;
+
+      MethodEntryInfo(int _idx, int _tid, uint64_t _size)
+                  : idx(_idx), tid(_tid) {
+        info.type = _method_entry;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
+    };
+
+    struct MethodExitInfo {
+      struct DumpInfo info;
+      int idx;
+      uint64_t tid;
+
+      MethodExitInfo(int _idx, int _tid, uint64_t _size)
+                  : idx(_idx), tid(_tid) {
+        info.type = _method_entry;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
+    };
+
+    struct CompiledMethodLoadInfo {
+      struct DumpInfo info;
+      uint64_t code_begin;
+      uint64_t code_size;
+      uint64_t scopes_pc_size;
+      uint64_t scopes_data_size;
+      uint64_t entry_point;
+      uint64_t verified_entry_point;
+      uint64_t osr_entry_point;
+      int inline_method_cnt;
+
+      CompiledMethodLoadInfo(uint64_t _code_begin, uint64_t _code_size,
+                     uint64_t _scopes_pc_size, uint64_t _scopes_data_size,
+                     uint64_t _entry_point, uint64_t _verified_entry_point,
+                     uint64_t _osr_entry_point, int _inline_method_cnt,
+                     uint64_t _size)
+                     : code_begin(_code_begin),
+                       code_size(_code_size),
+                       scopes_pc_size(_scopes_pc_size),
+                       scopes_data_size(_scopes_data_size),
+                       entry_point(_entry_point),
+                       verified_entry_point(_verified_entry_point),
+                       osr_entry_point(_osr_entry_point),
+                       inline_method_cnt(_inline_method_cnt) {
+        info.type = _compiled_method_load;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
+    };
+
+    struct CompiledMethodUnloadInfo {
+      struct DumpInfo info;
+      uint64_t code_begin;
+
+      CompiledMethodUnloadInfo(uint64_t _code_begin, uint64_t _size) :
+        code_begin(_code_begin) {
+        info.type = _compiled_method_unload;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
+    };
+
+    struct InlineMethodInfo {
+      int klass_name_length;
+      int method_name_length;
+      int method_signature_length;
+      int method_index;
+
+      InlineMethodInfo(int _klass_name_length,
+                 int _method_name_length,
+                 int _method_signature_length,
+                 int _method_index) :
+                 klass_name_length(_klass_name_length),
+                 method_name_length(_method_name_length),
+                 method_signature_length(_method_signature_length),
+                 method_index(_method_index) {}
+    };
+
+    struct ThreadStartInfo {
+      struct DumpInfo info;
+      long java_tid;
+      long sys_tid;
+
+      ThreadStartInfo(long _java_tid, long _sys_tid, uint64_t _size):
+                  java_tid(_java_tid), sys_tid(_sys_tid) {
+        info.type = _thread_start;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
+    };
+
+    struct DynamicCodeGenerated {
+      struct DumpInfo info;
+      int name_length;
+      uint64_t code_begin;
+      uint64_t code_size;
+
+      DynamicCodeGenerated(int _name_length, uint64_t _code_begin,
+                  uint64_t _code_size, uint64_t size)
+                  : name_length(_name_length),
+                    code_begin(_code_begin),
+                    code_size(_code_size) {
+        info.type = _dynamic_code_generated;
+        info.size = size;
+        info.time = get_timestamp();
+      }
+    };
+
+    struct InlineCacheAdd {
+      struct DumpInfo info;
+      uint64_t src;
+      uint64_t dest;
+
+      InlineCacheAdd(uint64_t _src, uint64_t _dest, uint64_t size)
+                  : src(_src), dest(_dest) {
+        info.type = _inline_cache_add;
+        info.size = size;
+        info.time = get_timestamp();
+      }
+    };
+
+    struct InlineCacheClear {
+      struct DumpInfo info;
+      uint64_t src;
+
+      InlineCacheClear(uint64_t _src, uint64_t size)
+                  : src(_src) {
+        info.type = _inline_cache_clear;
+        info.size = size;
+        info.time = get_timestamp();
+      }
+    };
+
+    inline static uint64_t get_timestamp() {
+	    unsigned int low, high;
+	    asm volatile("rdtsc" : "=a" (low), "=d" (high));
+	    return low | ((uint64_t)high) << 32;
+    }
+
+    inline static jlong get_java_tid(JavaThread* thread);
+
+    inline static address copy_data(address dest, address src, size_t size) {
+      if (size == 0)
+        return dest;
+      size_t tail_size = data_end - dest;
+      if (tail_size < size) {
+        memcpy(dest, src, tail_size);
+        memcpy(data_begin, src + tail_size, size-tail_size);
+        return (address)(data_begin + size - tail_size);
+      } else {
+        memcpy(dest, src, size);
+        return (address)(dest+size);
+      }
+    }
+
+    static void jportal_initialize();
+
+    static void jportal_exit();
+
+    static void jportal_interpreter_codelets(InterpreterInfo);
+
+    static void jportal_method_entry(JavaThread *thread, Method *moop);
+
+    static void jportal_method_exit(JavaThread *thread, Method *moop);
+
+    static void jportal_dynamic_code_generated(const char *name, address code_begin, size_t code_size);
+
+    static void jportal_compiled_method_load(Method *moop, nmethod *nm);
+
+    static void jportal_compiled_method_unload(Method *moop, nmethod *nm);
+
+    static void jportal_thread_start(JavaThread *thread);
+
+    static void jportal_inline_cache_add(address src, address dest);
+
+    static void jportal_inline_cache_clear(address src);
+
+    static void jportal_enable();
+};
 
 #endif // SHARE_VM_CODE_CODECACHE_HPP

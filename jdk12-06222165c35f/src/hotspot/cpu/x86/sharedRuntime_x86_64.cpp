@@ -762,7 +762,7 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
       range_check(masm, rax, r11,
                   Interpreter::code(false)->code_start(), Interpreter::code(false)->code_end(),
                   L_ok);
-    if (JPortalTrace && Interpreter::code(true) != NULL)
+    if (JPortal && Interpreter::code(true) != NULL)
       range_check(masm, rax, r11,
                   Interpreter::code(true)->code_start(), Interpreter::code(true)->code_end(),
                   L_ok);
@@ -1922,7 +1922,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
                                        in_ByteSize(-1),
                                        in_ByteSize(-1),
                                        (OopMapSet*)NULL,
-                                       method->is_jportal() && JPortalTrace);
+                                       JPortal && method->is_jportal());
   }
   bool is_critical_native = true;
   address native_func = method->critical_native_function();
@@ -2832,7 +2832,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
                                             stack_slots / VMRegImpl::slots_per_word,
                                             (is_static ? in_ByteSize(klass_offset) : in_ByteSize(receiver_offset)),
                                             in_ByteSize(lock_slot_offset*VMRegImpl::stack_slot_size),
-                                            oop_maps, method->is_jportal() && JPortalTrace);
+                                            oop_maps, JPortal && method->is_jportal());
 
   if (is_critical_native) {
     nm->set_lazy_critical_native(true);

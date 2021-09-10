@@ -17,10 +17,10 @@ using namespace std;
  * the methods array maps to same element in the bcis array.
  */
 typedef struct _PCStackInfo {
-  	uint64_t pc;             /* the pc address for this compiled method */
-  	jint numstackframes;  /* number of methods on the stack */
-  	jint* methods;   /* array of numstackframes method ids */
-  	jint* bcis;           /* array of numstackframes bytecode indices */
+      uint64_t pc;             /* the pc address for this compiled method */
+      jint numstackframes;  /* number of methods on the stack */
+      jint* methods;   /* array of numstackframes method ids */
+      jint* bcis;           /* array of numstackframes bytecode indices */
 } PCStackInfo;
 
 /*
@@ -28,49 +28,49 @@ typedef struct _PCStackInfo {
  * an nmethod.
  */
 typedef struct _CompiledMethodLoadInlineRecord {
-  	jint numpcs;          /* number of pc descriptors in this nmethod */
-  	PCStackInfo* pcinfo;  /* array of numpcs pc descriptors */
+      jint numpcs;          /* number of pc descriptors in this nmethod */
+      PCStackInfo* pcinfo;  /* array of numpcs pc descriptors */
 } CompiledMethodLoadInlineRecord;
 
 /* A section of contiguous memory loaded from a file. */
 struct jit_section {
-	/* description of jit codes */
-	const uint8_t *code;
+    /* description of jit codes */
+    const uint8_t *code;
 
-	uint64_t code_begin;
+    uint64_t code_begin;
 
-	uint64_t code_size;
+    uint64_t code_size;
 
-	const CompiledMethodDesc *cmd;
-	CompiledMethodLoadInlineRecord *record;
+    const CompiledMethodDesc *cmd;
+    CompiledMethodLoadInlineRecord *record;
 
-	const char *name;
+    const char *name;
 
-	/* A lock protecting this section.
-	 *
-	 * Most operations do not require the section to be locked.  All
-	 * actual locking should be handled by pt_section_* functions.
-	 */
-	mtx_t lock;
+    /* A lock protecting this section.
+     *
+     * Most operations do not require the section to be locked.  All
+     * actual locking should be handled by pt_section_* functions.
+     */
+    mtx_t lock;
 
-	/* A lock protecting the @iscache and @acount fields.
-	 *
-	 * We need separate locks to protect against a deadlock scenario when
-	 * the iscache is mapping or unmapping this section.
-	 *
-	 * The attach lock must not be taken while holding the section lock; the
-	 * other way round is OK.
-	 */
-	mtx_t alock;
+    /* A lock protecting the @iscache and @acount fields.
+     *
+     * We need separate locks to protect against a deadlock scenario when
+     * the iscache is mapping or unmapping this section.
+     *
+     * The attach lock must not be taken while holding the section lock; the
+     * other way round is OK.
+     */
+    mtx_t alock;
 
     /* The number of current users.  The last user destroys the section. */
-	uint16_t ucount;
+    uint16_t ucount;
 
-	/* The number of attaches.  This must be <= @ucount. */
-	uint16_t acount;
+    /* The number of attaches.  This must be <= @ucount. */
+    uint16_t acount;
 
-	/* The number of current mappers.  The last unmaps the section. */
-	uint16_t mcount;
+    /* The number of current mappers.  The last unmaps the section. */
+    uint16_t mcount;
 };
 
 /* Create a section.
@@ -95,7 +95,7 @@ extern int jit_mk_section(struct jit_section **psection,
                         const uint8_t *scopes_pc,
                         const uint8_t *scopes_data,
                         CompiledMethodDesc *cmd,
-						const char *name);
+                        const char *name);
 
 /* Lock a section.
  *
@@ -159,10 +159,10 @@ extern uint64_t jit_section_code_begin(const struct jit_section *section);
  * Returns -pte_nomap if @offset is beyond the end of the section.
  */
 extern int jit_section_read(struct jit_section *section, uint8_t *buffer,
-			   uint16_t size, uint64_t vaddr);
+               uint16_t size, uint64_t vaddr);
 
 /* read jitted code debug info */
 extern int jit_section_read_debug_info(struct jit_section *section,
-								uint64_t vaddr, PCStackInfo *& pcinfo);
+                                uint64_t vaddr, PCStackInfo *& pcinfo);
 
 #endif

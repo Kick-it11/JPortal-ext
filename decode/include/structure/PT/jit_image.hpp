@@ -7,23 +7,23 @@ struct jit_section;
 
 /* A list of sections. */
 struct jit_section_list {
-	/* The next list element. */
-	struct jit_section_list *next;
+    /* The next list element. */
+    struct jit_section_list *next;
 
-	/* The mapped section. */
-	struct jit_section *section;
+    /* The mapped section. */
+    struct jit_section *section;
 };
 
 /* A traced image consisting of a collection of sections. */
 struct jit_image {
-	/* The optional image name. */
-	char *name;
+    /* The optional image name. */
+    char *name;
 
-	/* The list of sections. */
-	struct jit_section_list *sections;
+    /* The list of sections. */
+    struct jit_section_list *sections;
 
-	/* The list of removed sections. */
-	struct jit_section_list *removed;
+    /* The list of removed sections. */
+    struct jit_section_list *removed;
 };
 
 /** Allocate a traced memory image.
@@ -87,7 +87,7 @@ extern int jit_image_remove(struct jit_image *image, uint64_t vadrr);
  * Returns -pte_nomap if there is no such section in @image.
  */
 extern int jit_image_find(struct jit_image *image, struct jit_section **section,
-			 uint64_t vaddr);
+             uint64_t vaddr);
 
 /* Validate an image section.
  *
@@ -100,7 +100,7 @@ extern int jit_image_find(struct jit_image *image, struct jit_section **section,
  * Returns -pte_nomap if validation failed.
  */
 extern int jit_image_validate(struct jit_image *image,
-			     struct jit_section *section,
-			     uint64_t vaddr);
+                 struct jit_section *section,
+                 uint64_t vaddr);
 
 #endif

@@ -45,12 +45,12 @@
 #include <stdlib.h>
 
 enum {
-	thrd_success	= 1,
-	thrd_error
+    thrd_success    = 1,
+    thrd_error
 };
 
 struct pt_thread {
-	pthread_t thread;
+    pthread_t thread;
 };
 typedef struct pt_thread thrd_t;
 
@@ -58,202 +58,202 @@ typedef int (*thrd_start_t)(void *);
 
 
 struct thrd_args {
-	thrd_start_t fun;
-	void *arg;
+    thrd_start_t fun;
+    void *arg;
 };
 
 static void *thrd_routine(void *arg)
 {
-	struct thrd_args *args;
-	int result;
+    struct thrd_args *args;
+    int result;
 
-	args = (thrd_args *)arg;
-	if (!args)
-		return (void *) (intptr_t) -1;
+    args = (thrd_args *)arg;
+    if (!args)
+        return (void *) (intptr_t) -1;
 
-	result = -1;
-	if (args->fun)
-		result = args->fun(args->arg);
+    result = -1;
+    if (args->fun)
+        result = args->fun(args->arg);
 
-	free(args);
+    free(args);
 
-	return (void *) (intptr_t) result;
+    return (void *) (intptr_t) result;
 }
 
 static inline int thrd_create(thrd_t *thrd, thrd_start_t fun, void *arg)
 {
-	struct thrd_args *args;
-	int errcode;
+    struct thrd_args *args;
+    int errcode;
 
-	if (!thrd || !fun)
-		return thrd_error;
+    if (!thrd || !fun)
+        return thrd_error;
 
-	args = (thrd_args *)malloc(sizeof(*args));
-	if (!args)
-		return thrd_error;
+    args = (thrd_args *)malloc(sizeof(*args));
+    if (!args)
+        return thrd_error;
 
-	args->fun = fun;
-	args->arg = arg;
+    args->fun = fun;
+    args->arg = arg;
 
-	errcode = pthread_create(&thrd->thread, NULL, thrd_routine, args);
-	if (errcode) {
-		free(args);
-		return thrd_error;
-	}
+    errcode = pthread_create(&thrd->thread, NULL, thrd_routine, args);
+    if (errcode) {
+        free(args);
+        return thrd_error;
+    }
 
-	return thrd_success;
+    return thrd_success;
 }
 
 static inline int thrd_join(thrd_t *thrd, int *res)
 {
-	void *result;
-	int errcode;
+    void *result;
+    int errcode;
 
-	if (!thrd)
-		return thrd_error;
+    if (!thrd)
+        return thrd_error;
 
-	errcode = pthread_join(thrd->thread, &result);
-	if (errcode)
-		return thrd_error;
+    errcode = pthread_join(thrd->thread, &result);
+    if (errcode)
+        return thrd_error;
 
-	if (res)
-		*res = (int) (intptr_t) result;
+    if (res)
+        *res = (int) (intptr_t) result;
 
-	return thrd_success;
+    return thrd_success;
 }
 
 
 struct pt_mutex {
-	pthread_mutex_t mutex;
+    pthread_mutex_t mutex;
 };
 typedef struct pt_mutex mtx_t;
 
 enum {
-	mtx_plain = PTHREAD_MUTEX_NORMAL
+    mtx_plain = PTHREAD_MUTEX_NORMAL
 };
 
 static inline int mtx_init(mtx_t *mtx, int type)
 {
-	int errcode;
+    int errcode;
 
-	if (!mtx || type != mtx_plain)
-		return thrd_error;
+    if (!mtx || type != mtx_plain)
+        return thrd_error;
 
-	errcode = pthread_mutex_init(&mtx->mutex, NULL);
-	if (errcode)
-		return thrd_error;
+    errcode = pthread_mutex_init(&mtx->mutex, NULL);
+    if (errcode)
+        return thrd_error;
 
-	return thrd_success;
+    return thrd_success;
 }
 
 static inline void mtx_destroy(mtx_t *mtx)
 {
-	if (mtx)
-		(void) pthread_mutex_destroy(&mtx->mutex);
+    if (mtx)
+        (void) pthread_mutex_destroy(&mtx->mutex);
 }
 
 static inline int mtx_lock(mtx_t *mtx)
 {
-	int errcode;
+    int errcode;
 
-	if (!mtx)
-		return thrd_error;
+    if (!mtx)
+        return thrd_error;
 
-	errcode = pthread_mutex_lock(&mtx->mutex);
-	if (errcode)
-		return thrd_error;
+    errcode = pthread_mutex_lock(&mtx->mutex);
+    if (errcode)
+        return thrd_error;
 
-	return thrd_success;
+    return thrd_success;
 }
 
 static inline int mtx_unlock(mtx_t *mtx)
 {
-	int errcode;
+    int errcode;
 
-	if (!mtx)
-		return thrd_error;
+    if (!mtx)
+        return thrd_error;
 
-	errcode = pthread_mutex_unlock(&mtx->mutex);
-	if (errcode)
-		return thrd_error;
+    errcode = pthread_mutex_unlock(&mtx->mutex);
+    if (errcode)
+        return thrd_error;
 
-	return thrd_success;
+    return thrd_success;
 }
 
 
 struct pt_cond {
-	pthread_cond_t cond;
+    pthread_cond_t cond;
 };
 typedef struct pt_cond cnd_t;
 
 static inline int cnd_init(cnd_t *cnd)
 {
-	int errcode;
+    int errcode;
 
-	if (!cnd)
-		return thrd_error;
+    if (!cnd)
+        return thrd_error;
 
-	errcode = pthread_cond_init(&cnd->cond, NULL);
-	if (errcode)
-		return thrd_error;
+    errcode = pthread_cond_init(&cnd->cond, NULL);
+    if (errcode)
+        return thrd_error;
 
-	return thrd_success;
+    return thrd_success;
 }
 
 static inline int cnd_destroy(cnd_t *cnd)
 {
-	int errcode;
+    int errcode;
 
-	if (!cnd)
-		return thrd_error;
+    if (!cnd)
+        return thrd_error;
 
-	errcode = pthread_cond_destroy(&cnd->cond);
-	if (errcode)
-		return thrd_error;
+    errcode = pthread_cond_destroy(&cnd->cond);
+    if (errcode)
+        return thrd_error;
 
-	return thrd_success;
+    return thrd_success;
 }
 
 static inline int cnd_signal(cnd_t *cnd)
 {
-	int errcode;
+    int errcode;
 
-	if (!cnd)
-		return thrd_error;
+    if (!cnd)
+        return thrd_error;
 
-	errcode = pthread_cond_signal(&cnd->cond);
-	if (errcode)
-		return thrd_error;
+    errcode = pthread_cond_signal(&cnd->cond);
+    if (errcode)
+        return thrd_error;
 
-	return thrd_success;
+    return thrd_success;
 }
 
 static inline int cnd_broadcast(cnd_t *cnd)
 {
-	int errcode;
+    int errcode;
 
-	if (!cnd)
-		return thrd_error;
+    if (!cnd)
+        return thrd_error;
 
-	errcode = pthread_cond_broadcast(&cnd->cond);
-	if (errcode)
-		return thrd_error;
+    errcode = pthread_cond_broadcast(&cnd->cond);
+    if (errcode)
+        return thrd_error;
 
-	return thrd_success;
+    return thrd_success;
 }
 
 static inline int cnd_wait(cnd_t *cnd, mtx_t *mtx)
 {
-	int errcode;
+    int errcode;
 
-	if (!cnd || !mtx)
-		return thrd_error;
+    if (!cnd || !mtx)
+        return thrd_error;
 
-	errcode = pthread_cond_wait(&cnd->cond, &mtx->mutex);
-	if (errcode)
-		return thrd_error;
+    errcode = pthread_cond_wait(&cnd->cond, &mtx->mutex);
+    if (errcode)
+        return thrd_error;
 
-	return thrd_success;
+    return thrd_success;
 }
 
 #endif /* THREADS_H */

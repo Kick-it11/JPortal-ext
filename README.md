@@ -26,4 +26,5 @@ Build executables for trace and dump separately.
 
 ### Build Openjdk
 
-​Before building extended openjdk, replace the path of JPortalTracer && JPortalDumper of openjdk source codes with path to your built trace && dump executables.**Note: you should build a debug version of Openjdk.**
+​Before building extended openjdk, replace the path of JPortalTracer && JPortalDumper of openjdk source codes with path to your built trace && dump executables.
+**Note: you should build a debug version of Openjdk.**

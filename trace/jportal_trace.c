@@ -205,6 +205,7 @@ struct aux_advance_event {
     struct perf_event_header header;
     __u32 cpu;
     __u32 tid;
+    __u64 advance_size;
 };
 
 #define PAGE_SIZE 4096
@@ -720,55 +721,6 @@ static inline uint64_t get_timestamp() {
 #endif
 }
 
-static int auxtrace_mmap_advance(void *mmap_base, __u64 *aux_start,
-                                    int cpu, int fd)
-{
-    struct perf_event_mmap_page *header = mmap_base;
-    __u64 head, old;
-    old = *aux_start;
-    size_t size, head_off, old_off;
-    size_t len = header->aux_size;
-
-    head = auxtrace_mmap_read_head(header);
-
-    if (old == head)
-    {
-        return 0;
-    }
-
-    int mask = len - 1;
-    head_off = head & mask;
-    old_off = old & mask;
-
-    if (head_off > old_off)
-    {
-        size = head_off - old_off;
-    }
-    else
-    {
-        size = len - (old_off - head_off);
-    }
-
-    if (size >= len/2*1) {
-        struct aux_advance_event ev;
-        memset(&ev, 0, sizeof(ev));
-        ev.header.type = PERF_RECORD_AUX_ADVANCE;
-        ev.header.size = sizeof(ev);
-        ev.cpu = cpu;
-        ev.tid = -1;
-
-        if (record_write(fd, &ev, sizeof(ev)) < 0)
-        {
-            return -1;
-        }
-
-        __u64 loc = (old + len/4);
-        *aux_start = loc;
-        auxtrace_mmap_write_tail(header, loc);
-    }
-    return 0;
-}
-
 static int auxtrace_mmap_record(void *mmap_base, void *aux_base,
                                 __u64 *aux_start, int cpu, int fd)
 {
@@ -918,12 +870,6 @@ static int record_all(struct trace_record *record)
 
     for (int i = 0; i < nr_cpus; i++)
     {
-        if (auxtrace_mmap_advance(record->mmap_base[i], &record->aux_start[i],
-                                    i, record->fd) < 0)
-        {
-            return -1;
-        }
-
         if (auxtrace_mmap_record(record->mmap_base[i], record->aux_base[i],
                                  &record->aux_start[i], i, record->fd) < 0)
         {

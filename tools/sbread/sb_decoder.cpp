@@ -115,29 +115,40 @@ int trace_file_handle(FILE *trace, pev_config &config)
   struct perf_event_header header;
   int errcode;
 
-  if (!trace)
+  if (!trace) {
+    fprintf(stderr, "Trace file error.\n");
     return -pte_internal;
-
+  }
   errcode = fread(&header, sizeof(header), 1, trace);
-  if (errcode <= 0)
+  if (errcode <= 0) {
+    if (errcode < 0) {
+      fprintf(stderr, "Read header error.\n");
+    }
     return errcode;
+  }
 
   if (header.type == PERF_RECORD_AUXTRACE) {
     struct auxtrace_event aux;
     errcode = fread(&aux, sizeof(aux), 1, trace);
-    if (errcode <= 0)
+    if (errcode <= 0) {
+      fprintf(stderr, "Read AUXTRACE error.\n");
       return errcode;
+    }
     errcode = fseek(trace, aux.size, SEEK_CUR);
     aux_size += aux.size;
-    printf("<AUXTRACE> cpu:%d size:%lld acc:%ld", aux.cpu, aux.size, aux_size);
-    if (errcode)
+    printf("<AUXTRACE> cpu:%d size:%lld acc:%ld\n", aux.cpu, aux.size, aux_size);
+    if (errcode){
+      fprintf(stderr, "Seek AUXTRACE error.\n");
       return -1;
+    }
     return 1;
   } else if (header.type == PERF_RECORD_AUX_ADVANCE) {
     struct aux_advance_event aux;
     errcode = fread(&aux, sizeof(aux), 1, trace);
-    if (errcode < 0)
+    if (errcode < 0){
+      fprintf(stderr, "Read AUXADVANCE error.\n");
       return errcode;
+    }
     printf("<AUX ADVANCE> cpu:%d advance: acc:%ld\n", aux.cpu, aux_size);
     return 1;
   }
@@ -145,18 +156,22 @@ int trace_file_handle(FILE *trace, pev_config &config)
   errcode = fseek(trace, -sizeof(header), SEEK_CUR);
   uint8_t *buffer = (uint8_t *)malloc(header.size);
   if (!buffer) {
-    fprintf(stderr, "unable to allocate memory.\n");
+    fprintf(stderr, "Unable to allocate memory.\n");
     return -1;
   }
 
   errcode = fread(buffer, header.size, 1, trace);
-  if (errcode)
+  if (errcode < 0) {
+    fprintf(stderr, "Read buffer error.\n");
     return -1;
+  }
 
   pev_event event;
   int size = pev_read(&event, buffer, buffer+header.size, &config);
-  if (size != header.size)
+  if (size != header.size) {
+    fprintf(stderr, "Read pevent error.\n");
     return -1;
+  }
 
   switch(event.type) {
     default:
@@ -230,13 +245,15 @@ int trace_file_handle(FILE *trace, pev_config &config)
             event.record.switch_cpu_wide->next_prev_tid);
       break;
   }
-  if (event.sample.cpu) printf("    cpu: %d", *event.sample.cpu);
-  if (event.sample.id) printf("    id: %ld", *event.sample.id);
-  if (event.sample.identifier) printf("    identifier: %ld", *event.sample.identifier);
-  if (event.sample.pid) printf("    pid: %d", *event.sample.pid);
-  if (event.sample.stream_id) printf("stream_id: %ld", *event.sample.stream_id);
-  if (event.sample.tid) printf("tid: %d", *event.sample.tid);
-  if (event.sample.time) printf("id: %lx", event.sample.tsc);
+  if (event.sample.cpu) printf("    cpu: %d ", *event.sample.cpu);
+  if (event.sample.id) printf("id: %ld ", *event.sample.id);
+  if (event.sample.identifier) printf("identifier: %ld ", *event.sample.identifier);
+  if (event.sample.pid) printf("pid: %d ", *event.sample.pid);
+  if (event.sample.stream_id) printf("stream_id: %ld ", *event.sample.stream_id);
+  if (event.sample.tid) printf("tid: %d ", *event.sample.tid);
+  if (event.sample.time) printf("tsc: %lx\n", event.sample.tsc);
+
+  free(buffer);
   return 1;
 }
 
@@ -270,7 +287,6 @@ int main(int argc, char **argv) {
     int cpu_id;
     errcode = trace_file_handle(trace, config);
     if (errcode < 0) {
-       fprintf(stderr, "Illegal trace data format.\n");
        return -1;
     } else if (errcode == 0) {
        break;
@@ -278,10 +294,6 @@ int main(int argc, char **argv) {
   }
   fclose(trace);
 
-  if (loss) {
-    printf("JPortalTrace collects %ld and advances %ld without aux loss\n", aux_size, advance_size);
-  } else {
-    printf("JPortalTrace collects %ld and advances %ld with aux loss\n", aux_size, advance_size);
-  }
+  printf("JPortalTrace AUX: %ld Advance: %ld Loss: %d\n", aux_size, advance_size, loss);
   return 0;
 }

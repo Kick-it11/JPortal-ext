@@ -265,7 +265,7 @@ int VM_Version_Ext::_no_of_packages = 0;
 void VM_Version_Ext::initialize(void) {
   ResourceMark rm;
 
-  cpuid_brand_string_stub_blob = BufferBlob::create("getCPUIDBrandString_stub", cpuid_brand_string_stub_size, false);
+  cpuid_brand_string_stub_blob = BufferBlob::create("getCPUIDBrandString_stub", cpuid_brand_string_stub_size);
   if (cpuid_brand_string_stub_blob == NULL) {
     vm_exit_during_initialization("Unable to allocate getCPUIDBrandString_stub");
   }

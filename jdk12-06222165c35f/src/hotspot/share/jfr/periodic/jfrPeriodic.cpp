@@ -532,28 +532,16 @@ TRACE_REQUEST_FUNC(CompilerConfiguration) {
 TRACE_REQUEST_FUNC(CodeCacheStatistics) {
   // Emit stats for all available code heaps
   for (int bt = 0; bt < CodeBlobType::NumTypes; ++bt) {
-    if (CodeCache::heap_available(bt, false)) {
+    if (CodeCache::heap_available(bt)) {
       EventCodeCacheStatistics event;
       event.set_codeBlobType((u1)bt);
-      event.set_startAddress((u8)CodeCache::low_bound(bt, false));
-      event.set_reservedTopAddress((u8)CodeCache::high_bound(bt, false));
-      event.set_entryCount(CodeCache::blob_count(bt, false));
-      event.set_methodCount(CodeCache::nmethod_count(bt, false));
-      event.set_adaptorCount(CodeCache::adapter_count(bt, false));
-      event.set_unallocatedCapacity(CodeCache::unallocated_capacity(bt, false));
-      event.set_fullCount(CodeCache::get_codemem_full_count(bt, false));
-      event.commit();
-    }
-    if (CodeCache::heap_available(bt, true)) {
-      EventCodeCacheStatistics event;
-      event.set_codeBlobType((u1)bt);
-      event.set_startAddress((u8)CodeCache::low_bound(bt, true));
-      event.set_reservedTopAddress((u8)CodeCache::high_bound(bt, true));
-      event.set_entryCount(CodeCache::blob_count(bt, true));
-      event.set_methodCount(CodeCache::nmethod_count(bt, true));
-      event.set_adaptorCount(CodeCache::adapter_count(bt, true));
-      event.set_unallocatedCapacity(CodeCache::unallocated_capacity(bt, true));
-      event.set_fullCount(CodeCache::get_codemem_full_count(bt, true));
+      event.set_startAddress((u8)CodeCache::low_bound(bt));
+      event.set_reservedTopAddress((u8)CodeCache::high_bound(bt));
+      event.set_entryCount(CodeCache::blob_count(bt));
+      event.set_methodCount(CodeCache::nmethod_count(bt));
+      event.set_adaptorCount(CodeCache::adapter_count(bt));
+      event.set_unallocatedCapacity(CodeCache::unallocated_capacity(bt));
+      event.set_fullCount(CodeCache::get_codemem_full_count(bt));
       event.commit();
     }
   }

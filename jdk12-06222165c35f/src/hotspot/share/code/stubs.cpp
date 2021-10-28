@@ -65,9 +65,9 @@
 
 
 StubQueue::StubQueue(StubInterface* stub_interface, int buffer_size,
-                     Mutex* lock, const char* name, bool jportal) : _mutex(lock) {
+                     Mutex* lock, const char* name) : _mutex(lock) {
   intptr_t size = align_up(buffer_size, 2*BytesPerWord);
-  BufferBlob* blob = BufferBlob::create(name, size, jportal);
+  BufferBlob* blob = BufferBlob::create(name, size);
   if( blob == NULL) {
     vm_exit_out_of_memory(size, OOM_MALLOC_ERROR, "CodeCache: no room for %s", name);
   }

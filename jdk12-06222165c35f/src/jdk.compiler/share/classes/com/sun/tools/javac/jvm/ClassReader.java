@@ -2928,10 +2928,6 @@ public class ClassReader {
             flags &= ~ACC_VARARGS;
             flags |= VARARGS;
         }
-        if ((flags & ACC_JPORTAL) != 0) {
-            flags &= ~ACC_JPORTAL;
-            flags |= JPORTAL;
-        }
         return flags;
     }
 

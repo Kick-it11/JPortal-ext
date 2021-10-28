@@ -217,7 +217,7 @@ BufferBlob::BufferBlob(const char* name, int size)
 : RuntimeBlob(name, sizeof(BufferBlob), size, CodeOffsets::frame_never_safe, /*locs_size:*/ 0)
 {}
 
-BufferBlob* BufferBlob::create(const char* name, int buffer_size, bool jportal) {
+BufferBlob* BufferBlob::create(const char* name, int buffer_size) {
   ThreadInVMfromUnknown __tiv;  // get to VM state in case we block on CodeCache_lock
 
   BufferBlob* blob = NULL;
@@ -228,7 +228,7 @@ BufferBlob* BufferBlob::create(const char* name, int buffer_size, bool jportal) 
   assert(name != NULL, "must provide a name");
   {
     MutexLockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
-    blob = new (size, jportal) BufferBlob(name, size);
+    blob = new (size) BufferBlob(name, size);
   }
   // Track memory usage statistic after releasing CodeCache_lock
   MemoryService::track_code_cache_memory_usage();
@@ -241,7 +241,7 @@ BufferBlob::BufferBlob(const char* name, int size, CodeBuffer* cb)
   : RuntimeBlob(name, cb, sizeof(BufferBlob), size, CodeOffsets::frame_never_safe, 0, NULL)
 {}
 
-BufferBlob* BufferBlob::create(const char* name, CodeBuffer* cb, bool jportal) {
+BufferBlob* BufferBlob::create(const char* name, CodeBuffer* cb) {
   ThreadInVMfromUnknown __tiv;  // get to VM state in case we block on CodeCache_lock
 
   BufferBlob* blob = NULL;
@@ -249,7 +249,7 @@ BufferBlob* BufferBlob::create(const char* name, CodeBuffer* cb, bool jportal) {
   assert(name != NULL, "must provide a name");
   {
     MutexLockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
-    blob = new (size, jportal) BufferBlob(name, size, cb);
+    blob = new (size) BufferBlob(name, size, cb);
   }
   // Track memory usage statistic after releasing CodeCache_lock
   MemoryService::track_code_cache_memory_usage();
@@ -257,8 +257,8 @@ BufferBlob* BufferBlob::create(const char* name, CodeBuffer* cb, bool jportal) {
   return blob;
 }
 
-void* BufferBlob::operator new(size_t s, unsigned size, bool jportal) throw() {
-  return CodeCache::allocate(size, CodeBlobType::NonNMethod, jportal);
+void* BufferBlob::operator new(size_t s, unsigned size) throw() {
+  return CodeCache::allocate(size, CodeBlobType::NonNMethod);
 }
 
 void BufferBlob::free(BufferBlob *blob) {
@@ -281,14 +281,14 @@ AdapterBlob::AdapterBlob(int size, CodeBuffer* cb) :
   CodeCache::commit(this);
 }
 
-AdapterBlob* AdapterBlob::create(CodeBuffer* cb, bool jportal) {
+AdapterBlob* AdapterBlob::create(CodeBuffer* cb) {
   ThreadInVMfromUnknown __tiv;  // get to VM state in case we block on CodeCache_lock
 
   AdapterBlob* blob = NULL;
   unsigned int size = CodeBlob::allocation_size(cb, sizeof(AdapterBlob));
   {
     MutexLockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
-    blob = new (size, jportal) AdapterBlob(size, cb);
+    blob = new (size) AdapterBlob(size, cb);
   }
   // Track memory usage statistic after releasing CodeCache_lock
   MemoryService::track_code_cache_memory_usage();
@@ -300,7 +300,7 @@ VtableBlob::VtableBlob(const char* name, int size) :
   BufferBlob(name, size) {
 }
 
-VtableBlob* VtableBlob::create(const char* name, int buffer_size, bool jportal) {
+VtableBlob* VtableBlob::create(const char* name, int buffer_size) {
   ThreadInVMfromUnknown __tiv;  // get to VM state in case we block on CodeCache_lock
 
   VtableBlob* blob = NULL;
@@ -311,7 +311,7 @@ VtableBlob* VtableBlob::create(const char* name, int buffer_size, bool jportal) 
   assert(name != NULL, "must provide a name");
   {
     MutexLockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
-    blob = new (size, jportal) VtableBlob(name, size);
+    blob = new (size) VtableBlob(name, size);
   }
   // Track memory usage statistic after releasing CodeCache_lock
   MemoryService::track_code_cache_memory_usage();
@@ -322,7 +322,7 @@ VtableBlob* VtableBlob::create(const char* name, int buffer_size, bool jportal) 
 //----------------------------------------------------------------------------------------------------
 // Implementation of MethodHandlesAdapterBlob
 
-MethodHandlesAdapterBlob* MethodHandlesAdapterBlob::create(int buffer_size, bool jportal) {
+MethodHandlesAdapterBlob* MethodHandlesAdapterBlob::create(int buffer_size) {
   ThreadInVMfromUnknown __tiv;  // get to VM state in case we block on CodeCache_lock
 
   MethodHandlesAdapterBlob* blob = NULL;
@@ -332,7 +332,7 @@ MethodHandlesAdapterBlob* MethodHandlesAdapterBlob::create(int buffer_size, bool
   size += align_up(buffer_size, oopSize);
   {
     MutexLockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
-    blob = new (size, jportal) MethodHandlesAdapterBlob(size);
+    blob = new (size) MethodHandlesAdapterBlob(size);
     if (blob == NULL) {
       vm_exit_out_of_memory(size, OOM_MALLOC_ERROR, "CodeCache: no room for method handle adapter blob");
     }
@@ -381,14 +381,14 @@ RuntimeStub* RuntimeStub::new_runtime_stub(const char* stub_name,
 
 
 void* RuntimeStub::operator new(size_t s, unsigned size) throw() {
-  void* p = CodeCache::allocate(size, CodeBlobType::NonNMethod, false);
+  void* p = CodeCache::allocate(size, CodeBlobType::NonNMethod);
   if (!p) fatal("Initial size of CodeCache is too small");
   return p;
 }
 
 // operator new shared by all singletons:
 void* SingletonBlob::operator new(size_t s, unsigned size) throw() {
-  void* p = CodeCache::allocate(size, CodeBlobType::NonNMethod, false);
+  void* p = CodeCache::allocate(size, CodeBlobType::NonNMethod);
   if (!p) fatal("Initial size of CodeCache is too small");
   return p;
 }
@@ -564,7 +564,7 @@ void CodeBlob::print_value_on(outputStream* st) const {
 void CodeBlob::dump_for_addr(address addr, outputStream* st, bool verbose) const {
   if (is_buffer_blob()) {
     // the interpreter is generated into a buffer blob
-    InterpreterCodelet* i = Interpreter::codelet_containing(addr, CodeCache::is_jportal(addr));
+    InterpreterCodelet* i = Interpreter::codelet_containing(addr);
     if (i != NULL) {
       st->print_cr(INTPTR_FORMAT " is at code_begin+%d in an Interpreter codelet", p2i(addr), (int)(addr - i->code_begin()));
       i->print_on(st);

@@ -278,13 +278,11 @@ void CompilerPhaseTypeConstant::serialize(JfrCheckpointWriter& writer) {
 }
 
 void CodeBlobTypeConstant::serialize(JfrCheckpointWriter& writer) {
-  static const u4 nof_entries = CodeBlobType::NumTypes *2;
+  static const u4 nof_entries = CodeBlobType::NumTypes;
   writer.write_count(nof_entries);
   for (u4 i = 0; i < nof_entries; ++i) {
     writer.write_key(i);
-    writer.write(CodeCache::get_code_heap_name(i, false));
-    writer.write_key(++i);
-    writer.write(CodeCache::get_code_heap_name(i, true));
+    writer.write(CodeCache::get_code_heap_name(i));
   }
 };
 

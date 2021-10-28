@@ -565,14 +565,6 @@ LoadJavaVM(const char *jvmpath, InvocationFunctions *ifn)
         return JNI_FALSE;
     }
 
-    // JPortal
-    ifn->JPortalEnable = (JPortalEnable_t)
-        dlsym(libjvm, "JNI_JPortalEnable");
-    if (ifn->JPortalEnable == NULL) {
-        JLI_ReportErrorMessage(DLL_ERROR2, jvmpath, dlerror());
-        return JNI_FALSE;
-    }
-
     return JNI_TRUE;
 }
 

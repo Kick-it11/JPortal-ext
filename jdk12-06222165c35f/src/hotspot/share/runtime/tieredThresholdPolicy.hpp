@@ -201,7 +201,7 @@ class TieredThresholdPolicy : public CompilationPolicy {
   // per millisecond.
   inline void update_rate(jlong t, Method* m);
   // Compute threshold scaling coefficient
-  inline double threshold_scale(CompLevel level, int feedback_k, bool jportal);
+  inline double threshold_scale(CompLevel level, int feedback_k);
   // If a method is old enough and is still in the interpreter we would want to
   // start profiling without waiting for the compiled method to arrive. This function
   // determines whether we should do that.

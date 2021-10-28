@@ -42,8 +42,7 @@
 
 DEF_STUB_INTERFACE(ICStub);
 
-StubQueue* InlineCacheBuffer::_normal_buffer    = NULL;
-StubQueue* InlineCacheBuffer::_jportal_buffer   = NULL;
+StubQueue* InlineCacheBuffer::_buffer    = NULL;
 
 CompiledICHolder* InlineCacheBuffer::_pending_released = NULL;
 int InlineCacheBuffer::_pending_count = 0;
@@ -140,18 +139,14 @@ void ICStub::print() {
 
 
 void InlineCacheBuffer::initialize() {
-  if (_normal_buffer != NULL || _jportal_buffer != NULL) return; // already initialized
-  _normal_buffer = new StubQueue(new ICStubInterface, 10*K, InlineCacheBuffer_lock, "InlineCacheBuffer", false);
-  assert (_normal_buffer != NULL, "cannot allocate InlineCacheBuffer");
-  if (JPortal) {
-    _jportal_buffer = new StubQueue(new ICStubInterface, 10*K, InlineCacheBuffer_lock, "JPortalInlineCacheBuffer", true);
-    assert (_jportal_buffer != NULL, "cannot allocate JPortal InlineCacheBuffer");
-  }
+  if (_buffer != NULL) return; // already initialized
+  _buffer = new StubQueue(new ICStubInterface, 10*K, InlineCacheBuffer_lock, "InlineCacheBuffer");
+  assert (_buffer != NULL, "cannot allocate InlineCacheBuffer");
 }
 
 
-ICStub* InlineCacheBuffer::new_ic_stub(bool jportal) {
-  return (ICStub*)buffer(jportal)->request_committed(ic_stub_code_size());
+ICStub* InlineCacheBuffer::new_ic_stub() {
+  return (ICStub*)buffer()->request_committed(ic_stub_code_size());
 }
 
 
@@ -177,33 +172,23 @@ void InlineCacheBuffer::refill_ic_stubs() {
 
 
 void InlineCacheBuffer::update_inline_caches() {
-  if (buffer(false)->number_of_stubs() > 0) {
+  if (buffer()->number_of_stubs() > 0) {
     if (TraceICBuffer) {
-      tty->print_cr("[updating inline caches with %d stubs]", buffer(false)->number_of_stubs());
+      tty->print_cr("[updating inline caches with %d stubs]", buffer()->number_of_stubs());
     }
-    buffer(false)->remove_all();
-  }
-  if (JPortal) {
-    if (buffer(true)->number_of_stubs() > 0) {
-      if (TraceICBuffer) {
-        tty->print_cr("[updating inline caches with %d stubs]", buffer(false)->number_of_stubs());
-      }
-      buffer(true)->remove_all();
-    }
+    buffer()->remove_all();
   }
   release_pending_icholders();
 }
 
 
 bool InlineCacheBuffer::contains(address instruction_address) {
-  return buffer(false)->contains(instruction_address) ||
-          (buffer(true) && buffer(true)->contains(instruction_address));
+  return buffer()->contains(instruction_address);
 }
 
 
 bool InlineCacheBuffer::is_empty() {
-  return buffer(false)->number_of_stubs() == 0 &&
-          (!buffer(true) || buffer(true)->number_of_stubs() == 0);
+  return buffer()->number_of_stubs() == 0;
 }
 
 
@@ -211,7 +196,7 @@ void InlineCacheBuffer_init() {
   InlineCacheBuffer::initialize();
 }
 
-bool InlineCacheBuffer::create_transition_stub(CompiledIC *ic, void* cached_value, address entry, bool jportal) {
+bool InlineCacheBuffer::create_transition_stub(CompiledIC *ic, void* cached_value, address entry) {
   assert(!SafepointSynchronize::is_at_safepoint(), "should not be called during a safepoint");
   assert(CompiledICLocker::is_safe(ic->instruction_address()), "mt unsafe call");
   if (TraceICBuffer) {
@@ -220,7 +205,7 @@ bool InlineCacheBuffer::create_transition_stub(CompiledIC *ic, void* cached_valu
   }
 
   // allocate and initialize new "out-of-line" inline-cache
-  ICStub* ic_stub = new_ic_stub(jportal);
+  ICStub* ic_stub = new_ic_stub();
   if (ic_stub == NULL) {
 #ifdef ASSERT
     ICRefillVerifier* verifier = current_ic_refill_verifier();

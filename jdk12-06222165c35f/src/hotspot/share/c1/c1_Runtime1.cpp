@@ -1221,11 +1221,6 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* thread, Runtime1::StubID stub_i
           ICache::invalidate_range(instr_pc, *byte_count);
           NativeGeneralJump::replace_mt_safe(instr_pc, copy_buff);
 
-          // JPortal
-          if (JPortal && CodeCache::is_jportal(instr_pc)) {
-            JPortalEnable::jportal_inline_cache_add(instr_pc, instr_pc + *byte_count);
-          }
-
           if (load_klass_or_mirror_patch_id ||
               stub_id == Runtime1::load_appendix_patching_id) {
             relocInfo::relocType rtype =
@@ -1261,11 +1256,6 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* thread, Runtime1::StubID stub_i
         } else {
           ICache::invalidate_range(copy_buff, *byte_count);
           NativeGeneralJump::insert_unconditional(instr_pc, being_initialized_entry);
-
-          // JPortal
-          if (JPortal && CodeCache::is_jportal(instr_pc)) {
-            JPortalEnable::jportal_inline_cache_add(instr_pc, being_initialized_entry);
-          }
         }
       }
     }

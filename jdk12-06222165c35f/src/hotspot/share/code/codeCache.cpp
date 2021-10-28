@@ -68,12 +68,6 @@
 #include "opto/node.hpp"
 #endif
 
-#if defined(JPORTAL)
-#include <sys/shm.h>
-#include <sys/prctl.h>
-#include <sys/syscall.h>
-#endif
-
 // Helper class for printing in CodeCache
 class CodeBlob_sizes {
  private:
@@ -150,10 +144,6 @@ class CodeBlob_sizes {
 
 address CodeCache::_low_bound = 0;
 address CodeCache::_high_bound = 0;
-address CodeCache::_normal_low_bound = 0;
-address CodeCache::_normal_high_bound = 0;
-address CodeCache::_jportal_low_bound = 0;
-address CodeCache::_jportal_high_bound = 0;
 int CodeCache::_number_of_nmethods_with_dependencies = 0;
 nmethod* CodeCache::_scavenge_root_nmethods = NULL;
 ExceptionCache* volatile CodeCache::_exception_cache_purge_list = NULL;
@@ -164,46 +154,40 @@ GrowableArray<CodeHeap*>* CodeCache::_compiled_heaps = new(ResourceObj::C_HEAP, 
 GrowableArray<CodeHeap*>* CodeCache::_nmethod_heaps = new(ResourceObj::C_HEAP, mtCode) GrowableArray<CodeHeap*> (CodeBlobType::All, true);
 GrowableArray<CodeHeap*>* CodeCache::_allocable_heaps = new(ResourceObj::C_HEAP, mtCode) GrowableArray<CodeHeap*> (CodeBlobType::All, true);
 
-void CodeCache::check_heap_sizes(size_t non_nmethod_size, size_t profiled_size, size_t non_profiled_size, size_t cache_size, bool all_set, bool jportal) {
+void CodeCache::check_heap_sizes(size_t non_nmethod_size, size_t profiled_size, size_t non_profiled_size, size_t cache_size, bool all_set) {
   size_t total_size = non_nmethod_size + profiled_size + non_profiled_size;
   // Prepare error message
   const char* error = "Invalid code heap sizes";
-  err_msg message(jportal?("JPortalNonNMethodCodeHeapSize (" SIZE_FORMAT "K) + JPortalProfiledCodeHeapSize (" SIZE_FORMAT "K)"
-                  " + JPortalNonProfiledCodeHeapSize (" SIZE_FORMAT "K) = " SIZE_FORMAT "K"):("NonNMethodCodeHeapSize (" SIZE_FORMAT "K) + ProfiledCodeHeapSize (" SIZE_FORMAT "K)"
-                  " + NonProfiledCodeHeapSize (" SIZE_FORMAT "K) = " SIZE_FORMAT "K"),
+  err_msg message("NonNMethodCodeHeapSize (" SIZE_FORMAT "K) + ProfiledCodeHeapSize (" SIZE_FORMAT "K)"
+                  " + NonProfiledCodeHeapSize (" SIZE_FORMAT "K) = " SIZE_FORMAT "K",
           non_nmethod_size/K, profiled_size/K, non_profiled_size/K, total_size/K);
 
   if (total_size > cache_size) {
     // Some code heap sizes were explicitly set: total_size must be <= cache_size
-    message.append(jportal?(" is greater than JPortalReservedCodeCacheSize (" SIZE_FORMAT "K)."):
-                            (" is greater than ReservedCodeCacheSize (" SIZE_FORMAT "K)."), cache_size/K);
+    message.append(" is greater than ReservedCodeCacheSize (" SIZE_FORMAT "K).", cache_size/K);
     vm_exit_during_initialization(error, message);
   } else if (all_set && total_size != cache_size) {
     // All code heap sizes were explicitly set: total_size must equal cache_size
-    message.append(jportal?(" is not equal to JPortalReservedCodeCacheSize (" SIZE_FORMAT "K)."):
-                            (" is not equal to ReservedCodeCacheSize (" SIZE_FORMAT "K)."), cache_size/K);
+    message.append(" is not equal to ReservedCodeCacheSize (" SIZE_FORMAT "K).", cache_size/K);
     vm_exit_during_initialization(error, message);
   }
 }
 
-void CodeCache::initialize_heaps_size(bool jportal, size_t &cache_size, size_t &non_nmethod_size,
-                                        size_t &profiled_size, size_t &non_profiled_size) {
-  bool non_nmethod_set      = jportal?FLAG_IS_CMDLINE(JPortalNonNMethodCodeHeapSize):FLAG_IS_CMDLINE(NonNMethodCodeHeapSize);
-  bool profiled_set         = jportal?FLAG_IS_CMDLINE(JPortalProfiledCodeHeapSize):FLAG_IS_CMDLINE(ProfiledCodeHeapSize);
-  bool non_profiled_set     = jportal?FLAG_IS_CMDLINE(JPortalNonProfiledCodeHeapSize):FLAG_IS_CMDLINE(NonProfiledCodeHeapSize);
+void CodeCache::initialize_heaps() {
+  bool non_nmethod_set      = FLAG_IS_CMDLINE(NonNMethodCodeHeapSize);
+  bool profiled_set         = FLAG_IS_CMDLINE(ProfiledCodeHeapSize);
+  bool non_profiled_set     = FLAG_IS_CMDLINE(NonProfiledCodeHeapSize);
   size_t min_size           = os::vm_page_size();
-
-  cache_size         = jportal?JPortalReservedCodeCacheSize:ReservedCodeCacheSize;
-  non_nmethod_size   = jportal?JPortalNonNMethodCodeHeapSize:NonNMethodCodeHeapSize;
-  profiled_size      = jportal?JPortalProfiledCodeHeapSize:ProfiledCodeHeapSize;
-  non_profiled_size  = jportal?JPortalNonProfiledCodeHeapSize:NonProfiledCodeHeapSize;
+  size_t cache_size         = ReservedCodeCacheSize;
+  size_t non_nmethod_size   = NonNMethodCodeHeapSize;
+  size_t profiled_size      = ProfiledCodeHeapSize;
+  size_t non_profiled_size  = NonProfiledCodeHeapSize;
   // Check if total size set via command line flags exceeds the reserved size
   check_heap_sizes((non_nmethod_set  ? non_nmethod_size  : min_size),
                    (profiled_set     ? profiled_size     : min_size),
                    (non_profiled_set ? non_profiled_size : min_size),
                    cache_size,
-                   non_nmethod_set && profiled_set && non_profiled_set,
-                   jportal);
+                   non_nmethod_set && profiled_set && non_profiled_set);
 
   // Determine size of compiler buffers
   size_t code_buffers_size = 0;
@@ -280,12 +264,12 @@ void CodeCache::initialize_heaps_size(bool jportal, size_t &cache_size, size_t &
   }
 
   // We do not need the profiled CodeHeap, use all space for the non-profiled CodeHeap
-  if (!heap_available(CodeBlobType::MethodProfiled, jportal)) {
+  if (!heap_available(CodeBlobType::MethodProfiled)) {
     non_profiled_size += profiled_size;
     profiled_size = 0;
   }
   // We do not need the non-profiled CodeHeap, use all space for the non-nmethod CodeHeap
-  if (!heap_available(CodeBlobType::MethodNonProfiled, jportal)) {
+  if (!heap_available(CodeBlobType::MethodNonProfiled)) {
     non_nmethod_size += non_profiled_size;
     non_profiled_size = 0;
   }
@@ -299,99 +283,35 @@ void CodeCache::initialize_heaps_size(bool jportal, size_t &cache_size, size_t &
 
   // Verify sizes and update flag values
   assert(non_profiled_size + profiled_size + non_nmethod_size == cache_size, "Invalid code heap sizes");
-  if (jportal) {
-    FLAG_SET_ERGO(uintx, JPortalNonNMethodCodeHeapSize, non_nmethod_size);
-    FLAG_SET_ERGO(uintx, JPortalProfiledCodeHeapSize, profiled_size);
-    FLAG_SET_ERGO(uintx, JPortalNonProfiledCodeHeapSize, non_profiled_size);
-  } else {
-    FLAG_SET_ERGO(uintx, NonNMethodCodeHeapSize, non_nmethod_size);
-    FLAG_SET_ERGO(uintx, ProfiledCodeHeapSize, profiled_size);
-    FLAG_SET_ERGO(uintx, NonProfiledCodeHeapSize, non_profiled_size);
-  }
+  FLAG_SET_ERGO(uintx, NonNMethodCodeHeapSize, non_nmethod_size);
+  FLAG_SET_ERGO(uintx, ProfiledCodeHeapSize, profiled_size);
+  FLAG_SET_ERGO(uintx, NonProfiledCodeHeapSize, non_profiled_size);
+
   // If large page support is enabled, align code heaps according to large
   // page size to make sure that code cache is covered by large pages.
   const size_t alignment = MAX2(page_size(false, 8), (size_t) os::vm_allocation_granularity());
   non_nmethod_size = align_up(non_nmethod_size, alignment);
   profiled_size    = align_down(profiled_size, alignment);
-  non_profiled_size = align_down(non_profiled_size, alignment);
-}
 
-void CodeCache::initialize_heaps() {
-  size_t normal_cache_size = 0, normal_non_nmethod_size = 0,
-          normal_profiled_size = 0, normal_non_profiled_size = 0;
   // Reserve one continuous chunk of memory for CodeHeaps and split it into
   // parts for the individual heaps. The memory layout looks like this:
-  // ---------- high -----------  (optional)
-  //  JPortal Non-profiled nmethods
-  //    JPortal Profiled nmethods
-  //       JPortal Non-nmethods
-  // ---------- low ------------
   // ---------- high -----------
   //    Non-profiled nmethods
   //      Profiled nmethods
   //         Non-nmethods
   // ---------- low ------------
-  initialize_heaps_size(false, normal_cache_size, normal_non_nmethod_size,
-                          normal_profiled_size, normal_non_profiled_size);
-  if (JPortal) {
-    size_t jportal_cache_size = 0, jportal_non_nmethod_size = 0,
-          jportal_profiled_size = 0, jportal_non_profiled_size = 0;
-    initialize_heaps_size(true, jportal_cache_size, jportal_non_nmethod_size,
-                            jportal_profiled_size, jportal_non_profiled_size);
-
-    ReservedCodeSpace rs = reserve_heap_memory(normal_cache_size + jportal_cache_size);
-    ReservedSpace normal_non_method_space    = rs.first_part(normal_non_nmethod_size);
-    ReservedSpace rest1                      = rs.last_part(normal_non_nmethod_size);
-    ReservedSpace normal_profiled_space      = rest1.first_part(normal_profiled_size);
-    ReservedSpace rest2                      = rest1.last_part(normal_profiled_size);
-    ReservedSpace normal_non_profiled_space  = rest2.first_part(normal_non_profiled_size);
-    ReservedSpace rest3                      = rest2.last_part(normal_non_profiled_size);
-    ReservedSpace jportal_non_method_space   = rest3.first_part(jportal_non_nmethod_size);
-    ReservedSpace rest4                      = rest3.last_part(jportal_non_nmethod_size);
-    ReservedSpace jportal_profiled_space     = rest4.first_part(jportal_profiled_size);
-    ReservedSpace jportal_non_profiled_space = rest4.last_part(jportal_profiled_size);
-
-    // Non-nmethods (stubs, adapters, ...)
-    add_heap(normal_non_method_space, "CodeHeap 'non-nmethods'", CodeBlobType::NonNMethod, false);
-    // Tier 2 and tier 3 (profiled) methods
-    add_heap(normal_profiled_space, "CodeHeap 'profiled nmethods'", CodeBlobType::MethodProfiled, false);
-    // Tier 1 and tier 4 (non-profiled) methods and native methods
-    add_heap(normal_non_profiled_space, "CodeHeap 'non-profiled nmethods'", CodeBlobType::MethodNonProfiled, false);
-    // Non-nmethods (stubs, adapters, ...)
-    add_heap(jportal_non_method_space, "JPortal CodeHeap 'non-nmethods'", CodeBlobType::NonNMethod, true);
-    // Tier 2 and tier 3 (profiled) methods
-    add_heap(jportal_profiled_space, "JPortal CodeHeap 'profiled nmethods'", CodeBlobType::MethodProfiled, true);
-    // Tier 1 and tier 4 (non-profiled) methods and native methods
-    add_heap(jportal_non_profiled_space, "JPortal CodeHeap 'non-profiled nmethods'", CodeBlobType::MethodNonProfiled, true);
-
-    _normal_low_bound = (address)normal_non_method_space.base();
-    _normal_high_bound = (address)normal_non_profiled_space.end();
-    _jportal_low_bound = (address)jportal_non_method_space.base();
-    _jportal_high_bound = (address)jportal_non_profiled_space.end();
-
-    return;
-  }
-
-  FLAG_SET_ERGO(uintx, JPortalReservedCodeCacheSize, 0);
-  FLAG_SET_ERGO(uintx, JPortalNonNMethodCodeHeapSize, 0);
-  FLAG_SET_ERGO(uintx, JPortalProfiledCodeHeapSize, 0);
-  FLAG_SET_ERGO(uintx, JPortalNonProfiledCodeHeapSize, 0);
-
-  ReservedCodeSpace rs = reserve_heap_memory(normal_cache_size);
-  ReservedSpace non_method_space    = rs.first_part(normal_non_nmethod_size);
-  ReservedSpace rest                = rs.last_part(normal_non_nmethod_size);
-  ReservedSpace profiled_space      = rest.first_part(normal_profiled_size);
-  ReservedSpace non_profiled_space  = rest.last_part(normal_profiled_size);
+  ReservedCodeSpace rs = reserve_heap_memory(cache_size);
+  ReservedSpace non_method_space    = rs.first_part(non_nmethod_size);
+  ReservedSpace rest                = rs.last_part(non_nmethod_size);
+  ReservedSpace profiled_space      = rest.first_part(profiled_size);
+  ReservedSpace non_profiled_space  = rest.last_part(profiled_size);
 
   // Non-nmethods (stubs, adapters, ...)
-  add_heap(non_method_space, "CodeHeap 'non-nmethods'", CodeBlobType::NonNMethod, false);
+  add_heap(non_method_space, "CodeHeap 'non-nmethods'", CodeBlobType::NonNMethod);
   // Tier 2 and tier 3 (profiled) methods
-  add_heap(profiled_space, "CodeHeap 'profiled nmethods'", CodeBlobType::MethodProfiled, false);
+  add_heap(profiled_space, "CodeHeap 'profiled nmethods'", CodeBlobType::MethodProfiled);
   // Tier 1 and tier 4 (non-profiled) methods and native methods
-  add_heap(non_profiled_space, "CodeHeap 'non-profiled nmethods'", CodeBlobType::MethodNonProfiled, false);
-
-  _normal_low_bound = _low_bound;
-  _normal_high_bound = _high_bound;
+  add_heap(non_profiled_space, "CodeHeap 'non-profiled nmethods'", CodeBlobType::MethodNonProfiled);
 }
 
 size_t CodeCache::page_size(bool aligned, size_t min_pages) {
@@ -425,10 +345,7 @@ ReservedCodeSpace CodeCache::reserve_heap_memory(size_t size) {
 }
 
 // Heaps available for allocation
-bool CodeCache::heap_available(int code_blob_type, bool jportal) {
-  if (!JPortal && jportal)
-    return false;
-
+bool CodeCache::heap_available(int code_blob_type) {
   if (!SegmentedCodeCache) {
     // No segmentation: use a single code heap
     return (code_blob_type == CodeBlobType::All);
@@ -445,16 +362,16 @@ bool CodeCache::heap_available(int code_blob_type, bool jportal) {
   }
 }
 
-const char* CodeCache::get_code_heap_flag_name(int code_blob_type, bool jportal) {
+const char* CodeCache::get_code_heap_flag_name(int code_blob_type) {
   switch(code_blob_type) {
   case CodeBlobType::NonNMethod:
-    return jportal?"JPortalNonNMethodCodeHeapSize":"NonNMethodCodeHeapSize";
+    return "NonNMethodCodeHeapSize";
     break;
   case CodeBlobType::MethodNonProfiled:
-    return jportal?"JPortalNonProfiledCodeHeapSize":"NonProfiledCodeHeapSize";
+    return "NonProfiledCodeHeapSize";
     break;
   case CodeBlobType::MethodProfiled:
-    return jportal?"JPortalProfiledCodeHeapSize":"ProfiledCodeHeapSize";
+    return "ProfiledCodeHeapSize";
     break;
   }
   ShouldNotReachHere();
@@ -486,14 +403,14 @@ void CodeCache::add_heap(CodeHeap* heap) {
   }
 }
 
-void CodeCache::add_heap(ReservedSpace rs, const char* name, int code_blob_type, bool jportal) {
+void CodeCache::add_heap(ReservedSpace rs, const char* name, int code_blob_type) {
   // Check if heap is needed
-  if (!heap_available(code_blob_type, jportal)) {
+  if (!heap_available(code_blob_type)) {
     return;
   }
 
   // Create CodeHeap
-  CodeHeap* heap = new CodeHeap(name, code_blob_type, jportal);
+  CodeHeap* heap = new CodeHeap(name, code_blob_type);
   add_heap(heap);
 
   // Reserve Space
@@ -528,9 +445,9 @@ CodeHeap* CodeCache::get_code_heap(const CodeBlob* cb) {
   return NULL;
 }
 
-CodeHeap* CodeCache::get_code_heap(int code_blob_type, bool jportal) {
+CodeHeap* CodeCache::get_code_heap(int code_blob_type) {
   FOR_ALL_HEAPS(heap) {
-    if ((*heap)->accepts(code_blob_type) && (*heap)->is_jportal() == jportal) {
+    if ((*heap)->accepts(code_blob_type)) {
       return *heap;
     }
   }
@@ -543,9 +460,9 @@ CodeBlob* CodeCache::first_blob(CodeHeap* heap) {
   return (CodeBlob*)heap->first();
 }
 
-CodeBlob* CodeCache::first_blob(int code_blob_type, bool jportal) {
-  if (heap_available(code_blob_type, jportal)) {
-    return first_blob(get_code_heap(code_blob_type, jportal));
+CodeBlob* CodeCache::first_blob(int code_blob_type) {
+  if (heap_available(code_blob_type)) {
+    return first_blob(get_code_heap(code_blob_type));
   } else {
     return NULL;
   }
@@ -564,9 +481,9 @@ CodeBlob* CodeCache::next_blob(CodeHeap* heap, CodeBlob* cb) {
  * run the constructor for the CodeBlob subclass he is busy
  * instantiating.
  */
-CodeBlob* CodeCache::allocate(int size, int code_blob_type, bool jportal, int orig_code_blob_type) {
+CodeBlob* CodeCache::allocate(int size, int code_blob_type, int orig_code_blob_type) {
   // Possibly wakes up the sweeper thread.
-  NMethodSweeper::notify(code_blob_type, jportal);
+  NMethodSweeper::notify(code_blob_type);
   assert_locked_or_safepoint(CodeCache_lock);
   assert(size > 0, "Code cache allocation request must be > 0 but is %d", size);
   if (size <= 0) {
@@ -575,7 +492,7 @@ CodeBlob* CodeCache::allocate(int size, int code_blob_type, bool jportal, int or
   CodeBlob* cb = NULL;
 
   // Get CodeHeap for the given CodeBlobType
-  CodeHeap* heap = get_code_heap(code_blob_type, jportal);
+  CodeHeap* heap = get_code_heap(code_blob_type);
   assert(heap != NULL, "heap is null");
 
   while (true) {
@@ -607,16 +524,16 @@ CodeBlob* CodeCache::allocate(int size, int code_blob_type, bool jportal, int or
           }
           break;
         }
-        if (type != code_blob_type && type != orig_code_blob_type && heap_available(type, jportal)) {
+        if (type != code_blob_type && type != orig_code_blob_type && heap_available(type)) {
           if (PrintCodeCacheExtension) {
             tty->print_cr("Extension of %s failed. Trying to allocate in %s.",
-                          heap->name(), get_code_heap(type, jportal)->name());
+                          heap->name(), get_code_heap(type)->name());
           }
-          return allocate(size, type, orig_code_blob_type, jportal);
+          return allocate(size, type, orig_code_blob_type);
         }
       }
       MutexUnlockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
-      CompileBroker::handle_full_code_cache(orig_code_blob_type, jportal);
+      CompileBroker::handle_full_code_cache(orig_code_blob_type);
       return NULL;
     }
     if (PrintCodeCacheExtension) {
@@ -1052,8 +969,8 @@ void CodeCache::verify_oops() {
   }
 }
 
-int CodeCache::blob_count(int code_blob_type, bool jportal) {
-  CodeHeap* heap = get_code_heap(code_blob_type, jportal);
+int CodeCache::blob_count(int code_blob_type) {
+  CodeHeap* heap = get_code_heap(code_blob_type);
   return (heap != NULL) ? heap->blob_count() : 0;
 }
 
@@ -1065,8 +982,8 @@ int CodeCache::blob_count() {
   return count;
 }
 
-int CodeCache::nmethod_count(int code_blob_type, bool jportal) {
-  CodeHeap* heap = get_code_heap(code_blob_type, jportal);
+int CodeCache::nmethod_count(int code_blob_type) {
+  CodeHeap* heap = get_code_heap(code_blob_type);
   return (heap != NULL) ? heap->nmethod_count() : 0;
 }
 
@@ -1078,8 +995,8 @@ int CodeCache::nmethod_count() {
   return count;
 }
 
-int CodeCache::adapter_count(int code_blob_type, bool jportal) {
-  CodeHeap* heap = get_code_heap(code_blob_type, jportal);
+int CodeCache::adapter_count(int code_blob_type) {
+  CodeHeap* heap = get_code_heap(code_blob_type);
   return (heap != NULL) ? heap->adapter_count() : 0;
 }
 
@@ -1091,13 +1008,13 @@ int CodeCache::adapter_count() {
   return count;
 }
 
-address CodeCache::low_bound(int code_blob_type, bool jportal) {
-  CodeHeap* heap = get_code_heap(code_blob_type, jportal);
+address CodeCache::low_bound(int code_blob_type) {
+  CodeHeap* heap = get_code_heap(code_blob_type);
   return (heap != NULL) ? (address)heap->low_boundary() : NULL;
 }
 
-address CodeCache::high_bound(int code_blob_type, bool jportal) {
-  CodeHeap* heap = get_code_heap(code_blob_type, jportal);
+address CodeCache::high_bound(int code_blob_type) {
+  CodeHeap* heap = get_code_heap(code_blob_type);
   return (heap != NULL) ? (address)heap->high_boundary() : NULL;
 }
 
@@ -1109,8 +1026,8 @@ size_t CodeCache::capacity() {
   return cap;
 }
 
-size_t CodeCache::unallocated_capacity(int code_blob_type, bool jportal) {
-  CodeHeap* heap = get_code_heap(code_blob_type, jportal);
+size_t CodeCache::unallocated_capacity(int code_blob_type) {
+  CodeHeap* heap = get_code_heap(code_blob_type);
   return (heap != NULL) ? heap->unallocated_capacity() : 0;
 }
 
@@ -1134,8 +1051,8 @@ size_t CodeCache::max_capacity() {
  * Returns the reverse free ratio. E.g., if 25% (1/4) of the code heap
  * is free, reverse_free_ratio() returns 4.
  */
-double CodeCache::reverse_free_ratio(int code_blob_type, bool jportal) {
-  CodeHeap* heap = get_code_heap(code_blob_type, jportal);
+double CodeCache::reverse_free_ratio(int code_blob_type) {
+  CodeHeap* heap = get_code_heap(code_blob_type);
   if (heap == NULL) {
     return 0;
   }
@@ -1193,26 +1110,8 @@ void CodeCache::initialize() {
     FLAG_SET_ERGO(uintx, NonNMethodCodeHeapSize, 0);
     FLAG_SET_ERGO(uintx, ProfiledCodeHeapSize, 0);
     FLAG_SET_ERGO(uintx, NonProfiledCodeHeapSize, 0);
-    FLAG_SET_ERGO(uintx, JPortalNonNMethodCodeHeapSize, 0);
-    FLAG_SET_ERGO(uintx, JPortalProfiledCodeHeapSize, 0);
-    FLAG_SET_ERGO(uintx, JPortalNonProfiledCodeHeapSize, 0);
-    if (JPortal) {
-      ReservedCodeSpace rs = reserve_heap_memory(ReservedCodeCacheSize+JPortalReservedCodeCacheSize);
-      ReservedSpace normal_code = rs.first_part(ReservedCodeCacheSize);
-      ReservedSpace jportal_code = rs.last_part(ReservedCodeCacheSize);
-      add_heap(normal_code, "CodeCache", CodeBlobType::All, false);      
-      add_heap(jportal_code, "Jportal CodeCache", CodeBlobType::All, true);
-      _normal_low_bound = (address)normal_code.base();
-      _normal_high_bound = (address)normal_code.end();
-      _jportal_low_bound = (address)jportal_code.base();
-      _jportal_high_bound = (address)jportal_code.end();
-    } else {
-      ReservedCodeSpace rs = reserve_heap_memory(ReservedCodeCacheSize);
-      add_heap(rs, "CodeCache", CodeBlobType::All, false);
-      FLAG_SET_ERGO(uintx, JPortalReservedCodeCacheSize, 0);
-      _normal_low_bound = _low_bound;
-      _normal_high_bound = _high_bound;
-    }
+    ReservedCodeSpace rs = reserve_heap_memory(ReservedCodeCacheSize);
+    add_heap(rs, "CodeCache", CodeBlobType::All);
   }
 
   // Initialize ICache flush mechanism
@@ -1229,15 +1128,6 @@ void codeCache_init() {
   CodeCache::initialize();
   // Load AOT libraries and add AOT code heaps.
   AOTLoader::initialize();
-}
-
-// JPortalEnable
-void jPortalEnable_init() {
-  JPortalEnable::jportal_initialize();
-}
-
-void jPortalEnable_exit() {
-  JPortalEnable::jportal_exit();
 }
 
 //------------------------------------------------------------------------------------------------
@@ -1477,9 +1367,9 @@ void CodeCache::verify() {
 // A CodeHeap is full. Print out warning and report event.
 PRAGMA_DIAG_PUSH
 PRAGMA_FORMAT_NONLITERAL_IGNORED
-void CodeCache::report_codemem_full(int code_blob_type, bool print, bool jportal) {
+void CodeCache::report_codemem_full(int code_blob_type, bool print) {
   // Get nmethod heap for the given CodeBlobType and build CodeCacheFull event
-  CodeHeap* heap = get_code_heap(code_blob_type, jportal);
+  CodeHeap* heap = get_code_heap(code_blob_type);
   assert(heap != NULL, "heap is null");
 
   if ((heap->full_count() == 0) || print) {
@@ -1488,9 +1378,9 @@ void CodeCache::report_codemem_full(int code_blob_type, bool print, bool jportal
       ResourceMark rm;
       stringStream msg1_stream, msg2_stream;
       msg1_stream.print("%s is full. Compiler has been disabled.",
-                        get_code_heap_name(code_blob_type, jportal));
+                        get_code_heap_name(code_blob_type));
       msg2_stream.print("Try increasing the code heap size using -XX:%s=",
-                 get_code_heap_flag_name(code_blob_type, jportal));
+                 get_code_heap_flag_name(code_blob_type));
       const char *msg1 = msg1_stream.as_string();
       const char *msg2 = msg2_stream.as_string();
 
@@ -1759,7 +1649,7 @@ void CodeCache::print_summary(outputStream* st, bool detailed) {
                    p2i(heap->high()),
                    p2i(heap->high_boundary()));
 
-      full_count += get_codemem_full_count(heap->code_blob_type(), heap->is_jportal());
+      full_count += get_codemem_full_count(heap->code_blob_type());
     }
   }
 
@@ -1855,829 +1745,4 @@ void CodeCache::print_names(outputStream *out) {
     CodeHeapState::print_names(out, (*heap));
   }
 }
-
-bool JPortalEnable::enable_is_initialized = false;
-bool JPortalEnable::dump_is_initialized = false;
-int JPortalEnable::shm_id = -1;
-address JPortalEnable::shm_addr = NULL;
-size_t JPortalEnable::shm_volume = JPortalShmVolume;
-address JPortalEnable::data_begin = NULL;
-address JPortalEnable::data_end = NULL;
-size_t JPortalEnable::data_volume = 0;
-pthread_mutex_t JPortalEnable::dumper_lock;
-int JPortalEnable::dump_pipe[2];
-GrowableArray<Method *> *JPortalEnable::method_array;
-
-inline jlong JPortalEnable::get_java_tid(JavaThread* thread) {
-  oop obj = ((JavaThread*)thread)->threadObj();
-  return (obj == NULL) ? 0 : java_lang_Thread::thread_id(obj);
-}
-
-void JPortalEnable::jportal_interpreter_codelets(InterpreterInfo inter) {
-  if (!dump_is_initialized)
-    return;
-
-  uint64_t size = sizeof(InterpreterInfo);
-  if (data_volume <= size) {
-    fprintf(stderr, "JPortal: ignore compiled code for size too big.\n");
-    return;
-  }
-
-  if (pthread_mutex_lock(&dumper_lock) < 0) {
-    jportal_exit();
-    fprintf(stderr, "JPortal: lock error.\n");
-    return;
-  }
-  uint64_t data_size = 0;
-  ShmHeader *header;
-  uint64_t data_head, data_tail;
-  char bf;
-
-  while (1) {
-    header = (ShmHeader *)shm_addr;
-    data_head = header->data_head;
-    data_tail = header->data_tail;
-    if (data_head < data_tail) data_size = data_tail - data_head;
-    else data_size = data_volume - (data_head - data_tail);
-    if (data_size > size)
-      break;
-    else {
-      if (write(dump_pipe[1], &bf, 1) <= 0) {
-        jportal_exit();
-        fprintf(stderr, "JPortal: compiled code write pipe error.\n");
-        return;
-      }
-    }
-  }
-
-  address addr = data_begin + data_head;
-  addr = copy_data(addr, (address)&inter, sizeof(inter));
-
-  header->data_head = (addr - data_begin);
-  if (write(dump_pipe[1], &bf, 1) <= 0) {
-    jportal_exit();
-    fprintf(stderr, "JPortal: compiled code write pipe error.\n");
-    return;
-  }
-  if (pthread_mutex_unlock(&dumper_lock) < 0) {
-    jportal_exit();
-    fprintf(stderr, "JPortal: unlock error.\n");
-  }
-}
-
-void JPortalEnable::jportal_method_entry(JavaThread *thread, Method *moop) {
-  if (!dump_is_initialized || !thread || !moop)
-    return;
-
-  int idx = method_array->find(moop);
-  if (idx == -1) {
-    if (pthread_mutex_lock(&dumper_lock) < 0) {
-      jportal_exit();
-      fprintf(stderr, "JPortal: lock error.\n");
-      return;
-    }
-
-    int klass_name_length = moop->klass_name()->utf8_length();
-    int name_length = moop->name()->utf8_length();
-    int sig_length = moop->signature()->utf8_length();
-    char *klass_name = (char *)moop->klass_name()->bytes();
-    char *method_name = (char *)moop->name()->bytes();
-    char *method_signature = (char *)moop->signature()->bytes();
-
-    uint64_t size = sizeof(MethodEntryInitial) +
-                      klass_name_length + name_length + sig_length;
-    MethodEntryInitial me(idx, get_java_tid(thread), 
-                    klass_name_length, name_length, sig_length, size);
-
-    if (data_volume <= size) {
-      fprintf(stderr, "JPortal: ignore entry for size too big.\n");
-      if (pthread_mutex_unlock(&dumper_lock) < 0) {
-        jportal_exit();
-        fprintf(stderr, "JPortal: unlock error.\n");
-      }
-      return;
-    }
-
-    uint64_t data_size = 0;
-    ShmHeader *header;
-    uint64_t data_head, data_tail;
-    char bf;
-
-    while (1) {
-      header = (ShmHeader *)shm_addr;
-      data_head = header->data_head;
-      data_tail = header->data_tail; 
-      if (data_head < data_tail)
-        data_size = data_tail - data_head;
-      else
-        data_size = data_volume - (data_head - data_tail);
-      if (data_size > size)
-        break;
-      else {
-        if (write(dump_pipe[1], &bf, 1) <= 0) {
-          jportal_exit();
-          fprintf(stderr, "JPortal: entry write pipe error.\n");
-          return;
-        }
-      }
-    }
-
-    address addr = (data_begin + data_head);
-    addr = copy_data(addr, (address)&me, sizeof(me));
-    addr = copy_data(addr, (address)klass_name, klass_name_length);
-    addr = copy_data(addr, (address)method_name, name_length);
-    addr = copy_data(addr, (address)method_signature, sig_length);
-
-    header->data_head = (addr - data_begin);
-    if (write(dump_pipe[1], &bf, 1) <= 0) {
-      jportal_exit();
-      fprintf(stderr, "JPortal: entry write pipe error.\n");
-      return;
-    }
-    if (pthread_mutex_unlock(&dumper_lock) < 0) {
-      jportal_exit();
-      fprintf(stderr, "JPortal: unlock error.\n");
-    }
-    return;
-  }
-  uint64_t size = sizeof(MethodEntryInfo);
-  MethodEntryInfo me(idx, get_java_tid(thread), size);
-
-  if (data_volume <= size) {
-    fprintf(stderr, "JPortal: ignore entry for size too big.\n");
-    return;
-  }
-
-  if (pthread_mutex_lock(&dumper_lock) < 0) {
-    jportal_exit();
-    fprintf(stderr, "JPortal: lock error.\n");
-    return;
-  }
-  uint64_t data_size = 0;
-  ShmHeader *header;
-  uint64_t data_head, data_tail;
-  char bf;
-
-  while (1) {
-    header = (ShmHeader *)shm_addr;
-    data_head = header->data_head;
-    data_tail = header->data_tail; 
-    if (data_head < data_tail)
-      data_size = data_tail - data_head;
-    else
-      data_size = data_volume - (data_head - data_tail);
-    if (data_size > size)
-      break;
-    else {
-      if (write(dump_pipe[1], &bf, 1) <= 0) {
-        jportal_exit();
-        fprintf(stderr, "JPortal: entry write pipe error.\n");
-        return;
-      }
-    }
-  }
-
-  address addr = (data_begin + data_head);
-  addr = copy_data(addr, (address)&me, sizeof(me));
-
-  header->data_head = (addr - data_begin);
-  if (write(dump_pipe[1], &bf, 1) <= 0) {
-    jportal_exit();
-    fprintf(stderr, "JPortal: entry write pipe error.\n");
-    return;
-  }
-  if (pthread_mutex_unlock(&dumper_lock) < 0) {
-    jportal_exit();
-    fprintf(stderr, "JPortal: unlock error.\n");
-  }
-  return;
-}
-
-void JPortalEnable::jportal_method_exit(JavaThread *thread, Method *moop) {
-  if (!dump_is_initialized || !thread || !moop)
-    return;
-
-  int idx = method_array->find(moop);
-  if (idx == -1)
-    return;
-
-  uint64_t size = sizeof(MethodExitInfo);
-  MethodExitInfo me(idx, get_java_tid(thread), size);
-
-  if (data_volume <= size) {
-    fprintf(stderr, "JPortal: ignore entry for size too big.\n");
-    return;
-  }
-
-  if (pthread_mutex_lock(&dumper_lock) < 0) {
-    jportal_exit();
-    fprintf(stderr, "JPortal: lock error.\n");
-    return;
-  }
-  uint64_t data_size = 0;
-  ShmHeader *header;
-  uint64_t data_head, data_tail;
-  char bf;
-
-  while (1) {
-    header = (ShmHeader *)shm_addr;
-    data_head = header->data_head;
-    data_tail = header->data_tail; 
-    if (data_head < data_tail)
-      data_size = data_tail - data_head;
-    else
-      data_size = data_volume - (data_head - data_tail);
-    if (data_size > size)
-      break;
-    else {
-      if (write(dump_pipe[1], &bf, 1) <= 0) {
-        jportal_exit();
-        fprintf(stderr, "JPortal: entry write pipe error.\n");
-        return;
-      }
-    }
-  }
-
-  address addr = (data_begin + data_head);
-  addr = copy_data(addr, (address)&me, sizeof(me));
-
-  header->data_head = (addr - data_begin);
-  if (write(dump_pipe[1], &bf, 1) <= 0) {
-    jportal_exit();
-    fprintf(stderr, "JPortal: entry write pipe error.\n");
-    return;
-  }
-  if (pthread_mutex_unlock(&dumper_lock) < 0) {
-    jportal_exit();
-    fprintf(stderr, "JPortal: unlock error.\n");
-  }
-  return;
-}
-
-void JPortalEnable::jportal_compiled_method_load(Method *moop, nmethod *nm) {
-  if (!dump_is_initialized || !moop || !nm)
-    return;
-
-  address code_begin = nm->insts_begin();
-  size_t code_size = nm->insts_size() + nm->stub_size();
-  address scopes_pc_begin = (address)nm->scopes_pcs_begin();
-  size_t scopes_pc_size = nm->scopes_pcs_size();
-  address scopes_data_begin = nm->scopes_data_begin();
-  size_t scopes_data_size = nm->scopes_data_size();
-  Metadata **metadata_begin = nm->metadata_begin();
-  int metadata_cnt = nm->metadata_count();
-  address entry_point = nm->entry_point();
-  address verified_entry_point = nm->verified_entry_point();
-  address osr_entry_point = nm->is_osr_method()?nm->osr_entry():entry_point;
-             
-  uint64_t size = sizeof(CompiledMethodLoadInfo) +
-                  code_size + scopes_pc_size + scopes_data_size;
-  int inline_method_cnt = 0;
-  for (int index = 0; index < metadata_cnt; index++) {
-    Method *m = (Method*)metadata_begin[index];
-    if (m == Universe::non_oop_word() || m == NULL ||
-        !m->is_metaspace_object() || !m->is_method())
-      continue;
-    
-    inline_method_cnt++;
-    size += (sizeof(InlineMethodInfo) +
-              m->klass_name()->utf8_length() +
-              m->name()->utf8_length() +
-              m->signature()->utf8_length());
-  }
-  if (inline_method_cnt == 0) {
-    size += (sizeof(InlineMethodInfo) +
-              moop->klass_name()->utf8_length() +
-              moop->name()->utf8_length() +
-              moop->signature()->utf8_length());
-  }
-
-  CompiledMethodLoadInfo cm((uint64_t)code_begin, code_size, 
-                    scopes_pc_size, scopes_data_size,
-                    (uint64_t)entry_point, (uint64_t)verified_entry_point,
-                    (uint64_t)osr_entry_point,
-                    inline_method_cnt ? inline_method_cnt : 1, size);
-
-  if (data_volume <= size) {
-    fprintf(stderr, "JPortal: ignore compiled code for size too big.\n");
-    return;
-  }
-
-  if (pthread_mutex_lock(&dumper_lock) < 0) {
-    jportal_exit();
-    fprintf(stderr, "JPortal: lock error.\n");
-    return;
-  }
-  uint64_t data_size = 0;
-  ShmHeader *header;
-  uint64_t data_head, data_tail;
-  char bf;
-
-  while (1) {
-    header = (ShmHeader *)shm_addr;
-    data_head = header->data_head;
-    data_tail = header->data_tail;
-    if (data_head < data_tail) data_size = data_tail - data_head;
-    else data_size = data_volume - (data_head - data_tail);
-    if (data_size > size)
-      break;
-    else {
-      if (write(dump_pipe[1], &bf, 1) <= 0) {
-        jportal_exit();
-        fprintf(stderr, "JPortal: compiled code write pipe error.\n");
-        return;
-      }
-    }
-  }
-
-  address addr = data_begin + data_head;
-  addr = copy_data(addr, (address)&cm, sizeof(cm));
-
-  if (inline_method_cnt == 0) {
-    InlineMethodInfo mi(moop->klass_name()->utf8_length(),
-                  moop->name()->utf8_length(),
-                  moop->signature()->utf8_length(),
-                  1);
-    addr = copy_data(addr, (address)&mi, sizeof(mi));
-    addr = copy_data(addr, (address)moop->klass_name()->bytes(),
-                      moop->klass_name()->utf8_length());
-    addr = copy_data(addr, (address)moop->name()->bytes(),
-                      moop->name()->utf8_length());
-    addr = copy_data(addr, (address)moop->signature()->bytes(),
-                      moop->signature()->utf8_length());
-    inline_method_cnt = 1;
-  } else {
-    for (int index = 0; index < metadata_cnt; index++) {
-      Method *m = (Method*)metadata_begin[index];
-      if (m == Universe::non_oop_word() || m == NULL ||
-          !m->is_metaspace_object() || !m->is_method())
-        continue;
-
-      InlineMethodInfo mi(m->klass_name()->utf8_length(),
-                    m->name()->utf8_length(),
-                    m->signature()->utf8_length(),
-                    index+1);
-      addr = copy_data(addr, (address)&mi, sizeof(mi));
-      addr = copy_data(addr, (address)m->klass_name()->bytes(),
-                      m->klass_name()->utf8_length());
-      addr = copy_data(addr, (address)m->name()->bytes(),
-                      m->name()->utf8_length());
-      addr = copy_data(addr, (address)m->signature()->bytes(),
-                      m->signature()->utf8_length());
-    }
-  }
-  addr = copy_data(addr, code_begin, code_size);
-  addr = copy_data(addr, scopes_pc_begin, scopes_pc_size);
-  addr = copy_data(addr, scopes_data_begin, scopes_data_size);
-  header->data_head = (addr - data_begin);
-  if (write(dump_pipe[1], &bf, 1) <= 0) {
-    jportal_exit();
-    fprintf(stderr, "JPortal: compiled code write pipe error.\n");
-    return;
-  }
-  if (pthread_mutex_unlock(&dumper_lock) < 0) {
-    jportal_exit();
-    fprintf(stderr, "JPortal: unlock error.\n");
-  }
-}
-
-void JPortalEnable::jportal_compiled_method_unload(Method *moop, nmethod *nm) {
-  if (!dump_is_initialized || !moop || !nm)
-    return;
-
-  address code_begin = nm->insts_begin();
-
-  uint64_t size = sizeof(CompiledMethodUnloadInfo);
-  CompiledMethodUnloadInfo cmu((uint64_t)code_begin, size);
-
-  if (data_volume <= size) {
-    fprintf(stderr, "JPortal: ignore compiled code for size too big.\n");
-    return;
-  }
-
-  if (pthread_mutex_lock(&dumper_lock) < 0) {
-    jportal_exit();
-    fprintf(stderr, "JPortal: lock error.\n");
-    return;
-  }
-  uint64_t data_size = 0;
-  ShmHeader *header;
-  uint64_t data_head, data_tail;
-  char bf;
-
-  while (1) {
-    header = (ShmHeader *)shm_addr;
-    data_head = header->data_head;
-    data_tail = header->data_tail;
-    if (data_head < data_tail) data_size = data_tail - data_head;
-    else data_size = data_volume - (data_head - data_tail);
-    if (data_size > size)
-      break;
-    else {
-      if (write(dump_pipe[1], &bf, 1) <= 0) {
-        jportal_exit();
-        fprintf(stderr, "JPortal: compiled code write pipe error.\n");
-        return;
-      }
-    }
-  }
-
-  address addr = data_begin + data_head;
-  addr = copy_data(addr, (address)&cmu, size);
-  if (write(dump_pipe[1], &bf, 1) <= 0) {
-    jportal_exit();
-    fprintf(stderr, "JPortal: compiled code write pipe error.\n");
-    return;
-  }
-  if (pthread_mutex_unlock(&dumper_lock) < 0) {
-    jportal_exit();
-    fprintf(stderr, "JPortal: unlock error.\n");
-  }
-}
-
-void JPortalEnable::jportal_thread_start(JavaThread *thread) {
-  if (!dump_is_initialized)
-    return;
-
-  uint64_t size = sizeof(ThreadStartInfo);
-  ThreadStartInfo ts(get_java_tid(thread), syscall(SYS_gettid), size);
-
-  if (data_volume <= size) {
-    fprintf(stderr, "JPortal Dump: ignore thread start for size too big.\n");
-    return;
-  }
-
-  if (pthread_mutex_lock(&dumper_lock) < 0) {
-    jportal_exit();
-    fprintf(stderr, "JPortal Dump: lock error.\n");
-    return;
-  }
-
-  uint64_t data_size = 0;
-  ShmHeader *header;
-  uint64_t data_head, data_tail;
-  char bf;
-
-  while (1) {
-    header = (ShmHeader *)shm_addr;
-    data_head = header->data_head;
-    data_tail = header->data_tail;
-
-    if (data_head < data_tail)
-      data_size = data_tail - data_head;
-    else
-      data_size = data_volume - (data_head - data_tail);
-    if (data_size > size)
-      break;
-    else {
-      if (write(dump_pipe[1], &bf, 1) <= 0) {
-        jportal_exit();
-        fprintf(stderr, "JPortal Dump: thread start write pipe error.\n");
-        return;
-      }
-    }
-  }
-
-  address addr = data_begin + data_head;
-  addr = copy_data(addr, (address)&ts, sizeof(ts));
-
-  header->data_head = (addr - data_begin);
-  if (write(dump_pipe[1], &bf, 1) <= 0) {
-    fprintf(stderr, "JPortal Dump: thread start write pipe error.\n");
-    jportal_exit();
-    return;
-  }
-  if (pthread_mutex_unlock(&dumper_lock) < 0) {
-    jportal_exit();
-    fprintf(stderr, "JPortal Dump: unlock error.\n");
-  }
-}
-
-void JPortalEnable::jportal_dynamic_code_generated(const char *name,
-                    address code_begin, size_t code_size) {
-  if (!dump_is_initialized)
-    return;
-
-  int name_length = strlen(name) + 1;
-  uint64_t size = sizeof(DynamicCodeGenerated) + name_length + code_size;
-  DynamicCodeGenerated dcg(name_length, (uint64_t)code_begin,
-                            code_size, size);
-
-  if (data_volume <= size) {
-    fprintf(stderr, "JPortal: ignore dynamic code for size too big %ld.\n", size);
-    return;
-  }
-
-  if (pthread_mutex_lock(&dumper_lock) < 0) {
-    jportal_exit();
-    fprintf(stderr, "JPortal: lock error.\n");
-    return;
-  }
-
-  uint64_t data_size = 0;
-  ShmHeader *header;
-  uint64_t data_head, data_tail;
-  char bf;
-
-  while (1) {
-    header = (ShmHeader *)shm_addr;
-    data_head = header->data_head;
-    data_tail = header->data_tail;
-
-    if (data_head < data_tail)
-      data_size = data_tail - data_head;
-    else
-      data_size = data_volume - (data_head - data_tail);
-    if (data_size > size)
-      break;
-    else {
-      if (write(dump_pipe[1], &bf, 1) <= 0) {
-        jportal_exit();
-        fprintf(stderr, "JPortal: dynamic code write pipe error.\n");
-        return;
-      }
-    }
-  }
-
-  address addr = data_begin + data_head;
-  addr = copy_data(addr, (address)&dcg, sizeof(dcg));
-  addr = copy_data(addr, (address)name, name_length);
-  addr = copy_data(addr, code_begin, code_size);
-
-  header->data_head = (addr - data_begin);
-  if (write(dump_pipe[1], &bf, 1) <= 0) {
-    fprintf(stderr, "JPortal: dynamic code write pipe error.\n");
-    jportal_exit();
-    return;
-  }
-  if (pthread_mutex_unlock(&dumper_lock) < 0) {
-    jportal_exit();
-    fprintf(stderr, "JPortal: unlock error.\n");
-  }
-}
-
-void JPortalEnable::jportal_inline_cache_add(address src, address dest) {
-  if (!dump_is_initialized)
-    return;
-
-  uint64_t size = sizeof(InlineCacheAdd);
-  InlineCacheAdd ic((uint64_t)src, (uint64_t)dest, size);
-
-  if (data_volume <= size) {
-    fprintf(stderr, "JPortal: ignore dynamic code for size too big %ld.\n", size);
-    return;
-  }
-
-  if (pthread_mutex_lock(&dumper_lock) < 0) {
-    jportal_exit();
-    fprintf(stderr, "JPortal: lock error.\n");
-    return;
-  }
-
-  uint64_t data_size = 0;
-  ShmHeader *header;
-  uint64_t data_head, data_tail;
-  char bf;
-
-  while (1) {
-    header = (ShmHeader *)shm_addr;
-    data_head = header->data_head;
-    data_tail = header->data_tail;
-
-    if (data_head < data_tail)
-      data_size = data_tail - data_head;
-    else
-      data_size = data_volume - (data_head - data_tail);
-    if (data_size > size)
-      break;
-    else {
-      if (write(dump_pipe[1], &bf, 1) <= 0) {
-        jportal_exit();
-        fprintf(stderr, "JPortal: dynamic code write pipe error.\n");
-        return;
-      }
-    }
-  }
-
-  address addr = data_begin + data_head;
-  addr = copy_data(addr, (address)&ic, sizeof(ic));
-
-  header->data_head = (addr - data_begin);
-  if (write(dump_pipe[1], &bf, 1) <= 0) {
-    fprintf(stderr, "JPortal: dynamic code write pipe error.\n");
-    jportal_exit();
-    return;
-  }
-  if (pthread_mutex_unlock(&dumper_lock) < 0) {
-    jportal_exit();
-    fprintf(stderr, "JPortal: unlock error.\n");
-  }
-}
-
-void JPortalEnable::jportal_inline_cache_clear(address src) {
-  if (!dump_is_initialized)
-    return;
-
-  uint64_t size = sizeof(InlineCacheClear);
-  InlineCacheClear ic((uint64_t)src, size);
-
-  if (data_volume <= size) {
-    fprintf(stderr, "JPortal: ignore dynamic code for size too big %ld.\n", size);
-    return;
-  }
-
-  if (pthread_mutex_lock(&dumper_lock) < 0) {
-    jportal_exit();
-    fprintf(stderr, "JPortal: lock error.\n");
-    return;
-  }
-
-  uint64_t data_size = 0;
-  ShmHeader *header;
-  uint64_t data_head, data_tail;
-  char bf;
-
-  while (1) {
-    header = (ShmHeader *)shm_addr;
-    data_head = header->data_head;
-    data_tail = header->data_tail;
-
-    if (data_head < data_tail)
-      data_size = data_tail - data_head;
-    else
-      data_size = data_volume - (data_head - data_tail);
-    if (data_size > size)
-      break;
-    else {
-      if (write(dump_pipe[1], &bf, 1) <= 0) {
-        jportal_exit();
-        fprintf(stderr, "JPortal: dynamic code write pipe error.\n");
-        return;
-      }
-    }
-  }
-
-  address addr = data_begin + data_head;
-  addr = copy_data(addr, (address)&ic, sizeof(ic));
-
-  header->data_head = (addr - data_begin);
-  if (write(dump_pipe[1], &bf, 1) <= 0) {
-    fprintf(stderr, "JPortal: dynamic code write pipe error.\n");
-    jportal_exit();
-    return;
-  }
-  if (pthread_mutex_unlock(&dumper_lock) < 0) {
-    jportal_exit();
-    fprintf(stderr, "JPortal: unlock error.\n");
-  }
-}
-
-void JPortalEnable::jportal_initialize() {
-#if defined(JPORTAL)
-  if (!JPortal || dump_is_initialized)
-    return;
-
-  shm_id = shmget(IPC_PRIVATE, shm_volume, IPC_CREAT|0600) ;
-  if (shm_id < 0) {
-    fprintf(stderr, "JPortal: shared memory get error.\n");
-    FLAG_SET_ERGO(bool, JPortal, false);
-    return;
-  }
-
-  if (pipe(dump_pipe) < 0) {
-    shmctl(shm_id, IPC_RMID, NULL);
-    fprintf(stderr, "JPortal: dump pipe open error.\n");
-    FLAG_SET_ERGO(bool, JPortal, false);
-    return;
-  }
-
-  char shmid_arg[16];
-  char dump_fd[16];
-  char shmvolume_arg[32];
-  if (sprintf(shmid_arg, "%d", shm_id) < 0 ||
-        sprintf(dump_fd, "%d", dump_pipe[0]) < 0 ||
-        sprintf(shmvolume_arg, "%lu", shm_volume) < 0) {
-    close(dump_pipe[0]);
-    close(dump_pipe[1]);
-    shmctl(shm_id, IPC_RMID, NULL);
-    fprintf(stderr, "JPortal: internal error.\n");
-    FLAG_SET_ERGO(bool, JPortal, false);
-    return;
-  }
-
-  pid_t dumper_pid = fork();
-  if (dumper_pid == 0) {
-    close(dump_pipe[1]);
-    execl("/home/jake/codes/JPortal-ext/build/dump/JPortalDump", 
-          "./JPortalDump",
-          shmid_arg, dump_fd, shmvolume_arg, NULL);
-    close(dump_pipe[0]);
-    fprintf(stderr, "JPortal: dump jvm info execution error.\n");
-    exit(-1);
-  } else if (dumper_pid < 0) {
-    close(dump_pipe[0]);
-    close(dump_pipe[1]);
-    shmctl(shm_id, IPC_RMID, NULL);
-    fprintf(stderr, "JPortal: fork dump process error.\n");
-    FLAG_SET_ERGO(bool, JPortal, false);
-    return;
-  }
-
-  method_array = new(ResourceObj::C_HEAP, mtInternal) GrowableArray<Method*> (10, true);
-
-  shm_addr = (address)shmat(shm_id, NULL, 0);
-  data_begin = shm_addr + sizeof(ShmHeader);
-  data_end = shm_addr + shm_volume;
-  data_volume = shm_volume - sizeof(ShmHeader);
-
-  ShmHeader *header = (ShmHeader *)shm_addr;
-  header->data_head = 0;
-  header->data_tail = data_volume;
-
-  close(dump_pipe[0]);
-  if (pthread_mutex_init(&dumper_lock, NULL) < 0) {
-    close(dump_pipe[1]);
-    shmdt(shm_addr);
-    shmctl(shm_id, IPC_RMID, NULL);
-    fprintf(stderr, "JPortal: init lock error.\n");
-    FLAG_SET_ERGO(bool, JPortal, false);
-    return;
-  }
-  dump_is_initialized = true;
-#elif
-  fprintf(stderr, "JPortal not supported.\n");
-  FLAG_SET_ERGO(bool, JPortal, false);
-#endif
-}
-
-void JPortalEnable::jportal_exit() {
-  if (!dump_is_initialized)
-    return;
-
-  delete method_array;
-  close(dump_pipe[1]);
-  pthread_mutex_destroy(&dumper_lock);
-  shmdt(shm_addr);
-  shmctl(shm_id, IPC_RMID, NULL);
-  dump_is_initialized = false;
-}
-
-void JPortalEnable::jportal_enable() {
-#if defined(JPORTAL)
-  if (!JPortal || enable_is_initialized)
-    return;
-
-  int trace_pipe[2];
-  if (pipe(trace_pipe) < 0) {
-    fprintf(stderr, "JPortal: open trace pipe error.\n");
-    FLAG_SET_ERGO(bool, JPortal, false);
-    return;
-  }
-  char java_pid[20];
-  char write_pipe[20];
-  char _low_bound[20], _high_bound[20];
-  char mmap_pages[20], aux_pages[20];
-  if (sprintf(java_pid, "%ld", syscall(SYS_gettid)) < 0 ||
-        sprintf(write_pipe, "%d", trace_pipe[1]) < 0 ||
-        sprintf(_low_bound, "%p", CodeCache::low_bound(true)) < 0 ||
-        sprintf(_high_bound, "%p", CodeCache::high_bound(true)) < 0 ||
-        sprintf(mmap_pages, "%lu", JPortalMMAPPages) < 0 ||
-        sprintf(aux_pages, "%lu", JPortalAUXPages) < 0) {
-    fprintf(stderr, "JPortal: internal error.\n");
-    FLAG_SET_ERGO(bool, JPortal, false);
-    return;
-  }
-
-  pid_t pid = fork();
-  if (pid == 0) {
-    prctl(PR_SET_PDEATHSIG, SIGTERM);
-    close(trace_pipe[0]);
-    execl("/home/jake/codes/JPortal-ext/build/trace/JPortalTrace",
-            "./JPortalTrace", java_pid, write_pipe, 
-            _low_bound, _high_bound, mmap_pages, aux_pages, NULL);      
-    close(trace_pipe[1]);
-    fprintf(stderr, "JPortal: trace process execution error.\n");
-    exit(-1);
-  } else if (pid < 0) {
-    close(trace_pipe[0]);
-    close(trace_pipe[1]);
-    FLAG_SET_ERGO(bool, JPortal, false);
-    fprintf(stderr, "JPortal: fork trace process error.\n");
-  } else {
-    char bf;
-    close(trace_pipe[1]);
-    if (read(trace_pipe[0], &bf, 1) != 1) {
-      fprintf(stderr, "JPotal: trace pipe read error.\n");
-      FLAG_SET_ERGO(bool, JPortal, false);
-    } else {
-      enable_is_initialized = true;
-    }
-    close(trace_pipe[0]);
-  }
-#elif
-  fprintf(stderr, "JPortal Trace not supported.\n");
-  FLAG_SET_ERGO(bool, JPortal, false);
-#endif
-}
-
 //---<  END  >--- CodeHeap State Analytics.

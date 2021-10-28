@@ -402,12 +402,12 @@ class BufferBlob: public RuntimeBlob {
   // below two-argument operator delete will be treated as a placement
   // delete rather than an ordinary sized delete; see C++14 3.7.4.2/p2.
   void operator delete(void* p);
-  void* operator new(size_t s, unsigned size, bool jportal) throw();
+  void* operator new(size_t s, unsigned size) throw();
 
  public:
   // Creation
-  static BufferBlob* create(const char* name, int buffer_size, bool jportal);
-  static BufferBlob* create(const char* name, CodeBuffer* cb, bool jportal);
+  static BufferBlob* create(const char* name, int buffer_size);
+  static BufferBlob* create(const char* name, CodeBuffer* cb);
 
   static void free(BufferBlob* buf);
 
@@ -433,7 +433,7 @@ private:
 
 public:
   // Creation
-  static AdapterBlob* create(CodeBuffer* cb, bool jportal);
+  static AdapterBlob* create(CodeBuffer* cb);
 
   // Typing
   virtual bool is_adapter_blob() const { return true; }
@@ -446,7 +446,7 @@ private:
 
 public:
   // Creation
-  static VtableBlob* create(const char* name, int buffer_size, bool jportal);
+  static VtableBlob* create(const char* name, int buffer_size);
 
   // Typing
   virtual bool is_vtable_blob() const { return true; }
@@ -461,7 +461,7 @@ private:
 
 public:
   // Creation
-  static MethodHandlesAdapterBlob* create(int buffer_size, bool jportal);
+  static MethodHandlesAdapterBlob* create(int buffer_size);
 
   // Typing
   virtual bool is_method_handles_adapter_blob() const { return true; }
@@ -539,7 +539,7 @@ class SingletonBlob: public RuntimeBlob {
      int         frame_size,
      OopMapSet*  oop_maps
    )
-   : RuntimeBlob(name, cb, header_size, size, CodeOffsets::frame_never_safe, frame_size, oop_maps, false)
+   : RuntimeBlob(name, cb, header_size, size, CodeOffsets::frame_never_safe, frame_size, oop_maps)
   {};
 
   address entry_point()                          { return code_begin(); }

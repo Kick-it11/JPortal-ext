@@ -177,7 +177,7 @@ bool os::register_code_area(char *low, char *high) {
   PRUNTIME_FUNCTION prt;
   PUNWIND_INFO_EH_ONLY punwind;
 
-  BufferBlob* blob = BufferBlob::create("CodeCache Exception Handler", sizeof(DynamicCodeData), false);
+  BufferBlob* blob = BufferBlob::create("CodeCache Exception Handler", sizeof(DynamicCodeData));
   CodeBuffer cb(blob);
   MacroAssembler* masm = new MacroAssembler(&cb);
   pDCD = (pDynamicCodeData) masm->pc();

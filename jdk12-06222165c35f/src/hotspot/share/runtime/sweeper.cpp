@@ -354,11 +354,11 @@ void NMethodSweeper::sweeper_loop() {
 /**
   * Wakes up the sweeper thread to possibly sweep.
   */
-void NMethodSweeper::notify(int code_blob_type, bool jportal) {
+void NMethodSweeper::notify(int code_blob_type) {
   // Makes sure that we do not invoke the sweeper too often during startup.
   double start_threshold = 100.0 / (double)StartAggressiveSweepingAt;
   double aggressive_sweep_threshold = MIN2(start_threshold, 1.1);
-  if (CodeCache::reverse_free_ratio(code_blob_type, jportal) >= aggressive_sweep_threshold) {
+  if (CodeCache::reverse_free_ratio(code_blob_type) >= aggressive_sweep_threshold) {
     assert_locked_or_safepoint(CodeCache_lock);
     CodeCache_lock->notify();
   }
@@ -432,10 +432,8 @@ void NMethodSweeper::possibly_sweep() {
     // value) that disables the intended periodic sweeps.
     const int max_wait_time = ReservedCodeCacheSize / (16 * M);
     double wait_until_next_sweep = max_wait_time - time_since_last_sweep -
-        MAX4(CodeCache::reverse_free_ratio(CodeBlobType::MethodProfiled, false),
-             CodeCache::reverse_free_ratio(CodeBlobType::MethodNonProfiled, false),
-             CodeCache::reverse_free_ratio(CodeBlobType::MethodProfiled, true),
-             CodeCache::reverse_free_ratio(CodeBlobType::MethodNonProfiled, true));
+        MAX2(CodeCache::reverse_free_ratio(CodeBlobType::MethodProfiled),
+             CodeCache::reverse_free_ratio(CodeBlobType::MethodNonProfiled));
     assert(wait_until_next_sweep <= (double)max_wait_time, "Calculation of code cache sweeper interval is incorrect");
 
     if ((wait_until_next_sweep <= 0.0) || !CompileBroker::should_compile_new_jobs()) {
@@ -450,11 +448,7 @@ void NMethodSweeper::possibly_sweep() {
   // We force stack scanning only if the non-profiled code heap gets full, since critical
   // allocations go to the non-profiled heap and we must be make sure that there is
   // enough space.
-  double free_percent = 1 / CodeCache::reverse_free_ratio(CodeBlobType::MethodNonProfiled, false) * 100;
-  if (JPortal) {
-    double jportal_free_percent = 1 / CodeCache::reverse_free_ratio(CodeBlobType::MethodNonProfiled, true) * 100;
-    free_percent = MIN2(free_percent, jportal_free_percent);
-  }
+  double free_percent = 1 / CodeCache::reverse_free_ratio(CodeBlobType::MethodNonProfiled) * 100;
   if (free_percent <= StartAggressiveSweepingAt || forced || _should_sweep) {
     do_stack_scanning();
   }
@@ -766,7 +760,7 @@ void NMethodSweeper::possibly_flush(nmethod* nm) {
       int reset_val = hotness_counter_reset_val();
       int time_since_reset = reset_val - nm->hotness_counter();
       int code_blob_type = CodeCache::get_code_blob_type(nm);
-      double threshold = -reset_val + (CodeCache::reverse_free_ratio(code_blob_type, JPortal && CodeCache::is_jportal((address)nm)) * NmethodSweepActivity);
+      double threshold = -reset_val + (CodeCache::reverse_free_ratio(code_blob_type) * NmethodSweepActivity);
       // The less free space in the code cache we have - the bigger reverse_free_ratio() is.
       // I.e., 'threshold' increases with lower available space in the code cache and a higher
       // NmethodSweepActivity. If the current hotness counter - which decreases from its initial

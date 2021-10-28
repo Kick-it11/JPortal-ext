@@ -34,68 +34,65 @@ class TemplateInterpreterGenerator: public AbstractInterpreterGenerator {
  protected:
 
   // entry points for shared code sequence
-  address _normal_unimplemented_bytecode;
-  address _normal_illegal_bytecode_sequence;
-
-  address _jportal_unimplemented_bytecode;
-  address _jportal_illegal_bytecode_sequence;
+  address _unimplemented_bytecode;
+  address _illegal_bytecode_sequence;
 
   // shared code sequences
   // Converter for native abi result to tosca result
   address generate_result_handler_for(BasicType type);
-  address generate_slow_signature_handler(bool jportal);
+  address generate_slow_signature_handler();
   address generate_error_exit(const char* msg);
-  address generate_StackOverflowError_handler(bool jportal);
-  address generate_exception_handler(const char* name, const char* message, bool jportal) {
-    return generate_exception_handler_common(name, message, false, jportal);
+  address generate_StackOverflowError_handler();
+  address generate_exception_handler(const char* name, const char* message) {
+    return generate_exception_handler_common(name, message, false);
   }
-  address generate_klass_exception_handler(const char* name, bool jportal) {
-    return generate_exception_handler_common(name, NULL, true, jportal);
+  address generate_klass_exception_handler(const char* name) {
+    return generate_exception_handler_common(name, NULL, true);
   }
-  address generate_exception_handler_common(const char* name, const char* message, bool pass_oop, bool jportal);
-  address generate_ClassCastException_handler(bool jportal);
-  address generate_ArrayIndexOutOfBounds_handler(bool jportal);
-  address generate_return_entry_for(TosState state, int step, size_t index_size, bool jportal);
-  address generate_earlyret_entry_for(TosState state, bool jportal);
-  address generate_deopt_entry_for(TosState state, int step, bool jportal, address continuation = NULL);
-  address generate_safept_entry_for(TosState state, address runtime_entry, bool jportal);
-  void    generate_throw_exception(bool jportal);
+  address generate_exception_handler_common(const char* name, const char* message, bool pass_oop);
+  address generate_ClassCastException_handler();
+  address generate_ArrayIndexOutOfBounds_handler();
+  address generate_return_entry_for(TosState state, int step, size_t index_size);
+  address generate_earlyret_entry_for(TosState state);
+  address generate_deopt_entry_for(TosState state, int step, address continuation = NULL);
+  address generate_safept_entry_for(TosState state, address runtime_entry);
+  void    generate_throw_exception();
 
-  void lock_method(bool jportal);
+  void lock_method();
 
   void bang_stack_shadow_pages(bool native_call);
 
   // Instruction generation
-  void generate_and_dispatch (Template* t, bool jportal, TosState tos_out = ilgl);
-  void set_vtos_entry_points (Template* t, address& bep, address& cep, address& sep, address& aep, address& iep, address& lep, address& fep, address& dep, address& vep, bool jportal);
-  void set_short_entry_points(Template* t, address& bep, address& cep, address& sep, address& aep, address& iep, address& lep, address& fep, address& dep, address& vep, bool jportal);
-  void set_wide_entry_point  (Template* t, address& wep, bool jportal);
+  void generate_and_dispatch (Template* t, TosState tos_out = ilgl);
+  void set_vtos_entry_points (Template* t, address& bep, address& cep, address& sep, address& aep, address& iep, address& lep, address& fep, address& dep, address& vep);
+  void set_short_entry_points(Template* t, address& bep, address& cep, address& sep, address& aep, address& iep, address& lep, address& fep, address& dep, address& vep);
+  void set_wide_entry_point  (Template* t, address& wep);
 
-  void set_entry_points(Bytecodes::Code code, bool jportal);
-  void set_unimplemented(int i, bool jportal);
-  void set_entry_points_for_all_bytes(bool jportal);
-  void set_safepoints_for_all_bytes(bool jportal);
+  void set_entry_points(Bytecodes::Code code);
+  void set_unimplemented(int i);
+  void set_entry_points_for_all_bytes();
+  void set_safepoints_for_all_bytes();
 
   // Helpers for generate_and_dispatch
-  address generate_trace_code(TosState state, bool jportal)   PRODUCT_RETURN0;
+  address generate_trace_code(TosState state)   PRODUCT_RETURN0;
   void count_bytecode()                         PRODUCT_RETURN;
   void histogram_bytecode(Template* t)          PRODUCT_RETURN;
   void histogram_bytecode_pair(Template* t)     PRODUCT_RETURN;
-  void trace_bytecode(Template* t, bool jportal)PRODUCT_RETURN;
+  void trace_bytecode(Template* t)              PRODUCT_RETURN;
   void stop_interpreter_at()                    PRODUCT_RETURN;
 
   void generate_all();
 
   // entry point generator
-  address generate_method_entry(AbstractInterpreter::MethodKind kind, bool jportal);
+  address generate_method_entry(AbstractInterpreter::MethodKind kind);
 
-  address generate_normal_entry(bool synchronized, bool jportal);
-  address generate_native_entry(bool synchronized, bool jportal);
-  address generate_abstract_entry(bool jportal);
+  address generate_normal_entry(bool synchronized);
+  address generate_native_entry(bool synchronized);
+  address generate_abstract_entry(void);
   address generate_math_entry(AbstractInterpreter::MethodKind kind);
-  address generate_Reference_get_entry(bool jportal);
-  address generate_CRC32_update_entry(bool jportal);
-  address generate_CRC32_updateBytes_entry(AbstractInterpreter::MethodKind kind, bool jportal);
+  address generate_Reference_get_entry();
+  address generate_CRC32_update_entry();
+  address generate_CRC32_updateBytes_entry(AbstractInterpreter::MethodKind kind);
   address generate_CRC32C_updateBytes_entry(AbstractInterpreter::MethodKind kind);
 #ifdef IA32
   address generate_Float_intBitsToFloat_entry();
@@ -108,8 +105,8 @@ class TemplateInterpreterGenerator: public AbstractInterpreterGenerator {
   void generate_stack_overflow_check(void);
   void generate_stack_overflow_check(Register Rframe_size, Register Rscratch);
 
-  void generate_counter_incr(Label* overflow, Label* profile_method, Label* profile_method_continue, bool jportal);
-  void generate_counter_overflow(Label& continue_entry, bool jportal);
+  void generate_counter_incr(Label* overflow, Label* profile_method, Label* profile_method_continue);
+  void generate_counter_overflow(Label& continue_entry);
 
   void generate_fixed_frame(bool native_call);
 #ifdef SPARC
@@ -127,7 +124,7 @@ class TemplateInterpreterGenerator: public AbstractInterpreterGenerator {
 #endif // PPC
 
  public:
-  TemplateInterpreterGenerator(StubQueue* _code, StubQueue* _jportal_code);
+  TemplateInterpreterGenerator(StubQueue* _code);
 };
 
 #endif // !CC_INTERP

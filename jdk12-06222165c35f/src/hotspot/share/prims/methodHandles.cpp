@@ -66,8 +66,7 @@
  */
 
 bool MethodHandles::_enabled = false; // set true after successful native linkage
-MethodHandlesAdapterBlob* MethodHandles::_normal_adapter_code = NULL;
-MethodHandlesAdapterBlob* MethodHandles::_jportal_adapter_code = NULL;
+MethodHandlesAdapterBlob* MethodHandles::_adapter_code = NULL;
 
 /**
  * Generates method handle adapters. Returns 'false' if memory allocation
@@ -75,29 +74,21 @@ MethodHandlesAdapterBlob* MethodHandles::_jportal_adapter_code = NULL;
  */
 void MethodHandles::generate_adapters() {
   assert(SystemDictionary::MethodHandle_klass() != NULL, "should be present");
-  assert(_normal_adapter_code == NULL, "generate only once");
-  assert(_jportal_adapter_code == NULL, "generate only once");
+  assert(_adapter_code == NULL, "generate only once");
 
   ResourceMark rm;
   TraceTime timer("MethodHandles adapters generation", TRACETIME_LOG(Info, startuptime));
-  _normal_adapter_code = MethodHandlesAdapterBlob::create(adapter_code_size, false);
-  CodeBuffer code(_normal_adapter_code);
+  _adapter_code = MethodHandlesAdapterBlob::create(adapter_code_size);
+  CodeBuffer code(_adapter_code);
   MethodHandlesAdapterGenerator g(&code);
-  g.generate(false);
+  g.generate();
   code.log_section_sizes("MethodHandlesAdapterBlob");
-  if (JPortal) {
-    _jportal_adapter_code = MethodHandlesAdapterBlob::create(adapter_code_size, true);
-    CodeBuffer jportal_code(_jportal_adapter_code);
-    MethodHandlesAdapterGenerator jportal_g(&jportal_code);
-    jportal_g.generate(true);
-    jportal_code.log_section_sizes("JPortalMethodHandlesAdapterBlob");
-  }
 }
 
 //------------------------------------------------------------------------------
 // MethodHandlesAdapterGenerator::generate
 //
-void MethodHandlesAdapterGenerator::generate(bool jportal) {
+void MethodHandlesAdapterGenerator::generate() {
   // Generate generic method handle adapters.
   // Generate interpreter entries
   for (Interpreter::MethodKind mk = Interpreter::method_handle_invoke_FIRST;
@@ -107,7 +98,7 @@ void MethodHandlesAdapterGenerator::generate(bool jportal) {
     StubCodeMark mark(this, "MethodHandle::interpreter_entry", vmIntrinsics::name_at(iid));
     address entry = MethodHandles::generate_method_handle_interpreter_entry(_masm, iid);
     if (entry != NULL) {
-      Interpreter::set_entry_for_kind(mk, entry, jportal);
+      Interpreter::set_entry_for_kind(mk, entry);
     }
     // If the entry is not set, it will throw AbstractMethodError.
   }

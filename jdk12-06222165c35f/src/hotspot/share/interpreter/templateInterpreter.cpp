@@ -37,7 +37,7 @@
 # define __ _masm->
 
 void TemplateInterpreter::initialize() {
-  if (_normal_code != NULL || _jportal_code != NULL) return;
+  if (_code != NULL) return;
   // assertions
   assert((int)Bytecodes::number_of_codes <= (int)DispatchTable::length,
          "dispatch table too small");
@@ -51,74 +51,11 @@ void TemplateInterpreter::initialize() {
     TraceTime timer("Interpreter generation", TRACETIME_LOG(Info, startuptime));
     int code_size = InterpreterCodeSize;
     NOT_PRODUCT(code_size *= 4;)  // debug uses extra interpreter code space
-    _normal_code = new StubQueue(new InterpreterCodeletInterface, code_size, NULL,
-                          "Interpreter", false);
-    if (JPortal) {
-      _jportal_code = new StubQueue(new InterpreterCodeletInterface, code_size, NULL,
-                            "Interpreter", true);
-    }
-    TemplateInterpreterGenerator g(_normal_code, _jportal_code);
+    _code = new StubQueue(new InterpreterCodeletInterface, code_size, NULL,
+                          "Interpreter");
+    TemplateInterpreterGenerator g(_code);
     // Free the unused memory not occupied by the interpreter and the stubs
-    _normal_code->deallocate_unused_tail();
-    if (JPortal) {
-      _jportal_code->deallocate_unused_tail();
-    }
-  }
-
-  // JPortal
-  if (JPortal) {
-    JPortalEnable::InterpreterInfo inter(sizeof(JPortalEnable::InterpreterInfo));
-    int inter_pointer = 0;
-    inter.codelets_address[inter_pointer++] = (uint64_t)CodeCache::low_bound(true);
-    inter.codelets_address[inter_pointer++] = (uint64_t)CodeCache::high_bound(true);
-#ifndef PRODUCT
-    inter.TraceBytecodes = TraceBytecodes;
-#elif
-    inter.TraceBytecodes = false;
-#endif
-    _jportal_code->stub_addresses(inter.codelets_address, inter_pointer);
-    int dispatch_cnt = 0;
-    int dispatch_state;
-    for (dispatch_cnt = 0; dispatch_cnt < (int)Bytecodes::number_of_codes; dispatch_cnt++)
-      for (dispatch_state = 0; dispatch_state < number_of_states; dispatch_state++)
-        inter.codelets_address[inter_pointer++] = (uint64_t)_jportal_normal_table.entry(dispatch_cnt).entry((TosState)dispatch_state);
-    inter.codelets_address[inter_pointer++] = (uint64_t)_jportal_slow_signature_handler;
-#ifndef PRODUCT
-    if (TraceBytecodes)
-      for (dispatch_state = 0; dispatch_state < number_of_states; dispatch_state++)
-        inter.codelets_address[inter_pointer++] = (uint64_t)_jportal_trace_code.entry((TosState)dispatch_state);
-#endif
-    for (dispatch_cnt = 0; dispatch_cnt < number_of_return_entries; dispatch_cnt++)
-      for (dispatch_state = 0; dispatch_state < number_of_states; dispatch_state++)
-        inter.codelets_address[inter_pointer++] = (uint64_t)_jportal_return_entry[dispatch_cnt].entry((TosState)dispatch_state);
-    
-    for (dispatch_cnt = 0; dispatch_cnt < number_of_return_addrs; dispatch_cnt++) {
-      inter.codelets_address[inter_pointer++] = (uint64_t)_jportal_invoke_return_entry[dispatch_cnt];
-      inter.codelets_address[inter_pointer++] = (uint64_t)_jportal_invokeinterface_return_entry[dispatch_cnt];
-      inter.codelets_address[inter_pointer++] = (uint64_t)_jportal_invokedynamic_return_entry[dispatch_cnt];
-    }
-    for (dispatch_state = 0; dispatch_state < number_of_states; dispatch_state++)
-      inter.codelets_address[inter_pointer++] = (uint64_t)_jportal_earlyret_entry.entry((TosState)dispatch_state);
-    for (dispatch_cnt = 0; dispatch_cnt < number_of_result_handlers; dispatch_cnt++)
-      inter.codelets_address[inter_pointer++] = (uint64_t)_jportal_native_abi_to_tosca[dispatch_cnt];
-    for (dispatch_state = 0; dispatch_state < number_of_states; dispatch_state++)
-      inter.codelets_address[inter_pointer++] = (uint64_t)_jportal_safept_entry.entry((TosState)dispatch_state);
-    inter.codelets_address[inter_pointer++] = (uint64_t)Interpreter::_jportal_rethrow_exception_entry; 
-    inter.codelets_address[inter_pointer++] = (uint64_t)Interpreter::_jportal_throw_exception_entry;
-    inter.codelets_address[inter_pointer++] = (uint64_t)Interpreter::_jportal_remove_activation_preserving_args_entry;
-    inter.codelets_address[inter_pointer++] = (uint64_t)Interpreter::_jportal_remove_activation_entry;
-    inter.codelets_address[inter_pointer++] = (uint64_t)Interpreter::_jportal_throw_ArrayIndexOutOfBoundsException_entry;
-    inter.codelets_address[inter_pointer++] = (uint64_t)Interpreter::_jportal_throw_ArrayStoreException_entry;
-    inter.codelets_address[inter_pointer++] = (uint64_t)Interpreter::_jportal_throw_ArithmeticException_entry;
-    inter.codelets_address[inter_pointer++] = (uint64_t)Interpreter::_jportal_throw_ClassCastException_entry;
-    inter.codelets_address[inter_pointer++] = (uint64_t)Interpreter::_jportal_throw_NullPointerException_entry;
-    inter.codelets_address[inter_pointer++] = (uint64_t)Interpreter::_jportal_throw_StackOverflowError_entry;
-    for (dispatch_cnt = 0; dispatch_cnt < number_of_method_entries; dispatch_cnt++)
-      inter.codelets_address[inter_pointer++] = (uint64_t)_jportal_entry_table[dispatch_cnt];
-    for (dispatch_cnt = 0; dispatch_cnt < number_of_deopt_entries; dispatch_cnt++)
-      for (dispatch_state = 0; dispatch_state < number_of_states; dispatch_state++)
-        inter.codelets_address[inter_pointer++] = (uint64_t)_jportal_deopt_entry[dispatch_cnt].entry((TosState)dispatch_state);
-    JPortalEnable::jportal_interpreter_codelets(inter);
+    _code->deallocate_unused_tail();
   }
 
   if (PrintInterpreter) {
@@ -127,8 +64,7 @@ void TemplateInterpreter::initialize() {
   }
 
   // initialize dispatch table
-  _normal_active_table = _normal_normal_table;
-  _jportal_active_table = _jportal_normal_table;
+  _active_table = _normal_table;
 }
 
 //------------------------------------------------------------------------------------------------------------------------
@@ -241,65 +177,35 @@ bool DispatchTable::operator == (DispatchTable& y) {
   return true;
 }
 
-address    TemplateInterpreter::_normal_remove_activation_entry                    = NULL;
-address    TemplateInterpreter::_normal_remove_activation_preserving_args_entry    = NULL;
+address    TemplateInterpreter::_remove_activation_entry                    = NULL;
+address    TemplateInterpreter::_remove_activation_preserving_args_entry    = NULL;
 
 
-address    TemplateInterpreter::_normal_throw_ArrayIndexOutOfBoundsException_entry = NULL;
-address    TemplateInterpreter::_normal_throw_ArrayStoreException_entry            = NULL;
-address    TemplateInterpreter::_normal_throw_ArithmeticException_entry            = NULL;
-address    TemplateInterpreter::_normal_throw_ClassCastException_entry             = NULL;
-address    TemplateInterpreter::_normal_throw_NullPointerException_entry           = NULL;
-address    TemplateInterpreter::_normal_throw_StackOverflowError_entry             = NULL;
-address    TemplateInterpreter::_normal_throw_exception_entry                      = NULL;
-
-#ifndef PRODUCT
-EntryPoint TemplateInterpreter::_normal_trace_code;
-#endif // !PRODUCT
-EntryPoint TemplateInterpreter::_normal_return_entry[TemplateInterpreter::number_of_return_entries];
-EntryPoint TemplateInterpreter::_normal_earlyret_entry;
-EntryPoint TemplateInterpreter::_normal_deopt_entry [TemplateInterpreter::number_of_deopt_entries ];
-address    TemplateInterpreter::_normal_deopt_reexecute_return_entry;
-EntryPoint TemplateInterpreter::_normal_safept_entry;
-
-address TemplateInterpreter::_normal_invoke_return_entry[TemplateInterpreter::number_of_return_addrs];
-address TemplateInterpreter::_normal_invokeinterface_return_entry[TemplateInterpreter::number_of_return_addrs];
-address TemplateInterpreter::_normal_invokedynamic_return_entry[TemplateInterpreter::number_of_return_addrs];
-
-DispatchTable TemplateInterpreter::_normal_active_table;
-DispatchTable TemplateInterpreter::_normal_normal_table;
-DispatchTable TemplateInterpreter::_normal_safept_table;
-address    TemplateInterpreter::_normal_wentry_point[DispatchTable::length];
-
-address    TemplateInterpreter::_jportal_remove_activation_entry                    = NULL;
-address    TemplateInterpreter::_jportal_remove_activation_preserving_args_entry    = NULL;
-
-
-address    TemplateInterpreter::_jportal_throw_ArrayIndexOutOfBoundsException_entry = NULL;
-address    TemplateInterpreter::_jportal_throw_ArrayStoreException_entry            = NULL;
-address    TemplateInterpreter::_jportal_throw_ArithmeticException_entry            = NULL;
-address    TemplateInterpreter::_jportal_throw_ClassCastException_entry             = NULL;
-address    TemplateInterpreter::_jportal_throw_NullPointerException_entry           = NULL;
-address    TemplateInterpreter::_jportal_throw_StackOverflowError_entry             = NULL;
-address    TemplateInterpreter::_jportal_throw_exception_entry                      = NULL;
+address    TemplateInterpreter::_throw_ArrayIndexOutOfBoundsException_entry = NULL;
+address    TemplateInterpreter::_throw_ArrayStoreException_entry            = NULL;
+address    TemplateInterpreter::_throw_ArithmeticException_entry            = NULL;
+address    TemplateInterpreter::_throw_ClassCastException_entry             = NULL;
+address    TemplateInterpreter::_throw_NullPointerException_entry           = NULL;
+address    TemplateInterpreter::_throw_StackOverflowError_entry             = NULL;
+address    TemplateInterpreter::_throw_exception_entry                      = NULL;
 
 #ifndef PRODUCT
-EntryPoint TemplateInterpreter::_jportal_trace_code;
+EntryPoint TemplateInterpreter::_trace_code;
 #endif // !PRODUCT
-EntryPoint TemplateInterpreter::_jportal_return_entry[TemplateInterpreter::number_of_return_entries];
-EntryPoint TemplateInterpreter::_jportal_earlyret_entry;
-EntryPoint TemplateInterpreter::_jportal_deopt_entry [TemplateInterpreter::number_of_deopt_entries ];
-address    TemplateInterpreter::_jportal_deopt_reexecute_return_entry;
-EntryPoint TemplateInterpreter::_jportal_safept_entry;
+EntryPoint TemplateInterpreter::_return_entry[TemplateInterpreter::number_of_return_entries];
+EntryPoint TemplateInterpreter::_earlyret_entry;
+EntryPoint TemplateInterpreter::_deopt_entry [TemplateInterpreter::number_of_deopt_entries ];
+address    TemplateInterpreter::_deopt_reexecute_return_entry;
+EntryPoint TemplateInterpreter::_safept_entry;
 
-address TemplateInterpreter::_jportal_invoke_return_entry[TemplateInterpreter::number_of_return_addrs];
-address TemplateInterpreter::_jportal_invokeinterface_return_entry[TemplateInterpreter::number_of_return_addrs];
-address TemplateInterpreter::_jportal_invokedynamic_return_entry[TemplateInterpreter::number_of_return_addrs];
+address TemplateInterpreter::_invoke_return_entry[TemplateInterpreter::number_of_return_addrs];
+address TemplateInterpreter::_invokeinterface_return_entry[TemplateInterpreter::number_of_return_addrs];
+address TemplateInterpreter::_invokedynamic_return_entry[TemplateInterpreter::number_of_return_addrs];
 
-DispatchTable TemplateInterpreter::_jportal_active_table;
-DispatchTable TemplateInterpreter::_jportal_normal_table;
-DispatchTable TemplateInterpreter::_jportal_safept_table;
-address    TemplateInterpreter::_jportal_wentry_point[DispatchTable::length];
+DispatchTable TemplateInterpreter::_active_table;
+DispatchTable TemplateInterpreter::_normal_table;
+DispatchTable TemplateInterpreter::_safept_table;
+address    TemplateInterpreter::_wentry_point[DispatchTable::length];
 
 
 //------------------------------------------------------------------------------------------------------------------------
@@ -308,17 +214,17 @@ address    TemplateInterpreter::_jportal_wentry_point[DispatchTable::length];
 /**
  * Returns the return entry table for the given invoke bytecode.
  */
-address* TemplateInterpreter::invoke_return_entry_table_for(Bytecodes::Code code, bool jportal) {
+address* TemplateInterpreter::invoke_return_entry_table_for(Bytecodes::Code code) {
   switch (code) {
   case Bytecodes::_invokestatic:
   case Bytecodes::_invokespecial:
   case Bytecodes::_invokevirtual:
   case Bytecodes::_invokehandle:
-    return Interpreter::invoke_return_entry_table(jportal);
+    return Interpreter::invoke_return_entry_table();
   case Bytecodes::_invokeinterface:
-    return Interpreter::invokeinterface_return_entry_table(jportal);
+    return Interpreter::invokeinterface_return_entry_table();
   case Bytecodes::_invokedynamic:
-    return Interpreter::invokedynamic_return_entry_table(jportal);
+    return Interpreter::invokedynamic_return_entry_table();
   default:
     fatal("invalid bytecode: %s", Bytecodes::name(code));
     return NULL;
@@ -328,7 +234,7 @@ address* TemplateInterpreter::invoke_return_entry_table_for(Bytecodes::Code code
 /**
  * Returns the return entry address for the given top-of-stack state and bytecode.
  */
-address TemplateInterpreter::return_entry(TosState state, int length, Bytecodes::Code code, bool jportal) {
+address TemplateInterpreter::return_entry(TosState state, int length, Bytecodes::Code code) {
   guarantee(0 <= length && length < Interpreter::number_of_return_entries, "illegal length");
   const int index = TosState_as_index(state);
   switch (code) {
@@ -336,23 +242,23 @@ address TemplateInterpreter::return_entry(TosState state, int length, Bytecodes:
   case Bytecodes::_invokespecial:
   case Bytecodes::_invokevirtual:
   case Bytecodes::_invokehandle:
-    return jportal?_jportal_invoke_return_entry[index]:_normal_invoke_return_entry[index];
+    return _invoke_return_entry[index];
   case Bytecodes::_invokeinterface:
-    return jportal?_jportal_invokeinterface_return_entry[index]:_normal_invokeinterface_return_entry[index];
+    return _invokeinterface_return_entry[index];
   case Bytecodes::_invokedynamic:
-    return jportal?_jportal_invokedynamic_return_entry[index]:_normal_invokedynamic_return_entry[index];
+    return _invokedynamic_return_entry[index];
   default:
     assert(!Bytecodes::is_invoke(code), "invoke instructions should be handled separately: %s", Bytecodes::name(code));
-    address entry = jportal?_jportal_return_entry[length].entry(state):_normal_return_entry[length].entry(state);
+    address entry = _return_entry[length].entry(state);
     vmassert(entry != NULL, "unsupported return entry requested, length=%d state=%d", length, index);
     return entry;
   }
 }
 
 
-address TemplateInterpreter::deopt_entry(TosState state, int length, bool jportal) {
+address TemplateInterpreter::deopt_entry(TosState state, int length) {
   guarantee(0 <= length && length < Interpreter::number_of_deopt_entries, "illegal length");
-  address entry = jportal?_jportal_deopt_entry[length].entry(state):_normal_deopt_entry[length].entry(state);
+  address entry = _deopt_entry[length].entry(state);
   vmassert(entry != NULL, "unsupported deopt entry requested, length=%d state=%d", length, TosState_as_index(state));
   return entry;
 }
@@ -379,8 +285,7 @@ void TemplateInterpreter::notice_safepoints() {
   if (!_notice_safepoints) {
     // switch to safepoint dispatch table
     _notice_safepoints = true;
-    copy_table((address*)&_normal_safept_table, (address*)&_normal_active_table, sizeof(_normal_active_table) / sizeof(address));
-    copy_table((address*)&_jportal_safept_table, (address*)&_jportal_active_table, sizeof(_jportal_active_table) / sizeof(address));
+    copy_table((address*)&_safept_table, (address*)&_active_table, sizeof(_active_table) / sizeof(address));
   }
 }
 
@@ -394,8 +299,7 @@ void TemplateInterpreter::ignore_safepoints() {
     if (!JvmtiExport::should_post_single_step()) {
       // switch to normal dispatch table
       _notice_safepoints = false;
-      copy_table((address*)&_normal_normal_table, (address*)&_normal_active_table, sizeof(_normal_active_table) / sizeof(address));
-      copy_table((address*)&_jportal_normal_table, (address*)&_jportal_active_table, sizeof(_jportal_active_table) / sizeof(address));
+      copy_table((address*)&_normal_table, (address*)&_active_table, sizeof(_active_table) / sizeof(address));
     }
   }
 }
@@ -421,7 +325,7 @@ address TemplateInterpreter::deopt_reexecute_entry(Method* method, address bcp) 
     // the standard return vtos bytecode to pop the frame normally.
     // reexecuting the real bytecode would cause double registration
     // of the finalizable object.
-    return Interpreter::deopt_reexecute_return_entry(JPortal && method->is_jportal());
+    return Interpreter::deopt_reexecute_return_entry();
   } else {
     return AbstractInterpreter::deopt_reexecute_entry(method, bcp);
   }
@@ -438,9 +342,8 @@ bool TemplateInterpreter::bytecode_should_reexecute(Bytecodes::Code code) {
   }
 }
 
-InterpreterCodelet* TemplateInterpreter::codelet_containing(address pc, bool jportal) {
-  return jportal?(InterpreterCodelet*)_jportal_code->stub_containing(pc):
-                 (InterpreterCodelet*)_normal_code->stub_containing(pc);
+InterpreterCodelet* TemplateInterpreter::codelet_containing(address pc) {
+  return (InterpreterCodelet*)_code->stub_containing(pc);
 }
 
 #endif // !CC_INTERP

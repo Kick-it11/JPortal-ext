@@ -1965,10 +1965,6 @@ JNI_CreateJavaVM(JavaVM **pvm, void **penv, void *args);
 _JNI_IMPORT_OR_EXPORT_ jint JNICALL
 JNI_GetCreatedJavaVMs(JavaVM **, jsize, jsize *);
 
-// JPortal
-_JNI_IMPORT_OR_EXPORT_ void JNICALL
-JNI_JPortalEnable();
-
 /* Defined by native libraries. */
 JNIEXPORT jint JNICALL
 JNI_OnLoad(JavaVM *vm, void *reserved);

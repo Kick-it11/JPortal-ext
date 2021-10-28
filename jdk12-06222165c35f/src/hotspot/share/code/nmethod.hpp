@@ -214,7 +214,7 @@ class nmethod : public CompiledMethod {
           );
 
   // helper methods
-  void* operator new(size_t size, int nmethod_size, int comp_level, bool jportal) throw();
+  void* operator new(size_t size, int nmethod_size, int comp_level) throw();
 
   const char* reloc_string_for(u_char* begin, u_char* end);
   // Returns true if this thread changed the state of the nmethod or
@@ -250,8 +250,7 @@ class nmethod : public CompiledMethod {
                               ExceptionHandlerTable* handler_table,
                               ImplicitExceptionTable* nul_chk_table,
                               AbstractCompiler* compiler,
-                              int comp_level,
-                              bool jportal
+                              int comp_level
 #if INCLUDE_JVMCI
                               , jweak installed_code = NULL,
                               jweak speculation_log = NULL
@@ -274,8 +273,7 @@ class nmethod : public CompiledMethod {
                                      int frame_size,
                                      ByteSize receiver_sp_offset,
                                      ByteSize basic_lock_sp_offset,
-                                     OopMapSet* oop_maps,
-                                     bool jportal);
+                                     OopMapSet* oop_maps);
 
   // type info
   bool is_nmethod() const                         { return true; }

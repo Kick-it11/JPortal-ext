@@ -291,12 +291,12 @@ void InterpreterRuntime::SignatureHandlerGenerator::pass_object() {
 #endif
 }
 
-void InterpreterRuntime::SignatureHandlerGenerator::generate(uint64_t fingerprint, bool jportal) {
+void InterpreterRuntime::SignatureHandlerGenerator::generate(uint64_t fingerprint) {
   // generate code to handle arguments
   iterate(fingerprint);
 
   // return result handler
-  __ lea(rax, ExternalAddress(Interpreter::result_handler(method()->result_type(), jportal)));
+  __ lea(rax, ExternalAddress(Interpreter::result_handler(method()->result_type())));
   __ ret(0);
 
   __ flush();
@@ -508,5 +508,5 @@ IRT_ENTRY(address,
   SlowSignatureHandler(m, (address)from, to + 1).iterate((uint64_t)CONST64(-1));
 
   // return result handler
-  return Interpreter::result_handler(m->result_type(), JPortal && m->is_jportal());
+  return Interpreter::result_handler(m->result_type());
 IRT_END

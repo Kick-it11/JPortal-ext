@@ -751,20 +751,16 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
   __ movptr(rax, Address(rsp, 0));
 
   if (VerifyAdapterCalls &&
-      (Interpreter::code(false) != NULL || StubRoutines::code1() != NULL)) {
+      (Interpreter::code() != NULL || StubRoutines::code1() != NULL)) {
     // So, let's test for cascading c2i/i2c adapters right now.
     //  assert(Interpreter::contains($return_addr) ||
     //         StubRoutines::contains($return_addr),
     //         "i2c adapter must return to an interpreter frame");
     __ block_comment("verify_i2c { ");
     Label L_ok;
-    if (Interpreter::code(false) != NULL)
+    if (Interpreter::code() != NULL)
       range_check(masm, rax, r11,
-                  Interpreter::code(false)->code_start(), Interpreter::code(false)->code_end(),
-                  L_ok);
-    if (JPortal && Interpreter::code(true) != NULL)
-      range_check(masm, rax, r11,
-                  Interpreter::code(true)->code_start(), Interpreter::code(true)->code_end(),
+                  Interpreter::code()->code_start(), Interpreter::code()->code_end(),
                   L_ok);
     if (StubRoutines::code1() != NULL)
       range_check(masm, rax, r11,
@@ -1921,8 +1917,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
                                        stack_slots / VMRegImpl::slots_per_word,
                                        in_ByteSize(-1),
                                        in_ByteSize(-1),
-                                       (OopMapSet*)NULL,
-                                       JPortal && method->is_jportal());
+                                       (OopMapSet*)NULL);
   }
   bool is_critical_native = true;
   address native_func = method->critical_native_function();
@@ -2832,7 +2827,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
                                             stack_slots / VMRegImpl::slots_per_word,
                                             (is_static ? in_ByteSize(klass_offset) : in_ByteSize(receiver_offset)),
                                             in_ByteSize(lock_slot_offset*VMRegImpl::stack_slot_size),
-                                            oop_maps, JPortal && method->is_jportal());
+                                            oop_maps);
 
   if (is_critical_native) {
     nm->set_lazy_critical_native(true);

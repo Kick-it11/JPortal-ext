@@ -50,7 +50,7 @@ address VtableStub::_chunk_end         = NULL;
 VMReg   VtableStub::_receiver_location = VMRegImpl::Bad();
 
 
-void* VtableStub::operator new(size_t size, int code_size, bool jportal) throw() {
+void* VtableStub::operator new(size_t size, int code_size) throw() {
   assert_lock_strong(VtableStubs_lock);
   assert(size == sizeof(VtableStub), "mismatched size");
   // compute real VtableStub size (rounded to nearest word)
@@ -62,7 +62,7 @@ void* VtableStub::operator new(size_t size, int code_size, bool jportal) throw()
 
    // There is a dependency on the name of the blob in src/share/vm/prims/jvmtiCodeBlobEvents.cpp
    // If changing the name, update the other file accordingly.
-    VtableBlob* blob = VtableBlob::create("vtable chunks", bytes, jportal);
+    VtableBlob* blob = VtableBlob::create("vtable chunks", bytes);
     if (blob == NULL) {
       return NULL;
     }
@@ -206,7 +206,7 @@ void VtableStubs::bookkeeping(MacroAssembler* masm, outputStream* out, VtableStu
 }
 
 
-address VtableStubs::find_stub(bool is_vtable_stub, int vtable_index, bool jportal) {
+address VtableStubs::find_stub(bool is_vtable_stub, int vtable_index) {
   assert(vtable_index >= 0, "must be positive");
 
   VtableStub* s;
@@ -215,9 +215,9 @@ address VtableStubs::find_stub(bool is_vtable_stub, int vtable_index, bool jport
     s = ShareVtableStubs ? lookup(is_vtable_stub, vtable_index) : NULL;
     if (s == NULL) {
       if (is_vtable_stub) {
-        s = create_vtable_stub(vtable_index, jportal);
+        s = create_vtable_stub(vtable_index);
       } else {
-        s = create_itable_stub(vtable_index, jportal);
+        s = create_itable_stub(vtable_index);
       }
 
       // Creation of vtable or itable can fail if there is not enough free space in the code cache.
@@ -237,11 +237,6 @@ address VtableStubs::find_stub(bool is_vtable_stub, int vtable_index, bool jport
       if (JvmtiExport::should_post_dynamic_code_generated()) {
         JvmtiExport::post_dynamic_code_generated_while_holding_locks(is_vtable_stub? "vtable stub": "itable stub",
                                                                      s->code_begin(), s->code_end());
-      }
-      // JPortal
-      if (JPortal && jportal) {
-        JPortalEnable::jportal_dynamic_code_generated(is_vtable_stub? "vtable stub": "itable stub",
-                                                      s->code_begin(), s->code_end() - s->code_begin());
       }
     }
   }

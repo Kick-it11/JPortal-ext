@@ -88,10 +88,6 @@ define_pd_global(uintx, ReservedCodeCacheSize,       48*M);
 define_pd_global(uintx, NonProfiledCodeHeapSize,     21*M);
 define_pd_global(uintx, ProfiledCodeHeapSize,        22*M);
 define_pd_global(uintx, NonNMethodCodeHeapSize,      5*M );
-define_pd_global(uintx, JPortalReservedCodeCacheSize,48*M);
-define_pd_global(uintx, JPortalNonProfiledCodeHeapSize, 21*M);
-define_pd_global(uintx, JPortalProfiledCodeHeapSize, 22*M);
-define_pd_global(uintx, JPortalNonNMethodCodeHeapSize, 5*M );
 define_pd_global(uintx, CodeCacheMinBlockLength,     4);
 define_pd_global(uintx, CodeCacheMinimumUseSpace,    400*K);
 

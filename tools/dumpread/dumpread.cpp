@@ -93,13 +93,10 @@ using namespace std;
     struct InlineCacheAdd {
       uint64_t src;
       uint64_t dest;
-      uint64_t type;
     };
 
     struct InlineCacheClear {
-
       uint64_t src;
-      uint64_t type;
     };
 static int extract_base(char *arg, uint64_t *base) {
     char *sep, *rest;
@@ -503,7 +500,7 @@ int main(int argc, char **argv) {
                 const InlineCacheAdd *ic;
                 ic = (const InlineCacheAdd *)current;
                 current += sizeof(InlineCacheAdd);
-                printf("InlineCacheAdd: (%ld)%ld %ld (%ld) ", ic->type, ic->src, ic->dest, info->time);
+                printf("InlineCacheAdd: %ld %ld (%ld) ", ic->src, ic->dest, info->time);
                 for (auto miter = memory.begin(); miter != memory.end(); miter++) {
                   if (ic->src >= miter->first && ic->src < miter->first + miter->second)
                     printf("(src : %ld %ld) ", miter->first, miter->second);
@@ -518,7 +515,7 @@ int main(int argc, char **argv) {
                 const InlineCacheClear *ic;
                 ic = (const InlineCacheClear *)current;
                 current += sizeof(InlineCacheClear);
-                printf("InlineCacheClear: (%ld)%ld (%ld) ", ic->type, ic->src, info->time);
+                printf("InlineCacheClear: %ld (%ld) ", ic->src, info->time);
                 for (auto miter = memory.begin(); miter != memory.end(); miter++) {
                   if (ic->src >= miter->first && ic->src < miter->first + miter->second)
                     printf("(src : %ld %ld) ", miter->first, miter->second);

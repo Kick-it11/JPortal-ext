@@ -34,7 +34,7 @@ void AbstractICache::initialize() {
   // Making this stub must be FIRST use of assembler
   ResourceMark rm;
 
-  BufferBlob* b = BufferBlob::create("flush_icache_stub", ICache::stub_size, false);
+  BufferBlob* b = BufferBlob::create("flush_icache_stub", ICache::stub_size);
   if (b == NULL) {
     vm_exit_out_of_memory(ICache::stub_size, OOM_MALLOC_ERROR, "CodeCache: no space for flush_icache_stub");
   }

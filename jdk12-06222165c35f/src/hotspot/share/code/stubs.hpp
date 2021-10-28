@@ -174,7 +174,7 @@ class StubQueue: public CHeapObj<mtCode> {
 
  public:
   StubQueue(StubInterface* stub_interface, int buffer_size, Mutex* lock,
-            const char* name, bool jportal);
+            const char* name);
   ~StubQueue();
 
   // General queue info
@@ -213,12 +213,6 @@ class StubQueue: public CHeapObj<mtCode> {
   void  verify();                                // verifies the stub queue
   void  print();                                 // prints information about the stub queue
 
-  void  stub_addresses(uint64_t inter[], int &inter_pointer) {
-    for (Stub* s = first(); s != NULL; s = next(s)) {
-      inter[inter_pointer++] = (uint64_t)(_stub_interface->code_begin(s));
-      inter[inter_pointer++] = (uint64_t)(_stub_interface->code_end(s));
-    }
-  }
 };
 
 #endif // SHARE_VM_CODE_STUBS_HPP

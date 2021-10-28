@@ -498,7 +498,7 @@ address SharedRuntime::raw_exception_handler_for_return_address(JavaThread* thre
   }
   // Interpreted code
   if (Interpreter::contains(return_address)) {
-    return Interpreter::rethrow_exception_entry(CodeCache::is_jportal(return_address));
+    return Interpreter::rethrow_exception_entry();
   }
 
   guarantee(blob == NULL || !blob->is_runtime_stub(), "caller should have skipped stub");
@@ -785,9 +785,9 @@ address SharedRuntime::continuation_for_implicit_exception(JavaThread* thread,
     ShouldNotReachHere();
 #else
     switch (exception_kind) {
-      case IMPLICIT_NULL:           return Interpreter::throw_NullPointerException_entry(CodeCache::is_jportal(pc));
-      case IMPLICIT_DIVIDE_BY_ZERO: return Interpreter::throw_ArithmeticException_entry(CodeCache::is_jportal(pc));
-      case STACK_OVERFLOW:          return Interpreter::throw_StackOverflowError_entry(CodeCache::is_jportal(pc));
+      case IMPLICIT_NULL:           return Interpreter::throw_NullPointerException_entry();
+      case IMPLICIT_DIVIDE_BY_ZERO: return Interpreter::throw_ArithmeticException_entry();
+      case STACK_OVERFLOW:          return Interpreter::throw_StackOverflowError_entry();
       default:                      ShouldNotReachHere();
     }
 #endif // !CC_INTERP
@@ -1978,11 +1978,6 @@ IRT_LEAF(void, SharedRuntime::fixup_callers_callsite(Method* method, address cal
       address destination = call->destination();
       if (should_fixup_call_destination(destination, entry_point, caller_pc, moop, cb)) {
         call->set_destination_mt_safe(entry_point);
-
-        // JPortal
-        if (JPortal && CodeCache::is_jportal(call->instruction_address())) {
-          JPortalEnable::jportal_inline_cache_add(call->instruction_address(), entry_point);
-        }
       }
     }
   }
@@ -2595,7 +2590,7 @@ BufferBlob* AdapterHandlerLibrary::_buffer = NULL;
 BufferBlob* AdapterHandlerLibrary::buffer_blob() {
   // Should be called only when AdapterHandlerLibrary_lock is active.
   if (_buffer == NULL) // Initialize lazily
-      _buffer = BufferBlob::create("adapters", AdapterHandlerLibrary_size, false);
+      _buffer = BufferBlob::create("adapters", AdapterHandlerLibrary_size);
   return _buffer;
 }
 
@@ -2741,7 +2736,7 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter0(const methodHandle& met
       }
 #endif
 
-      new_adapter = AdapterBlob::create(&buffer, JPortal && method->is_jportal());
+      new_adapter = AdapterBlob::create(&buffer);
       NOT_PRODUCT(insts_size = buffer.insts_size());
     }
     if (new_adapter == NULL) {
@@ -2788,11 +2783,6 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter0(const methodHandle& met
 
     if (JvmtiExport::should_post_dynamic_code_generated()) {
       JvmtiExport::post_dynamic_code_generated(blob_id, new_adapter->content_begin(), new_adapter->content_end());
-    }
-
-    // JPortal
-    if (JPortal && method->is_jportal()) {
-      JPortalEnable::jportal_dynamic_code_generated(blob_id, new_adapter->content_begin(), new_adapter->content_size());
     }
   }
   return entry;

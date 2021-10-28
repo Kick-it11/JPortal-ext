@@ -108,7 +108,6 @@ public class Flags {
     public static final int ACC_BRIDGE   = 0x0040;
     public static final int ACC_VARARGS  = 0x0080;
     public static final int ACC_MODULE   = 0x8000;
-    public static final int ACC_JPORTAL  = 0x2000;
 
     /*****************************************
      * Internal compiler flags (no bits in the lower 16).
@@ -320,7 +319,6 @@ public class Flags {
      */
     public static final long BODY_ONLY_FINALIZE = 1L<<17; //blocks only
 
-    public static final long JPORTAL = 1L<<58;
     /** Modifier masks.
      */
     public static final int
@@ -336,7 +334,7 @@ public class Flags {
         MethodFlags           = AccessFlags | ABSTRACT | STATIC | NATIVE |
                                 SYNCHRONIZED | FINAL | STRICTFP;
     public static final long
-        ExtendedStandardFlags       = (long)StandardFlags | DEFAULT | JPORTAL,
+        ExtendedStandardFlags       = (long)StandardFlags | DEFAULT,
         ModifierFlags               = ((long)StandardFlags & ~INTERFACE) | DEFAULT,
         InterfaceMethodMask         = ABSTRACT | PRIVATE | STATIC | PUBLIC | STRICTFP | DEFAULT,
         AnnotationTypeElementMask   = ABSTRACT | PUBLIC,
@@ -361,7 +359,6 @@ public class Flags {
             if (0 != (flags & NATIVE))    modifiers.add(Modifier.NATIVE);
             if (0 != (flags & STRICTFP))  modifiers.add(Modifier.STRICTFP);
             if (0 != (flags & DEFAULT))   modifiers.add(Modifier.DEFAULT);
-            if (0 != (flags & JPORTAL))   modifiers.add(Modifier.JPORTAL);
             modifiers = Collections.unmodifiableSet(modifiers);
             modifierSets.put(flags, modifiers);
         }
@@ -401,7 +398,6 @@ public class Flags {
         BRIDGE(Flags.BRIDGE),
         SYNTHETIC(Flags.SYNTHETIC),
         ANNOTATION(Flags.ANNOTATION),
-        JPORTAL(Flags.JPORTAL),
         DEPRECATED(Flags.DEPRECATED),
         HASINIT(Flags.HASINIT),
         BLOCK(Flags.BLOCK),

@@ -2104,14 +2104,13 @@ void MacroAssembler::ic_call(address entry, jint method_index) {
 
 void MacroAssembler::call_VM(Register oop_result,
                              address entry_point,
-                             bool jportal,
                              bool check_exceptions) {
   Label C, E;
   call(C, relocInfo::none);
   jmp(E);
 
   bind(C);
-  call_VM_helper(oop_result, entry_point, jportal, 0, check_exceptions);
+  call_VM_helper(oop_result, entry_point, 0, check_exceptions);
   ret(0);
 
   bind(E);
@@ -2120,7 +2119,6 @@ void MacroAssembler::call_VM(Register oop_result,
 void MacroAssembler::call_VM(Register oop_result,
                              address entry_point,
                              Register arg_1,
-                             bool jportal,
                              bool check_exceptions) {
   Label C, E;
   call(C, relocInfo::none);
@@ -2128,7 +2126,7 @@ void MacroAssembler::call_VM(Register oop_result,
 
   bind(C);
   pass_arg1(this, arg_1);
-  call_VM_helper(oop_result, entry_point, jportal, 1, check_exceptions);
+  call_VM_helper(oop_result, entry_point, 1, check_exceptions);
   ret(0);
 
   bind(E);
@@ -2138,7 +2136,6 @@ void MacroAssembler::call_VM(Register oop_result,
                              address entry_point,
                              Register arg_1,
                              Register arg_2,
-                             bool jportal,
                              bool check_exceptions) {
   Label C, E;
   call(C, relocInfo::none);
@@ -2150,7 +2147,7 @@ void MacroAssembler::call_VM(Register oop_result,
 
   pass_arg2(this, arg_2);
   pass_arg1(this, arg_1);
-  call_VM_helper(oop_result, entry_point, jportal, 2, check_exceptions);
+  call_VM_helper(oop_result, entry_point, 2, check_exceptions);
   ret(0);
 
   bind(E);
@@ -2161,7 +2158,6 @@ void MacroAssembler::call_VM(Register oop_result,
                              Register arg_1,
                              Register arg_2,
                              Register arg_3,
-                             bool jportal,
                              bool check_exceptions) {
   Label C, E;
   call(C, relocInfo::none);
@@ -2177,7 +2173,7 @@ void MacroAssembler::call_VM(Register oop_result,
   pass_arg2(this, arg_2);
 
   pass_arg1(this, arg_1);
-  call_VM_helper(oop_result, entry_point, jportal, 3, check_exceptions);
+  call_VM_helper(oop_result, entry_point, 3, check_exceptions);
   ret(0);
 
   bind(E);
@@ -2186,21 +2182,19 @@ void MacroAssembler::call_VM(Register oop_result,
 void MacroAssembler::call_VM(Register oop_result,
                              Register last_java_sp,
                              address entry_point,
-                             bool jportal,
                              int number_of_arguments,
                              bool check_exceptions) {
   Register thread = LP64_ONLY(r15_thread) NOT_LP64(noreg);
-  call_VM_base(oop_result, thread, last_java_sp, entry_point, jportal, number_of_arguments, check_exceptions);
+  call_VM_base(oop_result, thread, last_java_sp, entry_point, number_of_arguments, check_exceptions);
 }
 
 void MacroAssembler::call_VM(Register oop_result,
                              Register last_java_sp,
                              address entry_point,
                              Register arg_1,
-                             bool jportal,
                              bool check_exceptions) {
   pass_arg1(this, arg_1);
-  call_VM(oop_result, last_java_sp, entry_point, jportal, 1, check_exceptions);
+  call_VM(oop_result, last_java_sp, entry_point, 1, check_exceptions);
 }
 
 void MacroAssembler::call_VM(Register oop_result,
@@ -2208,13 +2202,12 @@ void MacroAssembler::call_VM(Register oop_result,
                              address entry_point,
                              Register arg_1,
                              Register arg_2,
-                             bool jportal,
                              bool check_exceptions) {
 
   LP64_ONLY(assert(arg_1 != c_rarg2, "smashed arg"));
   pass_arg2(this, arg_2);
   pass_arg1(this, arg_1);
-  call_VM(oop_result, last_java_sp, entry_point, jportal, 2, check_exceptions);
+  call_VM(oop_result, last_java_sp, entry_point, 2, check_exceptions);
 }
 
 void MacroAssembler::call_VM(Register oop_result,
@@ -2223,7 +2216,6 @@ void MacroAssembler::call_VM(Register oop_result,
                              Register arg_1,
                              Register arg_2,
                              Register arg_3,
-                             bool jportal,
                              bool check_exceptions) {
   LP64_ONLY(assert(arg_1 != c_rarg3, "smashed arg"));
   LP64_ONLY(assert(arg_2 != c_rarg3, "smashed arg"));
@@ -2231,27 +2223,25 @@ void MacroAssembler::call_VM(Register oop_result,
   LP64_ONLY(assert(arg_1 != c_rarg2, "smashed arg"));
   pass_arg2(this, arg_2);
   pass_arg1(this, arg_1);
-  call_VM(oop_result, last_java_sp, entry_point, jportal, 3, check_exceptions);
+  call_VM(oop_result, last_java_sp, entry_point, 3, check_exceptions);
 }
 
 void MacroAssembler::super_call_VM(Register oop_result,
                                    Register last_java_sp,
                                    address entry_point,
-                                   bool jportal,
                                    int number_of_arguments,
                                    bool check_exceptions) {
   Register thread = LP64_ONLY(r15_thread) NOT_LP64(noreg);
-  MacroAssembler::call_VM_base(oop_result, thread, last_java_sp, entry_point, jportal, number_of_arguments, check_exceptions);
+  MacroAssembler::call_VM_base(oop_result, thread, last_java_sp, entry_point, number_of_arguments, check_exceptions);
 }
 
 void MacroAssembler::super_call_VM(Register oop_result,
                                    Register last_java_sp,
                                    address entry_point,
                                    Register arg_1,
-                                   bool jportal,
                                    bool check_exceptions) {
   pass_arg1(this, arg_1);
-  super_call_VM(oop_result, last_java_sp, entry_point, jportal, 1, check_exceptions);
+  super_call_VM(oop_result, last_java_sp, entry_point, 1, check_exceptions);
 }
 
 void MacroAssembler::super_call_VM(Register oop_result,
@@ -2259,13 +2249,12 @@ void MacroAssembler::super_call_VM(Register oop_result,
                                    address entry_point,
                                    Register arg_1,
                                    Register arg_2,
-                                   bool jportal,
                                    bool check_exceptions) {
 
   LP64_ONLY(assert(arg_1 != c_rarg2, "smashed arg"));
   pass_arg2(this, arg_2);
   pass_arg1(this, arg_1);
-  super_call_VM(oop_result, last_java_sp, entry_point, jportal, 2, check_exceptions);
+  super_call_VM(oop_result, last_java_sp, entry_point, 2, check_exceptions);
 }
 
 void MacroAssembler::super_call_VM(Register oop_result,
@@ -2274,7 +2263,6 @@ void MacroAssembler::super_call_VM(Register oop_result,
                                    Register arg_1,
                                    Register arg_2,
                                    Register arg_3,
-                                   bool jportal,
                                    bool check_exceptions) {
   LP64_ONLY(assert(arg_1 != c_rarg3, "smashed arg"));
   LP64_ONLY(assert(arg_2 != c_rarg3, "smashed arg"));
@@ -2282,14 +2270,13 @@ void MacroAssembler::super_call_VM(Register oop_result,
   LP64_ONLY(assert(arg_1 != c_rarg2, "smashed arg"));
   pass_arg2(this, arg_2);
   pass_arg1(this, arg_1);
-  super_call_VM(oop_result, last_java_sp, entry_point, jportal, 3, check_exceptions);
+  super_call_VM(oop_result, last_java_sp, entry_point, 3, check_exceptions);
 }
 
 void MacroAssembler::call_VM_base(Register oop_result,
                                   Register java_thread,
                                   Register last_java_sp,
                                   address  entry_point,
-                                  bool     jportal,
                                   int      number_of_arguments,
                                   bool     check_exceptions) {
   // determine java_thread register
@@ -2356,8 +2343,8 @@ void MacroAssembler::call_VM_base(Register oop_result,
   reset_last_Java_frame(java_thread, true);
 
    // C++ interp handles this in the interpreter
-  check_and_handle_popframe(java_thread, jportal);
-  check_and_handle_earlyret(java_thread, jportal);
+  check_and_handle_popframe(java_thread);
+  check_and_handle_earlyret(java_thread);
 
   if (check_exceptions) {
     // check for pending exceptions (java_thread is set upon return)
@@ -2383,7 +2370,7 @@ void MacroAssembler::call_VM_base(Register oop_result,
   }
 }
 
-void MacroAssembler::call_VM_helper(Register oop_result, address entry_point, bool jportal, int number_of_arguments, bool check_exceptions) {
+void MacroAssembler::call_VM_helper(Register oop_result, address entry_point, int number_of_arguments, bool check_exceptions) {
 
   // Calculate the value for last_Java_sp
   // somewhat subtle. call_VM does an intermediate call
@@ -2402,7 +2389,7 @@ void MacroAssembler::call_VM_helper(Register oop_result, address entry_point, bo
   lea(rax, Address(rsp, (1 + number_of_arguments) * wordSize));
 #endif // LP64
 
-  call_VM_base(oop_result, noreg, rax, entry_point, jportal, number_of_arguments, check_exceptions);
+  call_VM_base(oop_result, noreg, rax, entry_point, number_of_arguments, check_exceptions);
 
 }
 
@@ -2486,10 +2473,10 @@ void MacroAssembler::get_vm_result_2(Register metadata_result, Register java_thr
   movptr(Address(java_thread, JavaThread::vm_result_2_offset()), NULL_WORD);
 }
 
-void MacroAssembler::check_and_handle_earlyret(Register java_thread, bool jportal) {
+void MacroAssembler::check_and_handle_earlyret(Register java_thread) {
 }
 
-void MacroAssembler::check_and_handle_popframe(Register java_thread, bool jportal) {
+void MacroAssembler::check_and_handle_popframe(Register java_thread) {
 }
 
 void MacroAssembler::cmp32(AddressLiteral src1, int32_t imm) {

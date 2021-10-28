@@ -89,7 +89,7 @@ BufferBlob* Compiler::init_buffer_blob() {
 
   // setup CodeBuffer.  Preallocate a BufferBlob of size
   // NMethodSizeLimit plus some extra space for constants.
-  BufferBlob* buffer_blob = BufferBlob::create("C1 temporary CodeBuffer", code_buffer_size(), false);
+  BufferBlob* buffer_blob = BufferBlob::create("C1 temporary CodeBuffer", code_buffer_size());
   if (buffer_blob != NULL) {
     CompilerThread::current()->set_buffer_blob(buffer_blob);
   }

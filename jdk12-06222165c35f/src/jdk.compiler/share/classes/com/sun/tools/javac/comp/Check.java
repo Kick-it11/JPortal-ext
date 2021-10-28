@@ -1165,7 +1165,6 @@ public class Check {
             if (((flags|implicit) & Flags.ABSTRACT) == 0 ||
                 ((flags) & Flags.DEFAULT) != 0)
                 implicit |= sym.owner.flags_field & STRICTFP;
-            mask |= Flags.JPORTAL;
             break;
         case TYP:
             if (sym.isLocal()) {

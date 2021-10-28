@@ -4043,11 +4043,6 @@ _JNI_IMPORT_OR_EXPORT_ jint JNICALL JNI_GetCreatedJavaVMs(JavaVM **vm_buf, jsize
   return JNI_OK;
 }
 
-// JPortal
-_JNI_IMPORT_OR_EXPORT_ void JNICALL JNI_JPortalEnable() {
-  JPortalEnable::jportal_enable();
-}
-
 extern "C" {
 
 DT_RETURN_MARK_DECL(DestroyJavaVM, jint

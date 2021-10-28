@@ -86,12 +86,12 @@ class VtableStubs : AllStatic {
   static int         _vtab_stub_size;            // current size estimate for vtable stub (quasi-constant)
   static int         _itab_stub_size;            // current size estimate for itable stub (quasi-constant)
 
-  static VtableStub* create_vtable_stub(int vtable_index, bool jportal);
-  static VtableStub* create_itable_stub(int vtable_index, bool jportal);
+  static VtableStub* create_vtable_stub(int vtable_index);
+  static VtableStub* create_itable_stub(int vtable_index);
   static VtableStub* lookup            (bool is_vtable_stub, int vtable_index);
   static void        enter             (bool is_vtable_stub, int vtable_index, VtableStub* s);
   static inline uint hash              (bool is_vtable_stub, int vtable_index);
-  static address     find_stub         (bool is_vtable_stub, int vtable_index, bool jportal);
+  static address     find_stub         (bool is_vtable_stub, int vtable_index);
   static void        bookkeeping(MacroAssembler* masm, outputStream* out, VtableStub* s,
                                  address npe_addr, address ame_addr,   bool is_vtable_stub,
                                  int     index,    int     slop_bytes, int  index_dependent_slop);
@@ -101,8 +101,8 @@ class VtableStubs : AllStatic {
                                               int   padding);
 
  public:
-  static address     find_vtable_stub(int vtable_index, bool jportal) { return find_stub(true,  vtable_index, jportal); }
-  static address     find_itable_stub(int itable_index, bool jportal) { return find_stub(false, itable_index, jportal); }
+  static address     find_vtable_stub(int vtable_index) { return find_stub(true,  vtable_index); }
+  static address     find_itable_stub(int itable_index) { return find_stub(false, itable_index); }
 
   static VtableStub* entry_point(address pc);                        // vtable stub entry point for a pc
   static bool        contains(address pc);                           // is pc within any stub?
@@ -128,7 +128,7 @@ class VtableStub {
   bool           _is_vtable_stub;    // True if vtable stub, false, is itable stub
   /* code follows here */            // The vtableStub code
 
-  void* operator new(size_t size, int code_size, bool jportal) throw();
+  void* operator new(size_t size, int code_size) throw();
 
   VtableStub(bool is_vtable_stub, int index)
         : _next(NULL), _index(index), _ame_offset(-1), _npe_offset(-1),

@@ -121,7 +121,6 @@ class AccessFlags {
   bool is_interface   () const         { return (_flags & JVM_ACC_INTERFACE   ) != 0; }
   bool is_abstract    () const         { return (_flags & JVM_ACC_ABSTRACT    ) != 0; }
   bool is_strict      () const         { return (_flags & JVM_ACC_STRICT      ) != 0; }
-  bool is_jportal     () const         { return (_flags & JVM_ACC_JPORTAL     ) != 0; }
 
   // Attribute flags
   bool is_synthetic   () const         { return (_flags & JVM_ACC_SYNTHETIC   ) != 0; }

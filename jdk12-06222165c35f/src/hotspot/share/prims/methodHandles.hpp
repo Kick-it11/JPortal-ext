@@ -53,8 +53,7 @@ class MethodHandles: AllStatic {
   static bool _enabled;
 
   // Adapters.
-  static MethodHandlesAdapterBlob* _normal_adapter_code;
-  static MethodHandlesAdapterBlob* _jportal_adapter_code;
+  static MethodHandlesAdapterBlob* _adapter_code;
 
   // utility functions for reifying names and types
   static oop field_name_or_null(Symbol* s);
@@ -213,7 +212,7 @@ class MethodHandlesAdapterGenerator : public StubCodeGenerator {
 public:
   MethodHandlesAdapterGenerator(CodeBuffer* code) : StubCodeGenerator(code, PrintMethodHandleStubs) {}
 
-  void generate(bool jportal);
+  void generate();
 };
 
 #endif // SHARE_VM_PRIMS_METHODHANDLES_HPP

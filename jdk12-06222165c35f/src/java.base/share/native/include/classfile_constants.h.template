@@ -54,7 +54,6 @@ enum {
     JVM_ACC_STRICT        = 0x0800,
     JVM_ACC_SYNTHETIC     = 0x1000,
     JVM_ACC_ANNOTATION    = 0x2000,
-    JVM_ACC_JPORTAL       = 0x2000,
     JVM_ACC_ENUM          = 0x4000,
     JVM_ACC_MODULE        = 0x8000
 };
@@ -76,7 +75,6 @@ enum {
 #define JVM_ACC_STRICT_BIT        11
 #define JVM_ACC_SYNTHETIC_BIT     12
 #define JVM_ACC_ANNOTATION_BIT    13
-#define JVM_ACC_JPORTAL_BIT       13
 #define JVM_ACC_ENUM_BIT          14
 
 /* Used in newarray instruction. */

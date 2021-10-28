@@ -1787,11 +1787,6 @@ void JavaThread::run() {
 
   }
 
-  // JPortal
-  if (JPortal) {
-    JPortalEnable::jportal_thread_start(this);
-  }
-
   // We call another function to do the rest so we are sure that the stack addresses used
   // from there will be lower than the stack base just computed
   thread_main_inner();
@@ -3800,11 +3795,6 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
   JvmtiExport::post_early_vm_start();
 
   initialize_java_lang_classes(main_thread, CHECK_JNI_ERR);
-
-  // JPortal
-  if (JPortal) {
-    JPortalEnable::jportal_thread_start(main_thread);
-  }
 
   quicken_jni_functions();
 

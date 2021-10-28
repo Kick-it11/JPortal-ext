@@ -146,6 +146,7 @@ public class Tokens {
         INTERFACE("interface"),
         LONG("long", Tag.NAMED),
         NATIVE("native"),
+        JPORTAL("jportal"),
         NEW("new"),
         PACKAGE("package"),
         PRIVATE("private"),

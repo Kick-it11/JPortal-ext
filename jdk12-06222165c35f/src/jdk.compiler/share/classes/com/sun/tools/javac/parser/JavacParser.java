@@ -332,6 +332,7 @@ public class JavacParser implements Parser {
                 case STATIC:
                 case TRANSIENT:
                 case NATIVE:
+                case JPORTAL:
                 case VOLATILE:
                 case SYNCHRONIZED:
                 case STRICTFP:
@@ -2982,6 +2983,7 @@ public class JavacParser implements Parser {
             case FINAL       : flag = Flags.FINAL; break;
             case ABSTRACT    : flag = Flags.ABSTRACT; break;
             case NATIVE      : flag = Flags.NATIVE; break;
+            case JPORTAL     : flag = Flags.JPORTAL; break;
             case VOLATILE    : flag = Flags.VOLATILE; break;
             case SYNCHRONIZED: flag = Flags.SYNCHRONIZED; break;
             case STRICTFP    : flag = Flags.STRICTFP; break;

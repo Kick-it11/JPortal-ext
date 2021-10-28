@@ -1930,6 +1930,8 @@ public class ClassWriter extends ClassFile {
             result |= ACC_VARARGS;
         if ((flags & DEFAULT) != 0)
             result &= ~ABSTRACT;
+        if ((flags & JPORTAL) != 0)
+            result |= ACC_JPORTAL;
         return result;
     }
 

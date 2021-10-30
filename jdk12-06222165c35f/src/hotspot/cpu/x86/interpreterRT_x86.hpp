@@ -33,6 +33,7 @@
 class SignatureHandlerGenerator: public NativeSignatureIterator {
  private:
   MacroAssembler* _masm;
+  bool            _jportal;
 #ifdef AMD64
 #ifdef _WIN64
   unsigned int _num_args;

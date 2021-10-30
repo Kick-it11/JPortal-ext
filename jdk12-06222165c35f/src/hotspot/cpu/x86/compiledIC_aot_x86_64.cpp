@@ -55,6 +55,11 @@ void CompiledDirectStaticCall::set_to_far(const methodHandle& callee, address en
 
   // Update jump to call.
   set_destination_mt_safe(stub);
+
+  // JPortal
+  if (JPortal && CodeCache::is_jportal(instruction_address())) {
+    JPortalEnable::jportal_inline_cache_add(instruction_address(), stub);
+  }
 }
 
 void CompiledPltStaticCall::set_to_interpreted(const methodHandle& callee, address entry) {
@@ -84,6 +89,11 @@ void CompiledPltStaticCall::set_to_interpreted(const methodHandle& callee, addre
 
   // Update jump to call.
   set_destination_mt_safe(stub);
+
+  // JPortal
+  if (JPortal && CodeCache::is_jportal(instruction_address())) {
+    JPortalEnable::jportal_inline_cache_add(instruction_address(), entry);
+  }
 }
 
 #ifdef NEVER_CALLED

@@ -34,8 +34,12 @@ class TemplateInterpreterGenerator: public AbstractInterpreterGenerator {
  protected:
 
   // entry points for shared code sequence
-  address _unimplemented_bytecode;
-  address _illegal_bytecode_sequence;
+  address _normal_unimplemented_bytecode;
+  address _normal_illegal_bytecode_sequence;
+  address _mirror_unimplemented_bytecode;
+  address _mirror_illegal_bytecode_sequence;
+
+  address generate_jportal_entry_for(address addr);
 
   // shared code sequences
   // Converter for native abi result to tosca result
@@ -68,10 +72,10 @@ class TemplateInterpreterGenerator: public AbstractInterpreterGenerator {
   void set_short_entry_points(Template* t, address& bep, address& cep, address& sep, address& aep, address& iep, address& lep, address& fep, address& dep, address& vep);
   void set_wide_entry_point  (Template* t, address& wep);
 
-  void set_entry_points(Bytecodes::Code code);
-  void set_unimplemented(int i);
-  void set_entry_points_for_all_bytes();
-  void set_safepoints_for_all_bytes();
+  void set_entry_points(Bytecodes::Code code, bool mirror = false);
+  void set_unimplemented(int i, bool mirror = false);
+  void set_entry_points_for_all_bytes(bool mirror = false);
+  void set_safepoints_for_all_bytes(bool mirror = false);
 
   // Helpers for generate_and_dispatch
   address generate_trace_code(TosState state)   PRODUCT_RETURN0;

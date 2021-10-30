@@ -2229,7 +2229,7 @@ void CompileBroker::invoke_compiler_on_method(CompileTask* task) {
  * This function needs to be called only from CodeCache::allocate(),
  * since we currently handle a full code cache uniformly.
  */
-void CompileBroker::handle_full_code_cache(int code_blob_type) {
+void CompileBroker::handle_full_code_cache(int code_blob_type, bool jportal) {
   UseInterpreter = true;
   if (UseCompiler || AlwaysCompileLoopMethods ) {
     if (xtty != NULL) {
@@ -2263,7 +2263,7 @@ void CompileBroker::handle_full_code_cache(int code_blob_type) {
       disable_compilation_forever();
     }
 
-    CodeCache::report_codemem_full(code_blob_type, should_print_compiler_warning());
+    CodeCache::report_codemem_full(code_blob_type, should_print_compiler_warning(), jportal);
   }
 }
 

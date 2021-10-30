@@ -498,7 +498,7 @@ address SharedRuntime::raw_exception_handler_for_return_address(JavaThread* thre
   }
   // Interpreted code
   if (Interpreter::contains(return_address)) {
-    return Interpreter::rethrow_exception_entry();
+    return Interpreter::rethrow_exception_entry(CodeCache::is_jportal(return_address) || TemplateInterpreter::is_mirror(return_address));
   }
 
   guarantee(blob == NULL || !blob->is_runtime_stub(), "caller should have skipped stub");
@@ -785,9 +785,9 @@ address SharedRuntime::continuation_for_implicit_exception(JavaThread* thread,
     ShouldNotReachHere();
 #else
     switch (exception_kind) {
-      case IMPLICIT_NULL:           return Interpreter::throw_NullPointerException_entry();
-      case IMPLICIT_DIVIDE_BY_ZERO: return Interpreter::throw_ArithmeticException_entry();
-      case STACK_OVERFLOW:          return Interpreter::throw_StackOverflowError_entry();
+      case IMPLICIT_NULL:           return Interpreter::throw_NullPointerException_entry(CodeCache::is_jportal(pc) || TemplateInterpreter::is_mirror(pc));
+      case IMPLICIT_DIVIDE_BY_ZERO: return Interpreter::throw_ArithmeticException_entry(CodeCache::is_jportal(pc) || TemplateInterpreter::is_mirror(pc));
+      case STACK_OVERFLOW:          return Interpreter::throw_StackOverflowError_entry(CodeCache::is_jportal(pc) || TemplateInterpreter::is_mirror(pc));
       default:                      ShouldNotReachHere();
     }
 #endif // !CC_INTERP
@@ -1978,6 +1978,11 @@ IRT_LEAF(void, SharedRuntime::fixup_callers_callsite(Method* method, address cal
       address destination = call->destination();
       if (should_fixup_call_destination(destination, entry_point, caller_pc, moop, cb)) {
         call->set_destination_mt_safe(entry_point);
+
+        // JPortal
+        if (JPortal && CodeCache::is_jportal(call->instruction_address())) {
+          JPortalEnable::jportal_inline_cache_add(call->instruction_address(), entry_point);
+        }
       }
     }
   }

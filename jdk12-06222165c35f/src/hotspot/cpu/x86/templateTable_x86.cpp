@@ -762,7 +762,8 @@ void TemplateTable::index_check_without_pop(Register array, Register index) {
   __ jccb(Assembler::below, skip);
   // Pass array to create more detailed exceptions.
   __ mov(NOT_LP64(rax) LP64_ONLY(c_rarg1), array);
-  __ jump(ExternalAddress(Interpreter::_throw_ArrayIndexOutOfBoundsException_entry));
+  address addr = __ pc();
+  __ jump(ExternalAddress(Interpreter::is_mirror(addr)?Interpreter::_jportal_throw_ArrayIndexOutOfBoundsException_entry:Interpreter::_normal_throw_ArrayIndexOutOfBoundsException_entry));
   __ bind(skip);
 }
 
@@ -1140,7 +1141,8 @@ void TemplateTable::aastore() {
 
   // Come here on failure
   // object is at TOS
-  __ jump(ExternalAddress(Interpreter::_throw_ArrayStoreException_entry));
+  address addr = __ pc();
+  __ jump(ExternalAddress(Interpreter::is_mirror(addr)?Interpreter::_jportal_throw_ArrayStoreException_entry:Interpreter::_normal_throw_ArrayStoreException_entry));
 
   // Come here on success
   __ bind(ok_is_subtype);
@@ -1419,8 +1421,9 @@ void TemplateTable::ldiv() {
   __ pop_l(rax);
   // generate explicit div0 check
   __ testq(rcx, rcx);
+  address addr = __ pc();
   __ jump_cc(Assembler::zero,
-             ExternalAddress(Interpreter::_throw_ArithmeticException_entry));
+             ExternalAddress(Interpreter::is_mirror(addr)?Interpreter::_jportal_throw_ArithmeticException_entry:Interpreter::_normal_throw_ArithmeticException_entry));
   // Note: could xor rax and rcx and compare with (-1 ^ min_int). If
   //       they are not equal, one could do a normal division (no correction
   //       needed), which may speed up this implementation for the common case.
@@ -1433,7 +1436,7 @@ void TemplateTable::ldiv() {
   // check if y = 0
   __ orl(rax, rdx);
   __ jump_cc(Assembler::zero,
-             ExternalAddress(Interpreter::_throw_ArithmeticException_entry));
+             ExternalAddress(Interpreter::_normal_throw_ArithmeticException_entry));
   __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::ldiv));
   __ addptr(rsp, 4 * wordSize);  // take off temporaries
 #endif
@@ -1445,8 +1448,9 @@ void TemplateTable::lrem() {
   __ mov(rcx, rax);
   __ pop_l(rax);
   __ testq(rcx, rcx);
+  address addr = __ pc();
   __ jump_cc(Assembler::zero,
-             ExternalAddress(Interpreter::_throw_ArithmeticException_entry));
+             ExternalAddress(Interpreter::is_mirror(addr)?Interpreter::_jportal_throw_ArithmeticException_entry:Interpreter::_normal_throw_ArithmeticException_entry));
   // Note: could xor rax and rcx and compare with (-1 ^ min_int). If
   //       they are not equal, one could do a normal division (no correction
   //       needed), which may speed up this implementation for the common case.
@@ -1460,7 +1464,7 @@ void TemplateTable::lrem() {
   // check if y = 0
   __ orl(rax, rdx);
   __ jump_cc(Assembler::zero,
-             ExternalAddress(Interpreter::_throw_ArithmeticException_entry));
+             ExternalAddress(Interpreter::_normal_throw_ArithmeticException_entry));
   __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::lrem));
   __ addptr(rsp, 4 * wordSize);
 #endif
@@ -3671,7 +3675,8 @@ void TemplateTable::prepare_invoke(int byte_no,
   ConstantPoolCacheEntry::verify_tos_state_shift();
   // load return address
   {
-    const address table_addr = (address) Interpreter::invoke_return_entry_table_for(code);
+    address addr = __ pc();
+    const address table_addr = (address) Interpreter::invoke_return_entry_table_for(code, Interpreter::is_mirror(addr));
     ExternalAddress table(table_addr);
     LP64_ONLY(__ lea(rscratch1, table));
     LP64_ONLY(__ movptr(flags, Address(rscratch1, flags, Address::times_ptr)));
@@ -4206,7 +4211,8 @@ void TemplateTable::checkcast() {
   // Come here on failure
   __ push_ptr(rdx);
   // object is at TOS
-  __ jump(ExternalAddress(Interpreter::_throw_ClassCastException_entry));
+  address addr = __ pc();
+  __ jump(ExternalAddress(Interpreter::is_mirror(addr)?Interpreter::_jportal_throw_ClassCastException_entry:Interpreter::_normal_throw_ClassCastException_entry));
 
   // Come here on success
   __ bind(ok_is_subtype);
@@ -4324,7 +4330,8 @@ void TemplateTable::_breakpoint() {
 void TemplateTable::athrow() {
   transition(atos, vtos);
   __ null_check(rax);
-  __ jump(ExternalAddress(Interpreter::throw_exception_entry()));
+  address addr = __ pc();
+  __ jump(ExternalAddress(Interpreter::throw_exception_entry(Interpreter::is_mirror(addr))));
 }
 
 //-----------------------------------------------------------------------------
@@ -4501,7 +4508,8 @@ void TemplateTable::monitorexit() {
 void TemplateTable::wide() {
   transition(vtos, vtos);
   __ load_unsigned_byte(rbx, at_bcp(1));
-  ExternalAddress wtable((address)Interpreter::_wentry_point);
+  address addr = __ pc();
+  ExternalAddress wtable(Interpreter::is_mirror(addr)?(address)Interpreter::_jportal_wentry_point:(address)Interpreter::_normal_wentry_point);
   __ jump(ArrayAddress(wtable, Address(noreg, rbx, Address::times_ptr)));
   // Note: the rbcp increment step is part of the individual wide bytecode implementations
 }

@@ -93,6 +93,10 @@ class CodeCache : AllStatic {
 
   static address _low_bound;                            // Lower bound of CodeHeap addresses
   static address _high_bound;                           // Upper bound of CodeHeap addresses
+  static address _normal_low_bound;                     // Lower bound of normal CodeHeap addresses
+  static address _normal_high_bound;                    // Upper bound of normal CodeHeap addresses
+  static address _jportal_low_bound;                    // Lower bound of jportal CodeHeap addresses
+  static address _jportal_high_bound;                   // Upper bound of jportal CodeHeap addresses
   static int _number_of_nmethods_with_dependencies;     // Total number of nmethods with dependencies
   static nmethod* _scavenge_root_nmethods;              // linked via nm->scavenge_root_link()
   static uint8_t _unloading_cycle;                      // Global state for recognizing old nmethods that need to be unloaded
@@ -103,21 +107,24 @@ class CodeCache : AllStatic {
   static void verify_perm_nmethods(CodeBlobClosure* f_or_null) PRODUCT_RETURN;
 
   // CodeHeap management
+  static void initialize_heaps_size(size_t &cache_size,
+                                      size_t &non_nmethod_size, size_t &profiled_size,
+                                      size_t &non_profiled_size, bool jportal = false);  // Initializes the CodeHeaps
   static void initialize_heaps();                             // Initializes the CodeHeaps
   // Check the code heap sizes set by the user via command line
-  static void check_heap_sizes(size_t non_nmethod_size, size_t profiled_size, size_t non_profiled_size, size_t cache_size, bool all_set);
+  static void check_heap_sizes(size_t non_nmethod_size, size_t profiled_size, size_t non_profiled_size, size_t cache_size, bool all_set, bool jportal = false);
   // Creates a new heap with the given name and size, containing CodeBlobs of the given type
-  static void add_heap(ReservedSpace rs, const char* name, int code_blob_type);
+  static void add_heap(ReservedSpace rs, const char* name, int code_blob_type, bool jportal = false);
   static CodeHeap* get_code_heap_containing(void* p);         // Returns the CodeHeap containing the given pointer, or NULL
   static CodeHeap* get_code_heap(const CodeBlob* cb);         // Returns the CodeHeap for the given CodeBlob
-  static CodeHeap* get_code_heap(int code_blob_type);         // Returns the CodeHeap for the given CodeBlobType
+  static CodeHeap* get_code_heap(int code_blob_type, bool jportal = false);         // Returns the CodeHeap for the given CodeBlobType
   // Returns the name of the VM option to set the size of the corresponding CodeHeap
-  static const char* get_code_heap_flag_name(int code_blob_type);
+  static const char* get_code_heap_flag_name(int code_blob_type, bool jportal = false);
   static ReservedCodeSpace reserve_heap_memory(size_t size);  // Reserves one continuous chunk of memory for the CodeHeaps
 
   // Iteration
   static CodeBlob* first_blob(CodeHeap* heap);                // Returns the first CodeBlob on the given CodeHeap
-  static CodeBlob* first_blob(int code_blob_type);            // Returns the first CodeBlob of the given type
+  static CodeBlob* first_blob(int code_blob_type, bool jportal = false); // Returns the first CodeBlob of the given type
   static CodeBlob* next_blob(CodeHeap* heap, CodeBlob* cb);   // Returns the next CodeBlob on the given CodeHeap
 
   static size_t bytes_allocated_in_freelists();
@@ -144,7 +151,7 @@ class CodeCache : AllStatic {
   static const GrowableArray<CodeHeap*>* nmethod_heaps() { return _nmethod_heaps; }
 
   // Allocation/administration
-  static CodeBlob* allocate(int size, int code_blob_type, int orig_code_blob_type = CodeBlobType::All); // allocates a new CodeBlob
+  static CodeBlob* allocate(int size, int code_blob_type, bool jportal = false, int orig_code_blob_type = CodeBlobType::All); // allocates a new CodeBlob
   static void commit(CodeBlob* cb);                        // called when the allocated CodeBlob has been filled
   static int  alignment_unit();                            // guaranteed alignment of all CodeBlobs
   static int  alignment_offset();                          // guaranteed offset of first CodeBlob byte within alignment unit (i.e., allocation header)
@@ -164,11 +171,11 @@ class CodeCache : AllStatic {
   static CompiledMethod* find_compiled(void* start);
 
   static int       blob_count();                        // Returns the total number of CodeBlobs in the cache
-  static int       blob_count(int code_blob_type);
+  static int       blob_count(int code_blob_type, bool jportal);
   static int       adapter_count();                     // Returns the total number of Adapters in the cache
-  static int       adapter_count(int code_blob_type);
+  static int       adapter_count(int code_blob_type, bool jportal);
   static int       nmethod_count();                     // Returns the total number of nmethods in the cache
-  static int       nmethod_count(int code_blob_type);
+  static int       nmethod_count(int code_blob_type, bool jportal);
 
   // GC support
   static void gc_epilogue();
@@ -216,8 +223,8 @@ class CodeCache : AllStatic {
   static void print_trace(const char* event, CodeBlob* cb, int size = 0) PRODUCT_RETURN;
   static void print_summary(outputStream* st, bool detailed = true); // Prints a summary of the code cache usage
   static void log_state(outputStream* st);
-  static const char* get_code_heap_name(int code_blob_type)  { return (heap_available(code_blob_type) ? get_code_heap(code_blob_type)->name() : "Unused"); }
-  static void report_codemem_full(int code_blob_type, bool print);
+  static const char* get_code_heap_name(int code_blob_type, bool jportal)  { return (heap_available(code_blob_type, jportal) ? get_code_heap(code_blob_type, jportal)->name() : "Unused"); }
+  static void report_codemem_full(int code_blob_type, bool print, bool jportal);
 
   // Dcmd (Diagnostic commands)
   static void print_codelist(outputStream* st);
@@ -225,26 +232,30 @@ class CodeCache : AllStatic {
 
   // The full limits of the codeCache
   static address low_bound()                          { return _low_bound; }
-  static address low_bound(int code_blob_type);
+  static address low_bound(bool jportal)              { return jportal?_jportal_low_bound:_normal_low_bound; }
+  static address low_bound(int code_blob_type, bool jportal);
   static address high_bound()                         { return _high_bound; }
-  static address high_bound(int code_blob_type);
+  static address high_bound(bool jportal)             { return jportal?_jportal_high_bound:_normal_high_bound; }
+  static address high_bound(int code_blob_type, bool jportal);
 
+  static bool is_jportal(address pc) { return (pc >= _jportal_low_bound && pc < _jportal_high_bound); }
+ 
   // Have to use far call instructions to call this pc.
   static bool is_far_target(address pc);
 
   // Profiling
   static size_t capacity();
-  static size_t unallocated_capacity(int code_blob_type);
+  static size_t unallocated_capacity(int code_blob_type, bool jportal = false);
   static size_t unallocated_capacity();
   static size_t max_capacity();
 
-  static double reverse_free_ratio(int code_blob_type);
+  static double reverse_free_ratio(int code_blob_type, bool jportal = false);
 
   static void clear_inline_caches();                  // clear all inline caches
   static void cleanup_inline_caches();                // clean unloaded/zombie nmethods from inline caches
 
   // Returns true if an own CodeHeap for the given CodeBlobType is available
-  static bool heap_available(int code_blob_type);
+  static bool heap_available(int code_blob_type, bool jportal = false);
 
   // Returns the CodeBlobType for the given CompiledMethod
   static int get_code_blob_type(CompiledMethod* cm) {
@@ -305,8 +316,8 @@ class CodeCache : AllStatic {
   // tells how many nmethods have dependencies
   static int number_of_nmethods_with_dependencies();
 
-  static int get_codemem_full_count(int code_blob_type) {
-    CodeHeap* heap = get_code_heap(code_blob_type);
+  static int get_codemem_full_count(int code_blob_type, bool jportal = false) {
+    CodeHeap* heap = get_code_heap(code_blob_type, jportal);
     return (heap != NULL) ? heap->full_count() : 0;
   }
 
@@ -429,5 +440,276 @@ struct NMethodFilter {
 
 typedef CodeBlobIterator<CompiledMethod, CompiledMethodFilter> CompiledMethodIterator;
 typedef CodeBlobIterator<nmethod, NMethodFilter> NMethodIterator;
+
+class JPortalEnable {
+  private:
+    static bool enable_is_initialized;
+    static bool dump_is_initialized;
+    static pthread_mutex_t dumper_lock;
+
+    /* shared memory identifier */
+    static int shm_id;
+
+    /* start address of shared memory */
+    static address shm_addr;
+    /* size of shared momory */
+    static size_t shm_volume;
+
+    /* data area of shared momory */
+    /* start address of data area */
+    static address data_begin;
+    /* end address of data area */
+    static address data_end;
+    /* size address of data area */
+    static size_t data_volume;
+
+    /* dump process pipe */
+    static int dump_pipe[2];
+
+    static GrowableArray<Method *> *method_array;
+
+  public:
+    struct ShmHeader {
+      uint64_t data_head;
+      uint64_t data_tail;
+    };
+
+    enum DumpInfoType {
+      _method_entry_initial,
+      _method_entry,
+      _method_exit,
+      _compiled_method_load,
+      _compiled_method_unload,
+      _thread_start,
+      _interpreter_info,
+      _inline_cache_add,
+      _inline_cache_clear
+    };
+
+    struct DumpInfo {
+      DumpInfoType type;
+      uint64_t size;
+      uint64_t time;
+    };
+
+    struct InterpreterInfo {
+      struct DumpInfo info;
+      uint64_t unimplemented_bytecode;
+      uint64_t illegal_bytecode_sequence;
+      uint64_t return_entry[6][10];
+      uint64_t invoke_return_entry[10];
+      uint64_t invokeinterface_return_entry[10];
+      uint64_t invokedynamic_return_entry[10];
+      uint64_t native_abi_to_tosca[10];
+      uint64_t rethrow_exception_entry;
+      uint64_t throw_exception_entry;
+      uint64_t remove_activation_preserving_args_entry;
+      uint64_t remove_activation_entry;
+      uint64_t throw_ArrayIndexOutOfBoundsException_entry;
+      uint64_t throw_ArrayStoreException_entry;
+      uint64_t throw_ArithmeticException_entry;
+      uint64_t throw_ClassCastException_entry;
+      uint64_t throw_NullPointerException_entry;
+      uint64_t throw_StackOverflowError_entry;
+      uint64_t entry_table[34];
+      uint64_t normal_table[256][10];
+      uint64_t wentry_point[256];
+      uint64_t deopt_entry[7][10];
+      uint64_t deopt_reexecute_return_entry;
+
+      InterpreterInfo(uint64_t _size) {
+        info.type = _interpreter_info;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
+    };
+
+    struct MethodEntryInitial {
+      struct DumpInfo info;
+      int idx;
+      uint64_t tid;
+      int klass_name_length;
+      int method_name_length;
+      int method_signature_length;
+
+      MethodEntryInitial(int _idx, uint64_t _tid, int _klass_name_length,
+                  int _method_name_length, int _method_signature_length,
+                  uint64_t _size):
+        idx(_idx), tid(_tid),
+        klass_name_length(_klass_name_length),
+        method_name_length(_method_name_length),
+        method_signature_length(_method_signature_length) {
+        info.type = _method_entry_initial;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
+    };
+
+    struct MethodEntryInfo {
+      struct DumpInfo info;
+      int idx;
+      uint64_t tid;
+
+      MethodEntryInfo(int _idx, int _tid, uint64_t _size)
+                  : idx(_idx), tid(_tid) {
+        info.type = _method_entry;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
+    };
+
+    struct MethodExitInfo {
+      struct DumpInfo info;
+      int idx;
+      uint64_t tid;
+
+      MethodExitInfo(int _idx, int _tid, uint64_t _size)
+                  : idx(_idx), tid(_tid) {
+        info.type = _method_entry;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
+    };
+
+    struct CompiledMethodLoadInfo {
+      struct DumpInfo info;
+      uint64_t code_begin;
+      uint64_t code_size;
+      uint64_t scopes_pc_size;
+      uint64_t scopes_data_size;
+      uint64_t entry_point;
+      uint64_t verified_entry_point;
+      uint64_t osr_entry_point;
+      int inline_method_cnt;
+
+      CompiledMethodLoadInfo(uint64_t _code_begin, uint64_t _code_size,
+                     uint64_t _scopes_pc_size, uint64_t _scopes_data_size,
+                     uint64_t _entry_point, uint64_t _verified_entry_point,
+                     uint64_t _osr_entry_point, int _inline_method_cnt,
+                     uint64_t _size)
+                     : code_begin(_code_begin),
+                       code_size(_code_size),
+                       scopes_pc_size(_scopes_pc_size),
+                       scopes_data_size(_scopes_data_size),
+                       entry_point(_entry_point),
+                       verified_entry_point(_verified_entry_point),
+                       osr_entry_point(_osr_entry_point),
+                       inline_method_cnt(_inline_method_cnt) {
+        info.type = _compiled_method_load;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
+    };
+
+    struct CompiledMethodUnloadInfo {
+      struct DumpInfo info;
+      uint64_t code_begin;
+
+      CompiledMethodUnloadInfo(uint64_t _code_begin, uint64_t _size) :
+        code_begin(_code_begin) {
+        info.type = _compiled_method_unload;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
+    };
+
+    struct InlineMethodInfo {
+      int klass_name_length;
+      int method_name_length;
+      int method_signature_length;
+      int method_index;
+
+      InlineMethodInfo(int _klass_name_length,
+                 int _method_name_length,
+                 int _method_signature_length,
+                 int _method_index) :
+                 klass_name_length(_klass_name_length),
+                 method_name_length(_method_name_length),
+                 method_signature_length(_method_signature_length),
+                 method_index(_method_index) {}
+    };
+
+    struct ThreadStartInfo {
+      struct DumpInfo info;
+      long java_tid;
+      long sys_tid;
+
+      ThreadStartInfo(long _java_tid, long _sys_tid, uint64_t _size):
+                  java_tid(_java_tid), sys_tid(_sys_tid) {
+        info.type = _thread_start;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
+    };
+
+    struct InlineCacheAdd {
+      struct DumpInfo info;
+      uint64_t src;
+      uint64_t dest;
+
+      InlineCacheAdd(uint64_t _src, uint64_t _dest, uint64_t size)
+                  : src(_src), dest(_dest) {
+        info.type = _inline_cache_add;
+        info.size = size;
+        info.time = get_timestamp();
+      }
+    };
+
+    struct InlineCacheClear {
+      struct DumpInfo info;
+      uint64_t src;
+
+      InlineCacheClear(uint64_t _src, uint64_t size)
+                  : src(_src) {
+        info.type = _inline_cache_clear;
+        info.size = size;
+        info.time = get_timestamp();
+      }
+    };
+
+    inline static uint64_t get_timestamp() {
+	    unsigned int low, high;
+	    asm volatile("rdtsc" : "=a" (low), "=d" (high));
+	    return low | ((uint64_t)high) << 32;
+    }
+
+    inline static jlong get_java_tid(JavaThread* thread);
+
+    inline static address copy_data(address dest, address src, size_t size) {
+      if (size == 0)
+        return dest;
+      size_t tail_size = data_end - dest;
+      if (tail_size < size) {
+        memcpy(dest, src, tail_size);
+        memcpy(data_begin, src + tail_size, size-tail_size);
+        return (address)(data_begin + size - tail_size);
+      } else {
+        memcpy(dest, src, size);
+        return (address)(dest+size);
+      }
+    }
+
+    static void jportal_initialize();
+
+    static void jportal_exit();
+
+    static void jportal_interpreter_codelets(InterpreterInfo);
+
+    static void jportal_method_entry(JavaThread *thread, Method *moop);
+
+    static void jportal_method_exit(JavaThread *thread, Method *moop);
+
+    static void jportal_compiled_method_load(Method *moop, nmethod *nm);
+
+    static void jportal_compiled_method_unload(Method *moop, nmethod *nm);
+
+    static void jportal_thread_start(JavaThread *thread);
+
+    static void jportal_inline_cache_add(address src, address dest);
+
+    static void jportal_inline_cache_clear(address src);
+
+    static void jportal_enable();
+};
 
 #endif // SHARE_VM_CODE_CODECACHE_HPP

@@ -402,12 +402,12 @@ class BufferBlob: public RuntimeBlob {
   // below two-argument operator delete will be treated as a placement
   // delete rather than an ordinary sized delete; see C++14 3.7.4.2/p2.
   void operator delete(void* p);
-  void* operator new(size_t s, unsigned size) throw();
+  void* operator new(size_t s, unsigned size, bool jportal = false) throw();
 
  public:
   // Creation
-  static BufferBlob* create(const char* name, int buffer_size);
-  static BufferBlob* create(const char* name, CodeBuffer* cb);
+  static BufferBlob* create(const char* name, int buffer_size, bool jportal = false);
+  static BufferBlob* create(const char* name, CodeBuffer* cb, bool jportal = false);
 
   static void free(BufferBlob* buf);
 

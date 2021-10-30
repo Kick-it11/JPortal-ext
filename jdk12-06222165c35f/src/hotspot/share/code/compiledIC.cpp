@@ -292,6 +292,10 @@ bool CompiledIC::set_to_megamorphic(CallInfo* call_info, Bytecodes::Code bytecod
                    p2i(instruction_address()), call_info->selected_method()->print_value_string(), p2i(entry));
   }
 
+  // JPortal
+  if (JPortal && CodeCache::is_jportal(instruction_address())) {
+    JPortalEnable::jportal_inline_cache_add(instruction_address(), entry);
+  }
   // We can't check this anymore. With lazy deopt we could have already
   // cleaned this IC entry before we even return. This is possible if
   // we ran out of space in the inline cache buffer trying to do the
@@ -390,6 +394,11 @@ bool CompiledIC::set_to_clean(bool in_use) {
       return false;
     }
   }
+
+  // JPortal
+  if (JPortal && CodeCache::is_jportal(instruction_address())) {
+    JPortalEnable::jportal_inline_cache_clear(instruction_address());
+  }
   // We can't check this anymore. With lazy deopt we could have already
   // cleaned this IC entry before we even return. This is possible if
   // we ran out of space in the inline cache buffer trying to do the
@@ -454,6 +463,11 @@ bool CompiledIC::set_to_monomorphic(CompiledICInfo& info) {
          ResourceMark rm(thread);
          tty->print_cr ("IC@" INTPTR_FORMAT ": monomorphic to interpreter via icholder ", p2i(instruction_address()));
       }
+
+      // JPortal
+      if (JPortal && CodeCache::is_jportal(instruction_address())) {
+        JPortalEnable::jportal_inline_cache_add(instruction_address(), info.entry());
+      }
     }
   } else {
     // Call to compiled code
@@ -487,6 +501,11 @@ bool CompiledIC::set_to_monomorphic(CompiledICInfo& info) {
         p2i(instruction_address()),
         ((Klass*)info.cached_metadata())->print_value_string(),
         (safe) ? "" : "via stub");
+    }
+
+    // JPortal
+    if (JPortal && CodeCache::is_jportal(instruction_address())) {
+      JPortalEnable::jportal_inline_cache_add(instruction_address(), info.entry());
     }
   }
   // We can't check this anymore. With lazy deopt we could have already
@@ -595,6 +614,11 @@ bool CompiledStaticCall::set_to_clean(bool in_use) {
   // Do not reset stub here:  It is too expensive to call find_stub.
   // Instead, rely on caller (nmethod::clear_inline_caches) to clear
   // both the call and its stub.
+
+  // JPortal
+  if (JPortal && CodeCache::is_jportal(instruction_address())) {
+    JPortalEnable::jportal_inline_cache_clear(instruction_address());
+  }
   return true;
 }
 
@@ -631,6 +655,11 @@ void CompiledStaticCall::set_to_compiled(address entry) {
   // Call to compiled code
   assert(CodeCache::contains(entry), "wrong entry point");
   set_destination_mt_safe(entry);
+
+  // JPortal
+  if (JPortal && CodeCache::is_jportal(instruction_address())) {
+    JPortalEnable::jportal_inline_cache_add(instruction_address(), entry);
+  }
 }
 
 void CompiledStaticCall::set(const StaticCallInfo& info) {

@@ -591,6 +591,7 @@ class Method : public Metadata {
   bool is_abstract() const                       { return access_flags().is_abstract();    }
   bool is_strict() const                         { return access_flags().is_strict();      }
   bool is_synthetic() const                      { return access_flags().is_synthetic();   }
+  bool is_jportal() const                        { return access_flags().is_jportal();     }
 
   // returns true if contains only return operation
   bool is_empty_method() const;

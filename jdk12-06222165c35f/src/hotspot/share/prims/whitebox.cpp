@@ -1424,9 +1424,9 @@ int WhiteBox::get_blob_type(const CodeBlob* code) {
   return CodeCache::get_code_heap(code)->code_blob_type();
 }
 
-CodeHeap* WhiteBox::get_code_heap(int blob_type) {
+CodeHeap* WhiteBox::get_code_heap(int blob_type, bool jportal) {
   guarantee(WhiteBoxAPI, "internal testing API :: WhiteBox has to be enabled");
-  return CodeCache::get_code_heap(blob_type);
+  return CodeCache::get_code_heap(blob_type, jportal);
 }
 
 struct CodeBlobStub {
@@ -1551,7 +1551,7 @@ WB_ENTRY(jobjectArray, WB_GetCodeHeapEntries(JNIEnv* env, jobject o, jint blob_t
   GrowableArray<CodeBlobStub*> blobs;
   {
     MutexLockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
-    CodeHeap* heap = WhiteBox::get_code_heap(blob_type);
+    CodeHeap* heap = WhiteBox::get_code_heap(blob_type, false);
     if (heap == NULL) {
       return NULL;
     }
@@ -1560,6 +1560,15 @@ WB_ENTRY(jobjectArray, WB_GetCodeHeapEntries(JNIEnv* env, jobject o, jint blob_t
       CodeBlobStub* stub = NEW_RESOURCE_OBJ(CodeBlobStub);
       new (stub) CodeBlobStub(cb);
       blobs.append(stub);
+    }
+    heap = WhiteBox::get_code_heap(blob_type, true);
+    if (heap != NULL) {
+      for (CodeBlob* cb = (CodeBlob*) heap->first();
+         cb != NULL; cb = (CodeBlob*) heap->next(cb)) {
+        CodeBlobStub* stub = NEW_RESOURCE_OBJ(CodeBlobStub);
+        new (stub) CodeBlobStub(cb);
+        blobs.append(stub);
+      }
     }
   }
   if (blobs.length() == 0) {

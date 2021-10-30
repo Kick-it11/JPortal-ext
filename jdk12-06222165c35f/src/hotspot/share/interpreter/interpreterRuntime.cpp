@@ -508,7 +508,7 @@ IRT_ENTRY(address, InterpreterRuntime::exception_handler_for_exception(JavaThrea
 #ifdef CC_INTERP
     return (address) -1;
 #else
-    return Interpreter::remove_activation_entry();
+    return Interpreter::remove_activation_entry(JPortal && h_method->is_jportal());
 #endif
   }
 
@@ -523,7 +523,7 @@ IRT_ENTRY(address, InterpreterRuntime::exception_handler_for_exception(JavaThrea
 #ifdef CC_INTERP
     return (address) -1;
 #else
-    return Interpreter::remove_activation_entry();
+    return Interpreter::remove_activation_entry(JPortal && h_method->is_jportal());
 #endif
   }
 
@@ -605,7 +605,7 @@ IRT_ENTRY(address, InterpreterRuntime::exception_handler_for_exception(JavaThrea
     // handler in this method, or (b) after a stack overflow there is not yet
     // enough stack space available to reprotect the stack.
 #ifndef CC_INTERP
-    continuation = Interpreter::remove_activation_entry();
+    continuation = Interpreter::remove_activation_entry(JPortal && h_method->is_jportal());
 #endif
 #if COMPILER2_OR_JVMCI
     // Count this for compilation purposes
@@ -616,7 +616,7 @@ IRT_ENTRY(address, InterpreterRuntime::exception_handler_for_exception(JavaThrea
     handler_pc = h_method->code_base() + handler_bci;
 #ifndef CC_INTERP
     set_bcp_and_mdp(handler_pc, thread);
-    continuation = Interpreter::dispatch_table(vtos)[*handler_pc];
+    continuation = Interpreter::dispatch_table(vtos, JPortal && h_method->is_jportal())[*handler_pc];
 #endif
   }
   // notify debugger of an exception catch
@@ -1403,7 +1403,7 @@ void SignatureHandlerLibrary::add(const methodHandle& method) {
           // use slow signature handler (without memorizing it in the fingerprints)
         } else {
           // debugging suppport
-          if (PrintSignatureHandlers && (handler != Interpreter::slow_signature_handler())) {
+          if (PrintSignatureHandlers && (handler != Interpreter::slow_signature_handler(JPortal && method->is_jportal()))) {
             ttyLocker ttyl;
             tty->cr();
             tty->print_cr("argument handler #%d for: %s %s (fingerprint = " UINT64_FORMAT ", %d bytes generated)",
@@ -1416,7 +1416,7 @@ void SignatureHandlerLibrary::add(const methodHandle& method) {
               Disassembler::decode(handler, handler + buffer.insts_size());
             }
 #ifndef PRODUCT
-            address rh_begin = Interpreter::result_handler(method()->result_type());
+            address rh_begin = Interpreter::result_handler(method()->result_type(), JPortal && method->is_jportal());
             if (CodeCache::contains(rh_begin)) {
               // else it might be special platform dependent values
               tty->print_cr(" --- associated result handler ---");
@@ -1441,7 +1441,7 @@ void SignatureHandlerLibrary::add(const methodHandle& method) {
       // Set handler under SignatureHandlerLibrary_lock
       if (handler_index < 0) {
         // use generic signature handler
-        method->set_signature_handler(Interpreter::slow_signature_handler());
+        method->set_signature_handler(Interpreter::slow_signature_handler(JPortal && method->is_jportal()));
       } else {
         // set handler
         method->set_signature_handler(_handlers->at(handler_index));
@@ -1449,7 +1449,7 @@ void SignatureHandlerLibrary::add(const methodHandle& method) {
     } else {
       CHECK_UNHANDLED_OOPS_ONLY(Thread::current()->clear_unhandled_oops());
       // use generic signature handler
-      method->set_signature_handler(Interpreter::slow_signature_handler());
+      method->set_signature_handler(Interpreter::slow_signature_handler(JPortal && method->is_jportal()));
     }
   }
 #ifdef ASSERT
@@ -1468,7 +1468,7 @@ void SignatureHandlerLibrary::add(const methodHandle& method) {
       fingerprint_index = _fingerprints->find(fingerprint);
     }
   }
-  assert(method->signature_handler() == Interpreter::slow_signature_handler() ||
+  assert(method->signature_handler() == Interpreter::slow_signature_handler(JPortal && method->is_jportal()) ||
          handler_index == fingerprint_index, "sanity check");
 #endif // ASSERT
 }
@@ -1483,7 +1483,8 @@ void SignatureHandlerLibrary::add(uint64_t fingerprint, address handler) {
   handler_index = _fingerprints->find(fingerprint);
   // create handler if necessary
   if (handler_index < 0) {
-    if (PrintSignatureHandlers && (handler != Interpreter::slow_signature_handler())) {
+    if (PrintSignatureHandlers && (handler != Interpreter::slow_signature_handler(false))
+          && (handler != Interpreter::slow_signature_handler(true))) {
       tty->cr();
       tty->print_cr("argument handler #%d at " PTR_FORMAT " for fingerprint " UINT64_FORMAT,
                     _handlers->length(),

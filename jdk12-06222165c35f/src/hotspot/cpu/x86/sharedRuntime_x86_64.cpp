@@ -758,9 +758,17 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
     //         "i2c adapter must return to an interpreter frame");
     __ block_comment("verify_i2c { ");
     Label L_ok;
-    if (Interpreter::code() != NULL)
+    if (Interpreter::normal_code() != NULL)
       range_check(masm, rax, r11,
-                  Interpreter::code()->code_start(), Interpreter::code()->code_end(),
+                  Interpreter::normal_code()->code_start(), Interpreter::normal_code()->code_end(),
+                  L_ok);
+    if (JPortal && Interpreter::mirror_code() != NULL)
+      range_check(masm, rax, r11,
+                  Interpreter::mirror_code()->code_start(), Interpreter::mirror_code()->code_end(),
+                  L_ok);
+    if (JPortal && Interpreter::jportal_code() != NULL)
+      range_check(masm, rax, r11,
+                  Interpreter::jportal_code()->code_start(), Interpreter::jportal_code()->code_end(),
                   L_ok);
     if (StubRoutines::code1() != NULL)
       range_check(masm, rax, r11,
@@ -1917,7 +1925,8 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
                                        stack_slots / VMRegImpl::slots_per_word,
                                        in_ByteSize(-1),
                                        in_ByteSize(-1),
-                                       (OopMapSet*)NULL);
+                                       (OopMapSet*)NULL,
+                                       JPortal && method->is_jportal());
   }
   bool is_critical_native = true;
   address native_func = method->critical_native_function();
@@ -2827,7 +2836,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
                                             stack_slots / VMRegImpl::slots_per_word,
                                             (is_static ? in_ByteSize(klass_offset) : in_ByteSize(receiver_offset)),
                                             in_ByteSize(lock_slot_offset*VMRegImpl::stack_slot_size),
-                                            oop_maps);
+                                            oop_maps, JPortal && method->is_jportal());
 
   if (is_critical_native) {
     nm->set_lazy_critical_native(true);

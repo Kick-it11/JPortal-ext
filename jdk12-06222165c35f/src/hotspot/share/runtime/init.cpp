@@ -56,6 +56,9 @@ void bytecodes_init();
 void classLoader_init1();
 void compilationPolicy_init();
 void codeCache_init();
+void jPortalEnable_init();
+void jPortalEnable_exit();
+void jPortalEnable_trace();
 void VM_Version_init();
 void os_init_globals();        // depends on VM_Version_init, before universe_init
 void stubRoutines_init1();
@@ -106,6 +109,7 @@ jint init_globals() {
   bytecodes_init();
   classLoader_init1();
   compilationPolicy_init();
+  jPortalEnable_init();
   codeCache_init();
   VM_Version_init();
   os_init_globals();
@@ -167,6 +171,7 @@ void exit_globals() {
   if (!destructorsCalled) {
     destructorsCalled = true;
     perfMemory_exit();
+    jPortalEnable_exit();
     if (log_is_enabled(Debug, safepoint, stats)) {
       // Print the collected safepoint statistics.
       SafepointSynchronize::print_stat_on_exit();

@@ -174,6 +174,11 @@ void CompiledDirectStaticCall::set_to_interpreted(const methodHandle& callee, ad
 
   // Update jump to call.
   set_destination_mt_safe(stub);
+
+  // JPortal
+  if (JPortal && CodeCache::is_jportal(instruction_address())) {
+    JPortalEnable::jportal_inline_cache_add(instruction_address(), entry);
+  }
 }
 
 void CompiledDirectStaticCall::set_stub_to_clean(static_stub_Relocation* static_stub) {

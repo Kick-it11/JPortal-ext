@@ -189,7 +189,7 @@ class TemplateInterpreter: public AbstractInterpreter {
   // Initialization/debugging
   static void       initialize();
   // this only returns whether a pc is within generated code for the interpreter.
-  static bool       contains(address pc)                        { return (_normal_code != NULL && _normal_code->contains(pc) || mirror_code != NULL && _mirror_code->contains(pc) || _jportal_code != NULL && _jportal_code->contains(pc)); }
+  static bool       contains(address pc)                        { return (_normal_code != NULL && _normal_code->contains(pc) || _mirror_code != NULL && _mirror_code->contains(pc) || _jportal_code != NULL && _jportal_code->contains(pc)); }
   // Debugging/printing
   static InterpreterCodelet* codelet_containing(address pc);
 

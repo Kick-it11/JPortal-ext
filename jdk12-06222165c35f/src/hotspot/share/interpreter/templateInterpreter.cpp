@@ -56,7 +56,7 @@ void TemplateInterpreter::initialize() {
     if (JPortal) {
       _mirror_code = new StubQueue(new InterpreterCodeletInterface, code_size, NULL,
                             "Interpreter", false);
-      _jportal_code = new StubQueue(new InterpreterCodeletInterface, code_size, NULL,
+      _jportal_code = new StubQueue(new InterpreterCodeletInterface, code_size/32, NULL,
                             "Interpreter", true);
     }
     TemplateInterpreterGenerator g(_normal_code);

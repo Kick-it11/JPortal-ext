@@ -494,6 +494,8 @@ class JPortalEnable {
 
     struct InterpreterInfo {
       struct DumpInfo info;
+      uint64_t low_bound;
+      uint64_t high_bound;
       uint64_t unimplemented_bytecode;
       uint64_t illegal_bytecode_sequence;
       uint64_t return_entry[6][10];

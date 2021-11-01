@@ -36,8 +36,30 @@ using namespace std;
     };
 
     struct InterpreterInfo {
-      bool TraceBytecodes;
-      uint64_t codelets_address[3200];
+      uint64_t low_bound;
+      uint64_t high_bound;
+      uint64_t unimplemented_bytecode;
+      uint64_t illegal_bytecode_sequence;
+      uint64_t return_entry[6][10];
+      uint64_t invoke_return_entry[10];
+      uint64_t invokeinterface_return_entry[10];
+      uint64_t invokedynamic_return_entry[10];
+      uint64_t native_abi_to_tosca[10];
+      uint64_t rethrow_exception_entry;
+      uint64_t throw_exception_entry;
+      uint64_t remove_activation_preserving_args_entry;
+      uint64_t remove_activation_entry;
+      uint64_t throw_ArrayIndexOutOfBoundsException_entry;
+      uint64_t throw_ArrayStoreException_entry;
+      uint64_t throw_ArithmeticException_entry;
+      uint64_t throw_ClassCastException_entry;
+      uint64_t throw_NullPointerException_entry;
+      uint64_t throw_StackOverflowError_entry;
+      uint64_t entry_table[34];
+      uint64_t normal_table[256][10];
+      uint64_t wentry_point[256];
+      uint64_t deopt_entry[7][10];
+      uint64_t deopt_reexecute_return_entry;
     };
 
     struct MethodEntryInitial {
@@ -348,7 +370,6 @@ int main(int argc, char **argv) {
   list<pair<uint64_t, uint64_t>> memory;
   int cnt = 0;
   map<int, int> result;
-  //FILE *met = fopen("inter_methods", "w");
   while (current < end) {
     info = (const struct DumpInfo *)current;
     current += sizeof(DumpInfo);
@@ -357,7 +378,10 @@ int main(int argc, char **argv) {
                 const InterpreterInfo *ii;
                 ii = (const InterpreterInfo *)current;
                 current += sizeof(InterpreterInfo);
-                printf("Inter %ld %ld\n", ii->codelets_address[2], ii->codelets_address[542]);
+                printf("Inter:\n");
+                const uint64_t *pointer = (const uint64_t *)ii;
+                for (int i = 0; i < sizeof(InterpreterInfo)/sizeof(uint64_t); ++i)
+                    printf("  %ld\n", pointer[i]);
                 break;
             }
             case _method_entry_initial: {

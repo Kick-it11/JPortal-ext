@@ -320,19 +320,11 @@ void TemplateInterpreterGenerator::generate_all() {
 
     { CodeletMark(_masm, "jportal entry for return entry points", false, true);
       for (int i = 0; i < Interpreter::number_of_return_entries; i++) {
-        Interpreter::_jportal_return_entry[i] =
-          EntryPoint(
-                     generate_jportal_entry_for(Interpreter::_mirror_return_entry[i].entry(btos)),
-                     generate_jportal_entry_for(Interpreter::_mirror_return_entry[i].entry(ztos)),
-                     generate_jportal_entry_for(Interpreter::_mirror_return_entry[i].entry(ctos)),
-                     generate_jportal_entry_for(Interpreter::_mirror_return_entry[i].entry(stos)),
-                     generate_jportal_entry_for(Interpreter::_mirror_return_entry[i].entry(atos)),
-                     generate_jportal_entry_for(Interpreter::_mirror_return_entry[i].entry(itos)),
-                     generate_jportal_entry_for(Interpreter::_mirror_return_entry[i].entry(ltos)),
-                     generate_jportal_entry_for(Interpreter::_mirror_return_entry[i].entry(ftos)),
-                     generate_jportal_entry_for(Interpreter::_mirror_return_entry[i].entry(dtos)),
-                     generate_jportal_entry_for(Interpreter::_mirror_return_entry[i].entry(ctos))
-                     );
+        Interpreter::_jportal_return_entry[i] = EntryPoint();
+        for (int j = 0; j < number_of_states; j++) {
+          Interpreter::_jportal_return_entry[i].set_entry((TosState)j,
+            generate_jportal_entry_for(Interpreter::_mirror_return_entry[i].entry((TosState)j)));
+        }
       }
     }
 
@@ -499,20 +491,15 @@ void TemplateInterpreterGenerator::generate_all() {
 
     { CodeletMark cm(_masm, "jportal entry for normal table", false, true);
       for (int i = 0; i < DispatchTable::length; i++) {
-        EntryPoint entry(
-                     generate_jportal_entry_for(Interpreter::_mirror_normal_table.entry(i).entry(btos)),
-                     generate_jportal_entry_for(Interpreter::_mirror_normal_table.entry(i).entry(ztos)),
-                     generate_jportal_entry_for(Interpreter::_mirror_normal_table.entry(i).entry(ctos)),
-                     generate_jportal_entry_for(Interpreter::_mirror_normal_table.entry(i).entry(stos)),
-                     generate_jportal_entry_for(Interpreter::_mirror_normal_table.entry(i).entry(atos)),
-                     generate_jportal_entry_for(Interpreter::_mirror_normal_table.entry(i).entry(itos)),
-                     generate_jportal_entry_for(Interpreter::_mirror_normal_table.entry(i).entry(ltos)),
-                     generate_jportal_entry_for(Interpreter::_mirror_normal_table.entry(i).entry(ftos)),
-                     generate_jportal_entry_for(Interpreter::_mirror_normal_table.entry(i).entry(dtos)),
-                     generate_jportal_entry_for(Interpreter::_mirror_normal_table.entry(i).entry(vtos))
-                    );
+        EntryPoint entry;
+        for (int j = 0; j < number_of_states; j++) {
+          entry.set_entry((TosState)j, generate_jportal_entry_for(Interpreter::_mirror_normal_table.entry(i).entry((TosState)j)));
+        }
         Interpreter::_jportal_normal_table.set_entry(i, entry);
       }
+    }
+
+    { CodeletMark cm(_masm, "jportal entry for normal table", false, true);
       for (int i = 0; i < DispatchTable::length; i++) {
         Interpreter::_jportal_wentry_point[i] = generate_jportal_entry_for(Interpreter::_mirror_wentry_point[i]);
       }
@@ -548,19 +535,11 @@ void TemplateInterpreterGenerator::generate_all() {
 
     { CodeletMark cm(_masm, "jportal entry for deoptimization entry points", false, true);
       for (int i = 0; i < Interpreter::number_of_deopt_entries; i++) {
-        Interpreter::_jportal_deopt_entry[i] =
-          EntryPoint(
-                     Interpreter::_mirror_deopt_entry[i].entry(btos),
-                     Interpreter::_mirror_deopt_entry[i].entry(ztos),
-                     Interpreter::_mirror_deopt_entry[i].entry(ctos),
-                     Interpreter::_mirror_deopt_entry[i].entry(stos),
-                     Interpreter::_mirror_deopt_entry[i].entry(atos),
-                     Interpreter::_mirror_deopt_entry[i].entry(itos),
-                     Interpreter::_mirror_deopt_entry[i].entry(ltos),
-                     Interpreter::_mirror_deopt_entry[i].entry(ftos),
-                     Interpreter::_mirror_deopt_entry[i].entry(dtos),
-                     Interpreter::_mirror_deopt_entry[i].entry(vtos)
-                     );
+        Interpreter::_jportal_deopt_entry[i] = EntryPoint();
+        for (int j = 0; j < number_of_states; j++) {
+          Interpreter::_jportal_deopt_entry[i].set_entry((TosState)j,
+            generate_jportal_entry_for(Interpreter::_mirror_deopt_entry[i].entry((TosState)j)));
+        }
       }
       Interpreter::_jportal_deopt_reexecute_return_entry = generate_jportal_entry_for(Interpreter::_mirror_deopt_reexecute_return_entry);
     }

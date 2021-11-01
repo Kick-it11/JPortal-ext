@@ -221,7 +221,7 @@ int TraceDataRecord::add_jitcode(u8 time, const jit_section *section,
 int TraceDataRecord::add_codelet(CodeletsEntry::Codelet codelet) {
     bytecode_type = Bytecodes::_illegal;
     switch (codelet) {
-        case CodeletsEntry::_method_entry_point: {
+        case CodeletsEntry::_method_entry_points: {
             code_type = Bytecodes::_jportal_method_entry;
             if (trace.write(&code_type, 1) < 0) {
                 fprintf(stderr, "trace data record: fail to write.\n");
@@ -229,8 +229,13 @@ int TraceDataRecord::add_codelet(CodeletsEntry::Codelet codelet) {
             }
             return 0;
         }
-        case CodeletsEntry::_throw_exception_entrypoints:
-        case CodeletsEntry::_rethrow_exception: {
+        case CodeletsEntry::_throw_ArrayIndexOutOfBoundsException_entry_points:
+        case CodeletsEntry::_throw_ArrayStoreException_entry_points:
+        case CodeletsEntry::_throw_ArithmeticException_entry_points:
+        case CodeletsEntry::_throw_ClassCastException_entry_points:
+        case CodeletsEntry::_throw_NullPointerException_entry_points:
+        case CodeletsEntry::_throw_StackOverflowError_entry_points:
+        case CodeletsEntry::_rethrow_exception_entry_entry_points: {
             if (code_type == Bytecodes::_jportal_exception_handling) {
                 if (!call_stack.empty())
                     call_stack.pop();
@@ -255,7 +260,8 @@ int TraceDataRecord::add_codelet(CodeletsEntry::Codelet codelet) {
             }
             return 0;
         }
-        case CodeletsEntry::_deoptimization_entry_points: {
+        case CodeletsEntry::_deopt_entry_points:
+        case CodeletsEntry::_deopt_reexecute_return_entry_points: {
             code_type = Bytecodes::_jportal_deoptimization_entry_points;
             if (trace.write(&code_type, 1) < 0) {
                 fprintf(stderr, "trace data record: fail to write.\n");
@@ -264,7 +270,7 @@ int TraceDataRecord::add_codelet(CodeletsEntry::Codelet codelet) {
             call_stack = stack<size_t>();
             return 0;
         }
-        case CodeletsEntry::_exception_handling: {
+        case CodeletsEntry::_throw_exception_entry_points: {
             code_type = Bytecodes::_jportal_exception_handling;
             if (trace.write(&code_type, 1) < 0) {
                 fprintf(stderr, "trace data record: fail to write.\n");
@@ -279,6 +285,7 @@ int TraceDataRecord::add_codelet(CodeletsEntry::Codelet codelet) {
             return 0;
         }
         default: {
+            fprintf(stdout, "trace data record: unknown codelets type(%d)\n", codelet);
             code_type = Bytecodes::_illegal;
             call_stack = stack<size_t>();
             return 0;

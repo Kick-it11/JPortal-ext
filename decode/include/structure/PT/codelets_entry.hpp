@@ -8,6 +8,7 @@
 #define address uint64_t
 
 class CodeletsEntry {
+    friend class JvmDumpDecoder;
     public:
         const static int number_of_states = 10;
         const static int number_of_return_entries = 6;
@@ -15,80 +16,61 @@ class CodeletsEntry {
         const static int number_of_method_entries = 34;
         const static int number_of_result_handlers = 10;
         const static int number_of_deopt_entries = 7;
+        const static int dispatch_length = 256;
         const static int number_of_codes = 239;
-        const static int number_of_codelets = 272;
 
         enum Codelet {
             _illegal = -1,
-            
-            _slow_signature_handler,
-            _error_exits,
-            _bytecode_tracing_support,
+            _unimplemented_bytecode_entry_points,
+            _illegal_bytecode_sequence_entry_points,
             _return_entry_points,
             _invoke_return_entry_points,
-            _earlyret_entry_points,
+            _invokeinterface_return_entry_points,
+            _invokedynamic_return_entry_points,
             _result_handlers_for_native_calls,
-            _safepoint_entry_points,
-            _exception_handling,
-            _throw_exception_entrypoints,
-            _method_entry_point,
-
-            _start_of_bytecodes = 32,
-            _bytecode = _start_of_bytecodes,
-            _return_bytecode,
-            _throw_bytecode,
-
-            _rethrow_exception,
-            
-            _throw_ArrayIndexOutOfBoundsException,
-            _throw_ArrayStoreException,
-            _throw_ArithmeticException,
-            _throw_ClassCastException,
-            _throw_NullPointerException,
-            _throw_StackOverflowError,
-
-            _should_not_reach_here = 270,
-            _deoptimization_entry_points,            
+            _rethrow_exception_entry_entry_points,
+            _throw_exception_entry_points,
+            _remove_activation_preserving_args_entry_points,
+            _remove_activation_entry_points,
+            _throw_ArrayIndexOutOfBoundsException_entry_points,
+            _throw_ArrayStoreException_entry_points,
+            _throw_ArithmeticException_entry_points,
+            _throw_ClassCastException_entry_points,
+            _throw_NullPointerException_entry_points,
+            _throw_StackOverflowError_entry_points,
+            _method_entry_points,
+            _bytecode,
+            _deopt_entry_points,
+            _deopt_reexecute_return_entry_points
         };
+
     private:
-        static bool TracingBytecodes;
         static address low_bound;
         static address high_bound;
-        /* start and end addresses of jvm generated codelets */
-        static address _start[number_of_codelets];
-        static address _end[number_of_codelets];
+        static address unimplemented_bytecode;
+        static address illegal_bytecode_sequence;
+        static address return_entry[number_of_return_entries][number_of_states];
+        static address invoke_return_entry[number_of_return_addrs];
+        static address invokeinterface_return_entry[number_of_return_addrs];
+        static address invokedynamic_return_entry[number_of_return_addrs];
+        static address native_abi_to_tosca[number_of_result_handlers];
+        static address rethrow_exception_entry;
+        static address throw_exception_entry;
+        static address remove_activation_preserving_args_entry;
+        static address remove_activation_entry;
+        static address throw_ArrayIndexOutOfBoundsException_entry;
+        static address throw_ArrayStoreException_entry;
+        static address throw_ArithmeticException_entry;
+        static address throw_ClassCastException_entry;
+        static address throw_NullPointerException_entry;
+        static address throw_StackOverflowError_entry;
+        static address entry_table[number_of_method_entries];
+        static address normal_table[dispatch_length][number_of_states];
+        static address wentry_point[dispatch_length];
+        static address deopt_entry[number_of_deopt_entries][number_of_states];
+        static address deopt_reexecute_return_entry;
 
-        /* dispatch table for each bytecode */
-        static address _dispatch_table[number_of_states][number_of_codes];
-        static address _trace_code[number_of_states];
-        static address _return_entry[number_of_states][number_of_return_entries];
-        static address _invoke_return_entry[number_of_return_addrs];
-        static address _invokeinterface_return_entry[number_of_return_addrs];
-        static address _invokedynamic_return_entry[number_of_return_addrs];
-        static address _earlyret_entry[number_of_states];
-        static address _safept_entry[number_of_states];
-        static address _entry_table[number_of_method_entries];
-        static address _native_abi_to_tosca[number_of_result_handlers];
-        static address _deopt_entry[number_of_states][number_of_deopt_entries];
-
-        static address _slow_signature_handler_entry;
-
-        static address _rethrow_exception_entry;
-        static address _throw_exception_entry;
-        static address _remove_activation_preserving_args_entry;
-        static address _remove_activation_entry;
-
-        static address _throw_ArrayIndexOutOfBoundsException_entry;
-        static address _throw_ArrayStoreException_entry;
-        static address _throw_ArithmeticException_entry;
-        static address _throw_ClassCastException_entry;
-        static address _throw_NullPointerException_entry;
-        static address _throw_StackOverflowError_entry;
-        
     public:
-        /* intialize entries of all codelets */
-        static int entry_init(bool TracingBytecodes, const uint64_t codelets_address[]);
-        
         /* match an instruction pointer address to a codelet
          * return the type(in enum Type{})
          * and if the type is bytecode(_branch_bytecode, ...)

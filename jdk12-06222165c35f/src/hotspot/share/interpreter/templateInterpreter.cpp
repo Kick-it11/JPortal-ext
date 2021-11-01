@@ -85,6 +85,8 @@ void TemplateInterpreter::initialize() {
 void TemplateInterpreter::jportal_entry_dump() {
   if (JPortal) {
     JPortalEnable::InterpreterInfo inter(sizeof(JPortalEnable::InterpreterInfo));
+    inter.low_bound = (uint64_t)_jportal_code->code_start();
+    inter.high_bound = (uint64_t)_jportal_code->code_end();
     inter.unimplemented_bytecode = (uint64_t)_jportal_unimplemented_bytecode;
     inter.illegal_bytecode_sequence = (uint64_t)_jportal_illegal_bytecode_sequence;
     for (int i = 0; i < number_of_return_entries; i++) {

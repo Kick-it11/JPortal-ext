@@ -579,6 +579,7 @@ static int pt_default_attr(struct perf_event_attr *attr)
     attr->sample_id_all = 1;
     attr->read_format = 4;
     attr->inherit = 1;
+    attr->context_switch = 1;
 
     __u64 config = pt_default_config();
     attr->config = config;

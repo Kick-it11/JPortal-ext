@@ -56,15 +56,17 @@ void TemplateInterpreter::initialize() {
     if (JPortal) {
       _mirror_code = new StubQueue(new InterpreterCodeletInterface, code_size, NULL,
                             "Interpreter", false);
-      _jportal_code = new StubQueue(new InterpreterCodeletInterface, code_size/32, NULL,
+      _jportal_code = new StubQueue(new InterpreterCodeletInterface, 32*K, NULL,
                             "Interpreter", true);
     }
     TemplateInterpreterGenerator g(_normal_code);
     // Free the unused memory not occupied by the interpreter and the stubs
-    _normal_code->deallocate_unused_tail();
     if (JPortal) {
+      // normal code cannot be deallocated because of mirror code
       _mirror_code->deallocate_unused_tail();
       _jportal_code->deallocate_unused_tail();
+    } else {
+      _normal_code->deallocate_unused_tail();
     }
   }
 
@@ -368,7 +370,7 @@ address TemplateInterpreter::return_entry(TosState state, int length, Bytecodes:
   default:
     assert(!Bytecodes::is_invoke(code), "invoke instructions should be handled separately: %s", Bytecodes::name(code));
     address entry = jportal?_jportal_return_entry[length].entry(state):_normal_return_entry[length].entry(state);
-    vmassert(entry != NULL, "unsupported return entry requested, length=%d state=%d", length, index);
+    vmassert(_normal_return_entry[length].entry(state) != NULL, "unsupported return entry requested, length=%d state=%d", length, index);
     return entry;
   }
 }
@@ -377,7 +379,7 @@ address TemplateInterpreter::return_entry(TosState state, int length, Bytecodes:
 address TemplateInterpreter::deopt_entry(TosState state, int length, bool jportal) {
   guarantee(0 <= length && length < Interpreter::number_of_deopt_entries, "illegal length");
   address entry = jportal?_jportal_deopt_entry[length].entry(state):_normal_deopt_entry[length].entry(state);
-  vmassert(entry != NULL, "unsupported deopt entry requested, length=%d state=%d", length, TosState_as_index(state));
+  vmassert(_normal_deopt_entry[length].entry(state) != NULL, "unsupported deopt entry requested, length=%d state=%d", length, TosState_as_index(state));
   return entry;
 }
 

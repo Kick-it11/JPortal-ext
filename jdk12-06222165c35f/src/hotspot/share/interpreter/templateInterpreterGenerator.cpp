@@ -318,12 +318,12 @@ void TemplateInterpreterGenerator::generate_all() {
       }
     }
 
-    { CodeletMark(_masm, "jportal entry for return entry points", false, true);
+    { CodeletMark cm(_masm, "jportal entry for return entry points", false, true);
       for (int i = 0; i < Interpreter::number_of_return_entries; i++) {
         Interpreter::_jportal_return_entry[i] = EntryPoint();
         for (int j = 0; j < number_of_states; j++) {
-          Interpreter::_jportal_return_entry[i].set_entry((TosState)j,
-            generate_jportal_entry_for(Interpreter::_mirror_return_entry[i].entry((TosState)j)));
+          address addr = Interpreter::_mirror_return_entry[i].entry((TosState)j);
+          Interpreter::_jportal_return_entry[i].set_entry((TosState)j, generate_jportal_entry_for(addr));
         }
       }
     }

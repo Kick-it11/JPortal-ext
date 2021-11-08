@@ -520,8 +520,8 @@ static __u64 pt_default_config()
     config |= 1;
     /* tsc */
     config |= (1 << 10);
-        /* disable ret compress */
-        config |= (1 << 11);
+    /* disable ret compress */
+    config |= (1 << 11);
     if (pt_scan_file("caps/mtc", "%d",
                      &mtc) != 1)
         mtc = 1;

@@ -1697,6 +1697,7 @@ static int drain_qry_events(struct ptjvm_decoder *decoder) {
   int status = decoder->status;
   decoder->unresolved = false;
 
+  uint64_t async_disabled_ip = -1ul;
   while (status & pts_event_pending) {
     status = event_pending(decoder);
     if (status < 0)
@@ -1710,11 +1711,17 @@ static int drain_qry_events(struct ptjvm_decoder *decoder) {
       status = pt_insn_process_enabled(decoder);
       if (status < 0)
         return status;
+      if (decoder->ip == decoder->event.variant.enabled.ip &&
+          decoder->ip == async_disabled_ip) {
+        decoder->event.variant.enabled.resumed = 1;
+        break;
+      }
       decoder->unresolved = true;
       decoder->process_event = 0;
       return status;
 
     case ptev_async_disabled:
+      async_disabled_ip = decoder->event.variant.async_disabled.at;
     case ptev_disabled:
       status = pt_insn_process_disabled(decoder);
       if (status < 0)
@@ -1815,6 +1822,7 @@ static int handle_bytecode(struct ptjvm_decoder *decoder,
       record.add_branch(2);
       return status;
     }
+    decoder->ip = -1ul;
     decoder->status = status;
     if (!taken) {
       status = drain_qry_events(decoder);
@@ -1827,6 +1835,7 @@ static int handle_bytecode(struct ptjvm_decoder *decoder,
         record.add_branch(2);
         return status;
       }
+      decoder->ip = -1ul;
       decoder->status = status;
     }
     /* if taken we query the bytecode branch
@@ -1840,6 +1849,7 @@ static int handle_bytecode(struct ptjvm_decoder *decoder,
       status = pt_qry_cond_branch(decoder->qry, &taken);
       if (status < 0)
         return status;
+      decoder->ip = -1ul;
       decoder->status = status;
       record.add_branch((u1)(1 - taken));
     } else
@@ -1969,6 +1979,7 @@ static int decode(ptjvm_decoder *decoder, TraceDataRecord &record,
         if (status < 0)
           break;
       } else {
+        decoder->ip = -1ul;
         decoder->status = status;
       }
     }

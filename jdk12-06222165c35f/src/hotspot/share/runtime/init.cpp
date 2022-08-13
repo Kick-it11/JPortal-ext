@@ -58,7 +58,6 @@ void compilationPolicy_init();
 void codeCache_init();
 void jPortalEnable_init();
 void jPortalEnable_exit();
-void jPortalEnable_trace();
 void VM_Version_init();
 void os_init_globals();        // depends on VM_Version_init, before universe_init
 void stubRoutines_init1();

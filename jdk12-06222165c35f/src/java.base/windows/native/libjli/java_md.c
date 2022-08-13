@@ -383,8 +383,8 @@ LoadJavaVM(const char *jvmpath, InvocationFunctions *ifn)
     }
 
     // JPortal
-    ifn->JPortalEnable = (JPortalEnable_t)
-        dlsym(libjvm, "JNI_JPortalEnable");
+    ifn->JPortalEnable =
+        (void *)GetProcAddress(handle, "JNI_JPortalEnable");
     if (ifn->JPortalEnable == 0) {
         JLI_ReportErrorMessage(JNI_ERROR1, (char *)jvmpath);
         return JNI_FALSE;

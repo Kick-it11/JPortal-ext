@@ -210,6 +210,8 @@ bool InlineTree::should_not_inline(ciMethod *callee_method,
     fail_msg = "native method";
   } else if ( callee_method->dont_inline()) {
     fail_msg = "don't inline by annotation";
+  } else if ( callee_method->is_jportal() && !C->method()->is_jportal()) {
+    fail_msg = "don't inline jportal method in NON-JPORTAL compilation";
   }
 
   // one more inlining restriction

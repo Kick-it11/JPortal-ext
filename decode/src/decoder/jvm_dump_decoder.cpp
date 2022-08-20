@@ -74,7 +74,7 @@ JvmDumpDecoder::DumpInfoType JvmDumpDecoder::dumper_event(uint64_t time, long ti
                 return _method_exit;
             }
             case _compiled_method_load: {
-                current += (info->size - sizeof(info));
+                current += (info->size - sizeof(DumpInfo));
                 auto iter = section_map.find(current);
                 if (iter == section_map.end())
                     return _no_thing;
@@ -85,14 +85,6 @@ JvmDumpDecoder::DumpInfoType JvmDumpDecoder::dumper_event(uint64_t time, long ti
                 data = current;
                 current += sizeof(CompiledMethodUnloadInfo);
                 return _compiled_method_unload;
-            }
-            case _dynamic_code_generated: {
-                current += (info->size - sizeof(info));
-                auto iter = section_map.find(current);
-                if (iter == section_map.end())
-                    return _no_thing;
-                data = iter->second;
-                return _dynamic_code_generated;
             }
             case _thread_start: {
                 data = current;
@@ -266,32 +258,6 @@ void JvmDumpDecoder::initialize(char *dump_data) {
             }
             case _compiled_method_unload: {
                 buffer += sizeof(CompiledMethodUnloadInfo);
-                break;
-            }
-            case _dynamic_code_generated: {
-                const DynamicCodeGenerated *dcg;
-                dcg = (const DynamicCodeGenerated *)buffer;
-                buffer += sizeof(DynamicCodeGenerated);
-                const char *name;
-                const uint8_t *code;
-                name = (const char *)buffer;
-                buffer += dcg->name_length;
-                code = buffer;
-                buffer += dcg->code_size;
-                jit_section *section;
-                int errcode = jit_mk_section(&section, code, dcg->code_begin, dcg->code_size,
-                                                nullptr, nullptr, nullptr, name);
-                if (errcode < 0) {
-                    fprintf(stderr, "JvmDumpDecoder: fail to make section.\n");
-                    break;
-                }
-                errcode = jit_section_get(section);
-                if (errcode < 0) {
-                    fprintf(stderr, "JvmDumpDecoder: fail to get section.\n");
-                    jit_section_free(section);
-                    break;
-                }
-                section_map[buffer] = section;
                 break;
             }
             case _thread_start: {

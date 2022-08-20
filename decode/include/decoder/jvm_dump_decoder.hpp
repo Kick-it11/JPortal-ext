@@ -20,7 +20,6 @@ class JvmDumpDecoder {
       _compiled_method_unload,
       _thread_start,
       _interpreter_info,
-      _dynamic_code_generated,
       _inline_cache_add,
       _inline_cache_clear,
       _no_thing

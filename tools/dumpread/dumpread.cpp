@@ -23,7 +23,6 @@ using namespace std;
       _compiled_method_unload,
       _thread_start,
       _interpreter_info,
-      _dynamic_code_generated,
       _inline_cache_add,
       _inline_cache_clear,
       _no_thing
@@ -381,7 +380,7 @@ int main(int argc, char **argv) {
                 printf("Inter:\n");
                 const uint64_t *pointer = (const uint64_t *)ii;
                 for (int i = 0; i < sizeof(InterpreterInfo)/sizeof(uint64_t); ++i)
-                    printf("  %ld\n", pointer[i]);
+                    printf("  %lx\n", pointer[i]);
                 break;
             }
             case _method_entry_initial: {
@@ -403,8 +402,6 @@ int main(int argc, char **argv) {
                 string s1,s2,s3;
                 new_md.get_method_desc(s1,s2,s3);
                 printf("#entry %d %s %s %s\n", me->idx, s1.c_str(), s2.c_str(), s3.c_str());
-                //fprintf(met, "%s %s%s : %d\n", s1.c_str(), s2.c_str(), s3.c_str(), me->idx);
-                //printf("%d\n", me->idx);
                 method_map[me->idx] = new_md;
                 cnt++;
                 result[me->idx]++;
@@ -419,7 +416,6 @@ int main(int argc, char **argv) {
                 if (iter == method_map.end())
                     fprintf(stderr, "no method entry\n");
                 printf("#entry %d\n",me->idx);
-                //printf("%d\n", me->idx);
                 cnt++;
                 result[me->idx]++;
                 break;
@@ -472,11 +468,6 @@ int main(int argc, char **argv) {
                   else
                     miter++;
                 }
-                if (cm->insts_begin == 139729395876448ul && cm->insts_size == 3088) {
-                  FILE *fp = fopen("code", "wb");
-                  fwrite(insts, cm->insts_size, 1, fp);
-                  fclose(fp);
-                }
                 memory.push_front(make_pair(cm->insts_begin, cm->insts_size));
                 break;
             }
@@ -498,26 +489,6 @@ int main(int argc, char **argv) {
                 th = (const ThreadStartInfo*)current;
                 current += sizeof(ThreadStartInfo);
                 printf("#thread start %ld %ld\n", th->java_tid, th->sys_tid);
-                break;
-            }
-            case _dynamic_code_generated: {
-                const DynamicCodeGenerated *dcg;
-                dcg = (const DynamicCodeGenerated *)current;
-                current += sizeof(DynamicCodeGenerated);
-                const char *name;
-                const uint8_t *code;
-                name = (const char *)current;
-                current += dcg->name_length;
-                code = current;
-                current += dcg->code_size;
-                printf("#dynamic\n\t%s %ld %ld\n", name, dcg->code_begin, dcg->code_size);
-                for (auto miter = memory.begin(); miter != memory.end();) {
-                  if (miter->first >= dcg->code_begin && miter->first < dcg->code_begin + dcg->code_size || dcg->code_begin >= miter->first && dcg->code_begin < miter->first + miter->second)
-                    memory.erase(miter++);
-                  else
-                    miter++;
-                }
-                memory.push_front(make_pair(dcg->code_begin, dcg->code_size));
                 break;
             }
             case _inline_cache_add: {
@@ -554,7 +525,6 @@ int main(int argc, char **argv) {
             }
         }
     }
-    //fclose(met);
     for (auto r : result) {
       printf("%d: %d\n", r.first, r.second);
     }

@@ -118,7 +118,6 @@ void GrapBC::output() {
             continue;
         }
         if (!_methods[method_idx]->is_jportal()) {
-            cout << "not jportal" << endl;
             continue;
         }
         int idx3 = line.find(",", idx2);
@@ -136,8 +135,7 @@ void GrapBC::output() {
             continue;
         }
         for (int i = start; i < end; ++i) {
-            if (i == 0) continue;
-            *outputs[threads_id] << (int)_methods[method_idx]->code_at(i-1) << endl;
+            *outputs[threads_id] << (int)_methods[method_idx]->code_at(i) << endl;
         }
     }
     for (auto iter : outputs) delete iter.second;

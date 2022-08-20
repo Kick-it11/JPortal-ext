@@ -22,7 +22,7 @@ Block *BlockGraph::make_block_at(int offset, Block *current) {
     Block *block = offset2block(offset);
     if (block == nullptr) {
         int id = _blocks.size();
-        _blocks.push_back(new Block(id, offset, bct_offset[offset]));
+        _blocks.push_back(new Block(id, offset, _bct_offset[offset]));
         block = _blocks[id];
         _offset2block[offset] = block;
     }
@@ -45,7 +45,7 @@ void BlockGraph::build_graph() {
     block_start.insert(0);
     unordered_set<int> jsr_following;
     while (!bs.at_eos()) {
-        bct_offset[bs.get_offset()] = _code_count;
+        _bct_offset[bs.get_offset()] = _code_count;
         // cout << "build_graph: " << bs.get_offset() << endl;
         Bytecodes::Code bc = Bytecodes::cast(bs.get_u1());
         ++_code_count;

@@ -145,7 +145,7 @@ class BlockGraph {
     /* bct code offset to block id */
     vector<int> _block_id;
     /* bc offset to bct offset */
-    unordered_map<int, int> bct_offset;
+    unordered_map<int, int> _bct_offset;
     unordered_map<int, pair<u1, u2>> _method_site;
     bool _is_build_graph;
     bool _is_build_bctlist;
@@ -196,6 +196,10 @@ class BlockGraph {
         build_graph();
         return &_method_site;
     }
+    const u1 *bctcode() const { return _bctcode; }
+    const unordered_map<int, int> &bct_offset() const { return _bct_offset; }
+    const vector<int> &block_id() const { return _block_id; }
+    const vector<Block *> &blocks() const { return _blocks; }
     void build_graph();
     void print_graph();
     void build_bctlist();

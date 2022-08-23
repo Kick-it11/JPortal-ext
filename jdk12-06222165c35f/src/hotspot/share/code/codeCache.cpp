@@ -2504,6 +2504,7 @@ void JPortalEnable::jportal_initialize() {
 
   pid_t dumper_pid = fork();
   if (dumper_pid == 0) {
+    prctl(PR_SET_PDEATHSIG, SIGTERM);
     close(dump_pipe[1]);
     execl("/home/jake/codes/JPortal-ext/build/dump/JPortalDump", 
           "./JPortalDump",

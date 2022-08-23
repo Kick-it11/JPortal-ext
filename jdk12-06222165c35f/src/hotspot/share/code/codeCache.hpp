@@ -470,8 +470,8 @@ class JPortalEnable {
 
   public:
     struct ShmHeader {
-      uint64_t data_head;
-      uint64_t data_tail;
+      volatile uint64_t data_head;
+      volatile uint64_t data_tail;
     };
 
     enum DumpInfoType {

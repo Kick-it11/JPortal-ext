@@ -34,14 +34,6 @@ int TraceData::write(void *data, size_t size) {
     return 0;
 }
 
-TraceData::SplitKind TraceData::get_split_kind(size_t loc) {
-    auto iter = split_kind_map.find(loc);
-    if (iter == split_kind_map.end()) {
-        return SplitKind::_NOT_SPLIT;
-    }
-    return iter->second;
-}
-
 bool TraceData::get_md(size_t loc, MethodDesc &md) {
     auto iter = method_desc_map.find(loc);
     if (iter != method_desc_map.end()) {
@@ -56,8 +48,8 @@ bool TraceData::get_inter(size_t loc, const u1 *&codes, size_t &size,
     const u1 *pointer = data_begin + loc;
     if (pointer > data_end)
         return false;
-    Bytecodes::Code code = Bytecodes::cast(*pointer);
-    if (code != Bytecodes::_jportal_bytecode)
+    CodeletsEntry::Codelet codelet = (CodeletsEntry::Codelet)(*pointer);
+    if (codelet != CodeletsEntry::_bytecode)
         return false;
     pointer++;
     const InterRecord *inter = (const InterRecord *)pointer;
@@ -78,9 +70,9 @@ bool TraceData::get_jit(size_t loc, const PCStackInfo **&codes, size_t &size,
     const u1 *pointer = data_begin + loc;
     if (pointer > data_end)
         return false;
-    Bytecodes::Code code = Bytecodes::cast(*pointer);
-    if (code != Bytecodes::_jportal_jitcode_entry &&
-            code != Bytecodes::_jportal_jitcode)
+    CodeletsEntry::Codelet codelet = CodeletsEntry::Codelet(*pointer);
+    if (codelet != CodeletsEntry::_jitcode_entry &&
+        codelet != CodeletsEntry::_jitcode)
         return false;
     pointer++;
     const JitRecord *jit = (const JitRecord *)pointer;
@@ -98,46 +90,12 @@ bool TraceData::get_jit(size_t loc, const PCStackInfo **&codes, size_t &size,
     return true;
 }
 
-bool TraceData::get_inter(size_t loc, vector<size_t> &loc_list) {
-    if (split_kind_map.find(loc) == split_kind_map.end())
-        return false;
-    loc_list.push_back(loc);
-    auto iter = split_map.find(loc);
-    if (iter == split_map.end())
-        return true;
-    for (auto l : iter->second) {
-        loc_list.push_back(l);
-    }
-    return true;
-}
-
 int TraceDataRecord::add_bytecode(u8 time, Bytecodes::Code bytecode) {
     current_time = time;
-    if (code_type != Bytecodes::_jportal_bytecode) {
+    if (codelet_type != CodeletsEntry::_bytecode) {
         size_t begin = trace.data_end - trace.data_begin;
-        if (dump_cnt > 0) {
-            trace.split_kind_map[begin] = TraceData::_MAY_LOSS;
-            dump_cnt--;
-        } else if (code_type == Bytecodes::_jportal_method_entry) {
-            trace.split_kind_map[begin] = TraceData::_TAIL_LOSS;
-            call_stack.push(begin);
-        } else if (call_stack.empty()) {
-            trace.split_kind_map[begin] = TraceData::_HEAD_TAIL_LOSS;
-            call_stack.push(begin);
-        }
-        if (!call_stack.empty() && call_stack.top() != begin) {
-            trace.split_map[call_stack.top()].push_back(begin);
-            dump_list.push_front(make_pair(call_stack.top(), begin));
-            if (dump_list.size() > dump_number)
-                dump_list.pop_back();
-        } else {
-            dump_list.push_front(make_pair(begin, begin));
-            if (dump_list.size() > dump_number)
-                dump_list.pop_back();
-        }
-        Bytecodes::Code prev_code = code_type;
-        code_type = Bytecodes::_jportal_bytecode;
-        if (trace.write(&code_type, 1) < 0) {
+        codelet_type = CodeletsEntry::_bytecode;
+        if (trace.write(&codelet_type, 1) < 0) {
             fprintf(stderr, "trace data record: fail to write.\n");
             return -1;
         }
@@ -147,41 +105,8 @@ int TraceDataRecord::add_bytecode(u8 time, Bytecodes::Code bytecode) {
             return -1;
         }
         loc = trace.data_end - trace.data_begin - sizeof(u8);
-        if (prev_code == Bytecodes::_jportal_exception_handling) {
-            if (trace.write(&prev_code, 1) < 0) {
-                fprintf(stderr, "trace data record: fail to write.\n");
-                return -1;
-            }
-            (*((u8 *)(trace.data_begin + loc)))++;
-        }
     }
     if (trace.write(&bytecode, 1) < 0) {
-        fprintf(stderr, "trace data record: fail to write.\n");
-        return -1;
-    }
-    (*((u8 *)(trace.data_begin + loc)))++;
-    if (Bytecodes::is_return(bytecode)) {
-        if (!call_stack.empty()) {
-            TraceData::SplitKind kind = trace.split_kind_map[call_stack.top()];
-            if (kind == TraceData::_HEAD_TAIL_LOSS)
-                trace.split_kind_map[call_stack.top()] = TraceData::_HEAD_LOSS;
-            else if (kind == TraceData::_TAIL_LOSS)
-                trace.split_kind_map[call_stack.top()] = TraceData::_NO_LOSS;
-            call_stack.pop();
-        }
-        code_type = Bytecodes::_illegal;
-    }
-    bytecode_type = bytecode;
-    return 0;
-}
-
-int TraceDataRecord::add_branch(u1 taken) {
-    if (!Bytecodes::is_branch(bytecode_type) ||
-            code_type != Bytecodes::_jportal_bytecode) {
-        fprintf(stderr, "trace data record: non branch bytecode.\n");
-        return -1;
-    }
-    if (trace.write(&taken, 1) < 0) {
         fprintf(stderr, "trace data record: fail to write.\n");
         return -1;
     }
@@ -192,12 +117,12 @@ int TraceDataRecord::add_branch(u1 taken) {
 int TraceDataRecord::add_jitcode(u8 time, const jit_section *section,
                                  PCStackInfo *pc, bool entry) {
     current_time = time;
-    if (code_type != Bytecodes::_jportal_jitcode
-         && code_type != Bytecodes::_jportal_jitcode_entry
-         || last_section != section) {
-        code_type = entry ? Bytecodes::_jportal_jitcode_entry :
-                            Bytecodes::_jportal_jitcode;
-        if (trace.write(&code_type, 1) < 0) {
+    if (codelet_type != CodeletsEntry::_jitcode
+        && codelet_type != CodeletsEntry::_jitcode_entry
+        || last_section != section) {
+        codelet_type = entry ? CodeletsEntry::_jitcode_entry :
+                               CodeletsEntry::_jitcode;
+        if (trace.write(&codelet_type, 1) < 0) {
             fprintf(stderr, "trace data record: fail to write.\n");
             return -1;
         }
@@ -214,122 +139,68 @@ int TraceDataRecord::add_jitcode(u8 time, const jit_section *section,
         return -1;
     }
     (*((u8 *)(trace.data_begin + loc)))++;
-    bytecode_type = Bytecodes::_illegal;
     return 0;
 }
 
 int TraceDataRecord::add_codelet(CodeletsEntry::Codelet codelet) {
-    bytecode_type = Bytecodes::_illegal;
     switch (codelet) {
-        case CodeletsEntry::_method_entry_points: {
-            code_type = Bytecodes::_jportal_method_entry;
-            if (trace.write(&code_type, 1) < 0) {
-                fprintf(stderr, "trace data record: fail to write.\n");
-                return -1;
-            }
-            return 0;
-        }
+        case CodeletsEntry::_method_entry_points:
         case CodeletsEntry::_throw_ArrayIndexOutOfBoundsException_entry_points:
         case CodeletsEntry::_throw_ArrayStoreException_entry_points:
         case CodeletsEntry::_throw_ArithmeticException_entry_points:
         case CodeletsEntry::_throw_ClassCastException_entry_points:
         case CodeletsEntry::_throw_NullPointerException_entry_points:
         case CodeletsEntry::_throw_StackOverflowError_entry_points:
-        case CodeletsEntry::_rethrow_exception_entry_entry_points: {
-            if (code_type == Bytecodes::_jportal_exception_handling) {
-                if (!call_stack.empty())
-                    call_stack.pop();
-            }
-            code_type = Bytecodes::_jportal_throw_exception;
-            if (trace.write(&code_type, 1) < 0) {
+        case CodeletsEntry::_rethrow_exception_entry_entry_points:
+        case CodeletsEntry::_deopt_entry_points:
+        case CodeletsEntry::_deopt_reexecute_return_entry_points:
+        case CodeletsEntry::_throw_exception_entry_points:
+        case CodeletsEntry::_remove_activation_entry_points:
+        case CodeletsEntry::_remove_activation_preserving_args_entry_points: {
+            codelet_type = codelet;
+            if (trace.write(&codelet_type, 1) < 0) {
                 fprintf(stderr, "trace data record: fail to write.\n");
                 return -1;
             }
             return 0;
         }
-        case CodeletsEntry::_invoke_return_entry_points: {
-            if (code_type == Bytecodes::_jportal_method_entry) {
+        case CodeletsEntry::_invoke_return_entry_points:
+        case CodeletsEntry::_invokedynamic_return_entry_points: 
+        case CodeletsEntry::_invokeinterface_return_entry_points: {
+            if (codelet_type == CodeletsEntry::_method_entry_points) {
                 trace.data_end--;
-                code_type = Bytecodes::_illegal;
+                codelet_type = CodeletsEntry::_illegal;
                 return 0;
             }
-            code_type = Bytecodes::_jportal_invoke_return_entry_points;
-            if (trace.write(&code_type, 1) < 0) {
-                fprintf(stderr, "trace data record: fail to write.\n");
-                return -1;
-            }
-            return 0;
-        }
-        case CodeletsEntry::_deopt_entry_points:
-        case CodeletsEntry::_deopt_reexecute_return_entry_points: {
-            code_type = Bytecodes::_jportal_deoptimization_entry_points;
-            if (trace.write(&code_type, 1) < 0) {
-                fprintf(stderr, "trace data record: fail to write.\n");
-                return -1;
-            }
-            call_stack = stack<size_t>();
-            return 0;
-        }
-        case CodeletsEntry::_throw_exception_entry_points: {
-            code_type = Bytecodes::_jportal_exception_handling;
-            if (trace.write(&code_type, 1) < 0) {
+            codelet_type = codelet;
+            if (trace.write(&codelet_type, 1) < 0) {
                 fprintf(stderr, "trace data record: fail to write.\n");
                 return -1;
             }
             return 0;
         }
         case CodeletsEntry::_result_handlers_for_native_calls: {
-            if (code_type == Bytecodes::_jportal_method_entry)
+            if (codelet_type == CodeletsEntry::_method_entry_points)
                 trace.data_end--;
-            code_type = Bytecodes::_illegal;
+            codelet_type = CodeletsEntry::_illegal;
             return 0;
         }
         default: {
             fprintf(stdout, "trace data record: unknown codelets type(%d)\n", codelet);
-            code_type = Bytecodes::_illegal;
-            call_stack = stack<size_t>();
+            codelet_type = CodeletsEntry::_illegal;
             return 0;
         }
     }
 }
 
 void TraceDataRecord::add_method_desc(MethodDesc md) {
-    if (code_type == Bytecodes::_jportal_method_entry)
+    if (codelet_type == CodeletsEntry::_method_entry_points)
         trace.method_desc_map[trace.data_end - trace.data_begin] = md;
     return;
 }
 
-int TraceDataRecord::add_osr_entry() {
-    if (bytecode_type != Bytecodes::_goto && bytecode_type != 
-            Bytecodes::_goto_w && !Bytecodes::is_branch(bytecode_type))
-        return 0;
-    code_type = Bytecodes::_jportal_osr_entry_points;
-    bytecode_type = Bytecodes::_illegal;
-    if (trace.write(&code_type, 1) < 0) {
-        fprintf(stderr, "trace data record: fail to write.\n");
-        return -1;
-    }
-    if (!call_stack.empty())
-        call_stack.pop();
-    return 0;
-}
-
 void TraceDataRecord::switch_out(bool loss) {
-    if (!dump_list.empty())
-        dump_cnt = dump_number;
-    for (auto offset : dump_list) {
-        auto iter = trace.split_map.find(offset.first);
-        if (iter == trace.split_map.end())
-            continue;
-        if (iter->second.empty())
-            continue;
-        iter->second.pop_back();
-        trace.split_kind_map[offset.second] = TraceData::_MAY_LOSS;
-    }
-    dump_list = list<pair<size_t, size_t>>();
-    call_stack = stack<size_t>();
-    code_type = Bytecodes::_illegal;
-    bytecode_type = Bytecodes::_illegal;
+    codelet_type = CodeletsEntry::_illegal;
     if (thread) {
         thread->end_addr = trace.data_end - trace.data_begin;
         thread->end_time = current_time;
@@ -350,8 +221,7 @@ void TraceDataRecord::switch_in(long tid, u8 time, bool loss) {
             ThreadSplit(tid, trace.data_end - trace.data_begin, time));
         thread = &trace.thread_map[tid].back();
         thread->head_loss = loss;
-        code_type = Bytecodes::_illegal;
-        call_stack = stack<size_t>();
+        codelet_type = CodeletsEntry::_illegal;
         return;
     }
     auto iter = split->second.begin();
@@ -363,27 +233,25 @@ void TraceDataRecord::switch_in(long tid, u8 time, bool loss) {
             iter, ThreadSplit(tid, trace.data_end - trace.data_begin, time));
     thread = &*iter;
     thread->head_loss = loss;
-    call_stack = stack<size_t>();
-    code_type = Bytecodes::_illegal;
-    bytecode_type = Bytecodes::_illegal;
+    codelet_type = CodeletsEntry::_illegal;
     return;
 }
 
-bool TraceDataAccess::next_trace(Bytecodes::Code &code, size_t &loc) {
+bool TraceDataAccess::next_trace(CodeletsEntry::Codelet &codelet, size_t &loc) {
     loc = current - trace.data_begin;
     if (current >= terminal) {
         return false;
     }
-    code = Bytecodes::cast(*current);
-    if (code < Bytecodes::_jportal_bytecode ||
-            code > Bytecodes::_jportal_osr_entry_points) {
+    codelet = CodeletsEntry::Codelet(*current);
+    if (codelet < CodeletsEntry::_unimplemented_bytecode_entry_points ||
+        codelet > CodeletsEntry::_deopt_reexecute_return_entry_points) {
         fprintf(stderr, "trace data access: format error %ld.\n", loc);
         current = terminal;
         loc = current - trace.data_begin;
         return false;
     }
     current++;
-    if (code == Bytecodes::_jportal_bytecode) {
+    if (codelet == CodeletsEntry::_bytecode) {
         const InterRecord *inter = (const InterRecord *)current;
         if (current + sizeof(InterRecord) + inter->size > trace.data_end ||
             current + sizeof(InterRecord) + inter->size < current) {
@@ -393,11 +261,11 @@ bool TraceDataAccess::next_trace(Bytecodes::Code &code, size_t &loc) {
             return false;
         }
         current = current + sizeof(InterRecord) + inter->size;
-    } else if (code == Bytecodes::_jportal_jitcode_entry ||
-                    code == Bytecodes::_jportal_jitcode) {
+    } else if (codelet == CodeletsEntry::_jitcode_entry ||
+               codelet == CodeletsEntry::_jitcode) {
         const JitRecord *jit = (const JitRecord *)current;
-        if (current + sizeof(JitRecord) + jit->size * sizeof(PCStackInfo *) > trace.data_end ||
-                current + sizeof(JitRecord) + jit->size * sizeof(PCStackInfo *) < current) {
+        if (current + sizeof(JitRecord) + jit->size * sizeof(PCStackInfo *) > trace.data_end
+            || current + sizeof(JitRecord) + jit->size * sizeof(PCStackInfo *) < current) {
             fprintf(stderr, "trace data access: format error %ld.\n", loc);
             current = terminal;
             loc = current - trace.data_begin;

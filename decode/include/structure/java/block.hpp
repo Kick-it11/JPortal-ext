@@ -116,6 +116,7 @@ class Block {
     int get_end_offset() const { return _end_offset; }
     int get_bctsize() const { return _bctblock->get_size(); }
     int get_bct_codebegin() const { return _bct_codebegin; }
+    int get_bct_codeend() const { return _bct_codebegin + _bctblock->get_size(); }
     BCTBlock *get_bctblock() const { return _bctblock; }
 };
 struct Excep {

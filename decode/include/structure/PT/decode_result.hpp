@@ -42,21 +42,11 @@ class TraceData {
   friend class TraceDataRecord;
   friend class TraceDataAccess;
   public:
-  enum SplitKind {
-    _NOT_SPLIT,
-    _MAY_LOSS,
-    _HEAD_TAIL_LOSS,
-    _HEAD_LOSS,
-    _TAIL_LOSS,
-    _NO_LOSS
-  };
   private:
     const int initial_data_volume = 1024 * 1024;
     u1 *data_begin = nullptr;
     u1 *data_end = nullptr;
     size_t data_volume = 0;
-    unordered_map<size_t, vector<size_t>> split_map;
-    unordered_map<size_t, SplitKind> split_kind_map;
     unordered_map<size_t, MethodDesc> method_desc_map;
 
     unordered_map<long, list<ThreadSplit>> thread_map;
@@ -70,8 +60,6 @@ class TraceData {
     }
 
     unordered_map<long, list<ThreadSplit>> &get_thread_map() { return thread_map; }
-
-    SplitKind get_split_kind(size_t loc);
 
     bool get_md(size_t loc, MethodDesc &md);
 
@@ -89,24 +77,17 @@ class TraceData {
 
 class TraceDataRecord {
   private:
-    const int dump_number = 5;
     TraceData &trace;
-    Bytecodes::Code code_type = Bytecodes::_illegal;
-    Bytecodes::Code bytecode_type = Bytecodes::_illegal;
+    CodeletsEntry::Codelet codelet_type = CodeletsEntry::_illegal;
     size_t loc;
-    const jit_section *last_section = nullptr;
-    stack<size_t> call_stack;
-    list<pair<size_t, size_t>> dump_list;
-    int dump_cnt = 0;
     u8 current_time = 0;
     ThreadSplit *thread= nullptr;
+    const jit_section *last_section = nullptr;
   public:
     TraceDataRecord(TraceData &_trace) :
         trace(_trace) {}
 
     int add_bytecode(u8 time, Bytecodes::Code bytecode);
-
-    int add_branch(u1 taken);
 
     int add_jitcode(u8 time, const jit_section *section, PCStackInfo *pc, bool entry);
 
@@ -114,11 +95,11 @@ class TraceDataRecord {
 
     void add_method_desc(MethodDesc md);
 
-    int add_osr_entry();
-
     void switch_out(bool loss);
 
     void switch_in(long tid, u8 time, bool loss);
+
+    size_t get_loc() { return loc; }
 };
 
 class TraceDataAccess {
@@ -148,7 +129,7 @@ class TraceDataAccess {
         if (terminal > trace.data_end)
             terminal = trace.data_end;
     }
-    bool next_trace(Bytecodes::Code &code, size_t &loc);
+    bool next_trace(CodeletsEntry::Codelet &codelet, size_t &loc);
 
     void set_current(size_t addr) {
         current = trace.data_begin + addr;

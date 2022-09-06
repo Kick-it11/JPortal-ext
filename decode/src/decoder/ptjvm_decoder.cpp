@@ -132,6 +132,7 @@ struct ptjvm_decoder {
   Analyser *analyser;
 
   PCStackInfo *last_pcinfo = nullptr;
+  int pcinfo_tow = 0;
   uint64_t last_ip = 0;
 };
 
@@ -244,8 +245,7 @@ static void ptjvm_dump_event(struct ptjvm_decoder *decoder,
     type = dumper->dumper_event(decoder->time, decoder->tid, data);
     if (type == JvmDumpDecoder::_interpreter_info) {
       continue;
-    } else if (type == JvmDumpDecoder::_compiled_method_load ||
-               type == JvmDumpDecoder::_dynamic_code_generated) {
+    } else if (type == JvmDumpDecoder::_compiled_method_load) {
       jit_section *section = (jit_section *)data;
       int errcode = jit_image_add(decoder->image, section);
       if (errcode < 0) {
@@ -1481,34 +1481,30 @@ static int drain_insn_events(struct ptjvm_decoder *decoder, int status) {
 
 static int handle_compiled_code_result(struct ptjvm_decoder *decoder,
                                         TraceDataRecord &record,
-                                        jit_section *section, bool &entry) {
+                                        jit_section *section) {
   if (!decoder || !section)
     return -pte_internal;
 
-  PCStackInfo *pcinfo;
-  /* error: errcode < 0, no debug info: errcode = 0, else find debug info */
+  PCStackInfo *pcinfo = nullptr;
+  /* error: errcode < 0, no debug info: errcode = 0, else find debug info i-th*/
+  int idx;
   int find = jit_section_read_debug_info(section, decoder->ip, pcinfo);
   if (find <= 0) {
     return find;
-  } else if (pcinfo != decoder->last_pcinfo || 
-        (pcinfo == decoder->last_pcinfo && decoder->ip < decoder->last_ip)) {
-    decoder->last_pcinfo = pcinfo;
-    decoder->last_ip = decoder->ip;
-    int method_index = pcinfo->methods[0];
+  } else if (pcinfo != decoder->last_pcinfo) {
+    if (find == 1 || decoder->ip == section->record->pcinfo[find-2].pc)
+      decoder->pcinfo_tow = 1;
+  } else if (decoder->pcinfo_tow) {
     const CompiledMethodDesc *cmd = jit_section_cmd(section);
     if (!cmd)
       return 0;
-    string klass_name, name, sig;
-    cmd->get_method_desc(method_index, klass_name, name, sig);
-    const Klass* klass = decoder->analyser->getKlass(klass_name);
-    if (!klass)
-      return 0;
-    const Method *method = klass->getMethod(name + sig);
-    if (!method)
-      return 0;
-    record.add_jitcode(decoder->time, section, pcinfo, entry);
-    entry = false;
+    record.add_jitcode(decoder->time, section, pcinfo, decoder->last_ip == cmd->get_entry_point()
+                        || decoder->last_ip == cmd->get_verified_entry_point()
+                        || decoder->last_ip == cmd->get_osr_entry_point());
+    decoder->pcinfo_tow = 0;
   }
+  decoder->last_pcinfo = pcinfo;
+  decoder->last_ip = decoder->ip;
   return 0;
 }
 
@@ -1543,7 +1539,6 @@ static int handle_compiled_code(struct ptjvm_decoder *decoder,
 
   int status;
   int errcode;
-  bool entry = false;
   struct pt_insn insn;
   struct pt_insn_ext iext;
   jit_section *section = nullptr;
@@ -1588,18 +1583,6 @@ static int handle_compiled_code(struct ptjvm_decoder *decoder,
         break;
       }
 
-      const CompiledMethodDesc *cmd = jit_section_cmd(section);
-      if (cmd && cmd->get_osr_entry_point() != cmd->get_entry_point() &&
-            cmd->get_osr_entry_point() != cmd->get_verified_entry_point() &&
-            decoder->ip == cmd->get_osr_entry_point()) {
-          record.add_osr_entry();
-      }
-      if (cmd && (decoder->ip == cmd->get_entry_point() ||
-            decoder->ip == cmd->get_verified_entry_point()))
-        entry = true;
-      else
-        entry = false;
-
       errcode =
           jit_section_read(section, insn.raw, sizeof(insn.raw), decoder->ip);
       if (errcode < 0) {
@@ -1618,7 +1601,7 @@ static int handle_compiled_code(struct ptjvm_decoder *decoder,
     }
     uint64_t ip = decoder->ip;
 
-    errcode = handle_compiled_code_result(decoder, record, section, entry);
+    errcode = handle_compiled_code_result(decoder, record, section);
     if (errcode < 0) {
       fprintf(stderr, "%s: compiled code's result error(%d) (%ld).\n",
                         prog, errcode, section->code_begin);
@@ -1809,51 +1792,6 @@ static int handle_bytecode(struct ptjvm_decoder *decoder,
   record.add_bytecode(decoder->time, java_code);
   if (follow_code != Bytecodes::_illegal) {
     record.add_bytecode(decoder->time, follow_code);
-  }
-  if (Bytecodes::is_branch(java_code)) {
-    int taken = 0;
-    status = drain_qry_events(decoder);
-    if (status < 0 || decoder->unresolved) {
-      record.add_branch(2);
-      return status;
-    }
-    status = pt_qry_cond_branch(decoder->qry, &taken);
-    if (status < 0) {
-      record.add_branch(2);
-      return status;
-    }
-    decoder->ip = -1ul;
-    decoder->status = status;
-    if (!taken) {
-      status = drain_qry_events(decoder);
-      if (status < 0 || decoder->unresolved) {
-        record.add_branch(2);
-        return status;
-      }
-      status = pt_qry_cond_branch(decoder->qry, &taken);
-      if (status < 0) {
-        record.add_branch(2);
-        return status;
-      }
-      decoder->ip = -1ul;
-      decoder->status = status;
-    }
-    /* if taken we query the bytecode branch
-     * else we cannot determine */
-    if (taken) {
-      status = drain_qry_events(decoder);
-      if (status < 0 || decoder->unresolved) {
-        record.add_branch(2);
-        return status;
-      }
-      status = pt_qry_cond_branch(decoder->qry, &taken);
-      if (status < 0)
-        return status;
-      decoder->ip = -1ul;
-      decoder->status = status;
-      record.add_branch((u1)(1 - taken));
-    } else
-      record.add_branch(2);
   }
   return status;
 }

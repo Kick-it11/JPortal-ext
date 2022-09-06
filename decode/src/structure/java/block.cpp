@@ -92,8 +92,8 @@ void BlockGraph::build_graph() {
             case Bytecodes::_ifnonnull: {
                 int jmp_offset = (short)bs.get_u2();
                 current_offset = bs.get_offset();
-                block_start.insert(current_offset);
                 block_start.insert(current_offset + jmp_offset - 3);
+                block_start.insert(current_offset);
                 break;
             }
             case Bytecodes::_goto: {
@@ -241,8 +241,8 @@ void BlockGraph::build_graph() {
             case Bytecodes::_ifnonnull: {
                 int jmp_offset = (short)bs.get_u2();
                 current_offset = bs.get_offset();
-                make_block_at(current_offset, current);
                 make_block_at(current_offset + jmp_offset - 3, current);
+                make_block_at(current_offset, current);
                 current->set_end_offset(current_offset);
                 current = nullptr;
                 break;

@@ -274,17 +274,6 @@ class Bytecodes {
         _shouldnotreachhere, // For debugging
 
         number_of_codes,
-
-        // jportal defined codes
-        _jportal_bytecode,
-        _jportal_jitcode_entry,
-        _jportal_jitcode,
-        _jportal_method_entry,
-        _jportal_invoke_return_entry_points,
-        _jportal_throw_exception,
-        _jportal_exception_handling,
-        _jportal_deoptimization_entry_points,
-        _jportal_osr_entry_points,
     };
 
     enum class JmpType {

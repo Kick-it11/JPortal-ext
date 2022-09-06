@@ -324,11 +324,11 @@ int jit_section_read_debug_info(struct jit_section *section, uint64_t vaddr,
 
     if (vaddr < begin || vaddr >= end)
         return -pte_nomap;
-    
+
     for (int i = 0; i < section->record->numpcs; i++) {
         if (vaddr < section->record->pcinfo[i].pc) {
             pcinfo = &section->record->pcinfo[i];
-            return 1;
+            return i+1;
         }
     }
     return 0;

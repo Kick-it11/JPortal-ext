@@ -411,7 +411,7 @@ static void get_filter(string filter, map<string, set<string>> &filters) {
 
     int j = 0;
     for (; j < filter.length(); j++) {
-        if (filter[j] == ' ') {
+        if (filter[j] == '+') {
             klasses.push_back(filter.substr(pos, j-pos));
             pos = j+1;
         }
@@ -422,14 +422,14 @@ static void get_filter(string filter, map<string, set<string>> &filters) {
         string klass_name;
         length = klass.length();
         for (j = 0; j < length; j++) {
-            if (klass[j] == ':') {
+            if (klass[j] == '.') {
                 klass_name = klass.substr(0, j);
                 j++;
                 break;
             }
         }
         if (j == 0) continue;
-        else if (j == length && klass[j-1] != ':') klass_name = klass.substr(0, j);
+        else if (j == length && klass[j-1] != '.') klass_name = klass.substr(0, j);
         filters[klass_name];
         pos = j;
         for (; j < length; j++) {
@@ -460,7 +460,7 @@ int main(int argc, char **argv) {
             cout << "  usage: modifier [--help] [--enable/--diable \"filters\"/all]/[--random rate] path" << endl;
             cout << "    --help: Display this." << endl;
             cout << "    --enable or --disable: Enable or disable certain methods in specified files, \
-otherwise enable all. Method with classname[:methodname], classes separated by space,\
+otherwise enable all. Method with classname[.methodname][,methodname]+, classes separated by +,\
 methods separated by comma. Classname with zero methodnames specified means enable or diable all. \
 If neither of enable/disable/random is set, enable all. [Exclude each other and random]" << endl;
             cout << "    --random: Random enable method with percentage of 1/num. [Exclude with enable/diable]" << endl;

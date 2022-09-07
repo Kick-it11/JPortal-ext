@@ -488,7 +488,7 @@ Method *ClassFileParser::parse_method(const BufferStream *const stream,
     } // End of while
     // cout << "  " << method_name << method_signature << ": " << code_length
     //     << endl;
-    return new Method(method_name + method_signature, flags, code_start, code_length);
+    return new Method(method_name + method_signature, flags, code_start, code_length, _klass);
 }
 
 // Classfile attribute parsing

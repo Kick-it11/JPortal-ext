@@ -156,7 +156,7 @@ int main(int argc, char **argv) {
         string arg = argv[i++];
         if (arg == "-h") {
             cout << endl;
-            cout << "  usage: grapbc [--h] [-c classpath]+ -l logfile -o outputfile" << endl;
+            cout << "  usage: grapbc [--h] [-c classpath]+ -l logfile -o outputfile -m methodidx" << endl;
             cout << "    -h: Display this." << endl;
             cout << "    [-c classpath]+: Specify more than one classfile path." << endl;
             cout << "    -l logfile: Specify logfile." << endl;

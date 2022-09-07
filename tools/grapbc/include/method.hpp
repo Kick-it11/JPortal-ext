@@ -18,14 +18,15 @@ class Method {
     const u2     _code_length;
     u1*          _bctcode;
     int          _bctcode_length;
-
+    Klass&       _klass;
   public:
-    Method(string name_signature, const u2 flags, const u1 *const code_start, const u2 code_length);
+    Method(string name_signature, const u2 flags, const u1 *const code_start, const u2 code_length, Klass& klass);
     ~Method() { delete[] _code_start; _code_start = nullptr; delete _bctcode; _bctcode = nullptr; }
     bool   is_jportal() const { return (_flags & JPORTAL) == JPORTAL; }
     string get_name() const { return _name_signature; }
     const u1 code_at(int idx) const;
     const int bctcode_length() const { return _bctcode_length; }
+    const Klass& getKlass() const { return _klass; }
 };
 
 #endif // JAVA_METHOD_HPP

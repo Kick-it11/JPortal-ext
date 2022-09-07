@@ -5,8 +5,8 @@
 #include <cassert>
 
 Method::Method(string name_signature, const u2 flags, const u1 *const code_start,
-        const u2 code_length) :
-    _name_signature(name_signature), _flags(flags), _code_length(code_length) {
+        const u2 code_length, Klass& klass) :
+    _name_signature(name_signature), _flags(flags), _code_length(code_length), _klass(klass) {
     _code_start = new u1[_code_length];
     memcpy(_code_start, code_start, _code_length);
     _bctcode = (u1 *)malloc(_code_length * sizeof(u1));

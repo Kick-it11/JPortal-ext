@@ -83,13 +83,14 @@ class TraceDataRecord {
     u8 current_time = 0;
     ThreadSplit *thread= nullptr;
     const jit_section *last_section = nullptr;
+    Bytecodes::Code last_bytecode = Bytecodes::_illegal;
   public:
     TraceDataRecord(TraceData &_trace) :
         trace(_trace) {}
 
     int add_bytecode(u8 time, Bytecodes::Code bytecode);
 
-    int add_jitcode(u8 time, const jit_section *section, PCStackInfo *pc, bool entry);
+    int add_jitcode(u8 time, const jit_section *section, PCStackInfo *pc, u8 entry);
 
     int add_codelet(CodeletsEntry::Codelet codelet);
 

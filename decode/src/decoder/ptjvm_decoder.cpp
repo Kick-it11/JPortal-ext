@@ -1498,9 +1498,7 @@ static int handle_compiled_code_result(struct ptjvm_decoder *decoder,
     const CompiledMethodDesc *cmd = jit_section_cmd(section);
     if (!cmd)
       return 0;
-    record.add_jitcode(decoder->time, section, pcinfo, decoder->last_ip == cmd->get_entry_point()
-                        || decoder->last_ip == cmd->get_verified_entry_point()
-                        || decoder->last_ip == cmd->get_osr_entry_point());
+    record.add_jitcode(decoder->time, section, pcinfo, decoder->last_ip);
     decoder->pcinfo_tow = 0;
   }
   decoder->last_pcinfo = pcinfo;

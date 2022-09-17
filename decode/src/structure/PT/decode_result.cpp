@@ -115,13 +115,21 @@ int TraceDataRecord::add_bytecode(u8 time, Bytecodes::Code bytecode) {
 }
 
 int TraceDataRecord::add_jitcode(u8 time, const jit_section *section,
-                                 PCStackInfo *pc, bool entry) {
+                                 PCStackInfo *pc, u8 entry) {
     current_time = time;
     if (codelet_type != CodeletsEntry::_jitcode
         && codelet_type != CodeletsEntry::_jitcode_entry
-        || last_section != section) {
-        codelet_type = entry ? CodeletsEntry::_jitcode_entry :
-                               CodeletsEntry::_jitcode;
+        || last_section != section || entry == section->cmd->get_entry_point()
+        || entry == section->cmd->get_verified_entry_point()) {
+        if (entry == section->cmd->get_osr_entry_point()
+            && codelet_type == CodeletsEntry::_bytecode && (Bytecodes::is_branch(last_bytecode)
+            || last_bytecode == Bytecodes::_goto || last_bytecode == Bytecodes::_goto_w))
+            codelet_type = CodeletsEntry::_jitcode_osr_entry;
+        else if (entry == section->cmd->get_entry_point()
+                 || entry == section->cmd->get_verified_entry_point())
+            codelet_type = CodeletsEntry::_jitcode_entry;
+        else
+            codelet_type = CodeletsEntry::_jitcode;
         if (trace.write(&codelet_type, 1) < 0) {
             fprintf(stderr, "trace data record: fail to write.\n");
             return -1;

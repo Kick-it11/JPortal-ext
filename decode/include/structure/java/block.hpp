@@ -197,6 +197,11 @@ class BlockGraph {
         build_graph();
         return &_method_site;
     }
+    Block* block(int bci) {
+        if (!_bct_offset.count(bci))
+            return nullptr;
+        return _blocks[_block_id[_bct_offset[bci]]];
+    }
     const u1 *bctcode() const { return _bctcode; }
     const unordered_map<int, int> &bct_offset() const { return _bct_offset; }
     const vector<int> &block_id() const { return _block_id; }

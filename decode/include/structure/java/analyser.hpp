@@ -8,7 +8,6 @@
 using namespace std;
 
 class Analyser {
-  friend class Matcher;
   private:
     Config _config;
     map<string, Klass *> _Ks;

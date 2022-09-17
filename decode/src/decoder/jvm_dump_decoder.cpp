@@ -232,7 +232,7 @@ void JvmDumpDecoder::initialize(char *dump_data, Analyser* analyser) {
                 buffer += cm->scopes_pc_size;
                 scopes_data = (const uint8_t *)buffer;
                 buffer += cm->scopes_data_size;
-                if (cm->inline_method_cnt < 1 || !methods[0] || !methods[0]->is_jportal()) {
+                if (!mainm || !mainm->is_jportal()) {
                     fprintf(stderr, "JvmDumpDecoder: unknown or un-jportal section.\n");
                     break;
                 }

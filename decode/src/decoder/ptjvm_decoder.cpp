@@ -2262,7 +2262,7 @@ static int trace_file_handle(FILE *trace, size_t &begin, size_t &end,
   return 1;
 }
 
-#define SYNC_SPLIT_NUMBER 500
+#define SYNC_SPLIT_NUMBER 2000
 
 struct SBTracePart {
   list<pair<size_t, size_t>> sb_offsets;

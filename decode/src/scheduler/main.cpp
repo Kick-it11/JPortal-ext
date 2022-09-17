@@ -36,7 +36,7 @@ protected:
 void decode(const char *trace_data, Analyser* analyser, list<TraceData*> &traces) {
     if (!trace_data || !analyser)
         return;
- 
+
     map<int, list<TracePart>> traceparts;
     int errcode;
     errcode = ptjvm_split(trace_data, traceparts);

@@ -109,17 +109,17 @@ static void output_jitcode(TraceData* trace, TraceDataAccess& access, FILE* fp, 
     const PCStackInfo **pcs = nullptr;
     size_t size, new_loc;
     assert(trace->get_jit(loc, pcs, size, section, new_loc) && pcs && section && section->cmd);
-    const Method* method = section->cmd->mainm;
-    if (!method || !method->is_jportal()) return;
+    const Method* mainm = section->cmd->mainm;
+    assert(mainm && mainm->is_jportal());
     vector<u1> ans;
     if (codelet == CodeletsEntry::_jitcode_entry) {
-        JitMap* jm = new JitMap(section, method);
-        Block* start_b = method->get_bg()->block(0);
-        get_jitcode(method, start_b, ans);
-        jm->frames.push({method, {start_b, true}});
+        JitMap* jm = new JitMap(section, mainm);
+        Block* start_b = mainm->get_bg()->block(0);
+        get_jitcode(mainm, start_b, ans);
+        jm->frames.push({mainm, {start_b, true}});
         jm_st.push(jm);
     } else if (codelet == CodeletsEntry::_jitcode_osr_entry) {
-        JitMap* jm = new JitMap(section, method);
+        JitMap* jm = new JitMap(section, mainm);
         jm_st.push(jm);
     } else {
         while (!jm_st.empty() && jm_st.top()->section != section) {
@@ -128,7 +128,7 @@ static void output_jitcode(TraceData* trace, TraceDataAccess& access, FILE* fp, 
             jm_st.pop();
         }
         if (jm_st.empty()) {
-            JitMap* jm = new JitMap(section, method);
+            JitMap* jm = new JitMap(section, mainm);
             jm_st.push(jm);
         }
     }
@@ -136,20 +136,21 @@ static void output_jitcode(TraceData* trace, TraceDataAccess& access, FILE* fp, 
     unordered_set<Block*> execs;
     const Method* lm = nullptr;
     Block* lb = nullptr;
-    if (!jm->frames.empty()) execs.insert(jm->frames.top().second.first);
-    // todo: handle block -> block might also be a loop
+    if (!jm->frames.empty())
+        execs.insert(jm->frames.top().second.first);
     for (int i = 0; i < size; i++) {
         const PCStackInfo *pc = pcs[i];
         Block* prev_block = nullptr;
         for (int j = pc->numstackframes-1; j >= 0; --j) {
             int mi = pc->methods[j];
             int bci = pc->bcis[j];
-            method = section->cmd->get_method(mi);
+            const Method* method = section->cmd->get_method(mi);
             if (!method || !method->is_jportal()) continue;
             Block* block = method->get_bg()->block(bci);
 
             if (jm->frames.empty()) {
-                fprintf(stderr, "decode_output: an osr method or a match failure(%ld).\n", loc);
+                fprintf(stderr, "decode_output: an osr method or a match failure(%ld %s %s).\n", loc,
+                        mainm->get_klass()->get_name().c_str(), mainm->get_name().c_str());
                 if (!block) block = method->get_bg()->block(0);
                 get_jitcode(method, block, ans);
                 jm->frames.push({method, {block, true}});
@@ -172,7 +173,7 @@ static void output_jitcode(TraceData* trace, TraceDataAccess& access, FILE* fp, 
             prev_block = block;
         }
     }
-    map_jitcode(jm, lm, lb, ans);
+    if (execs.size() > 1 && !jm->execs.empty()) map_jitcode(jm, lm, lb, ans);
     for (auto code : ans) fprintf(fp, "%hhu\n", code);
 }
 
@@ -206,7 +207,7 @@ void decode_output(Analyser* analyser, list<TraceData*> &traces) {
     }
     for (auto iter = threads_data.begin(); iter != threads_data.end(); ++iter) {
         sort(iter->second.begin(), iter->second.end(),
-             [] (pair<ThreadSplit, TraceData*> x, pair<ThreadSplit, TraceData*> y) -> bool {
+             [] (pair<ThreadSplit, TraceData*>& x, pair<ThreadSplit, TraceData*>& y) -> bool {
                 return x.first.start_time < y.first.start_time
                        || x.first.start_time == y.first.start_time
                           &&  x.first.end_time < y.first.end_time;});

@@ -34,13 +34,11 @@ int TraceData::write(void *data, size_t size) {
     return 0;
 }
 
-bool TraceData::get_md(size_t loc, MethodDesc &md) {
-    auto iter = method_desc_map.find(loc);
-    if (iter != method_desc_map.end()) {
-        md = iter->second;
-        return true;
-    }
-    return false;
+const Method* TraceData::get_method_info(size_t loc) {
+    auto iter = method_info.find(loc);
+    if (iter != method_info.end())
+        return iter->second;
+    return nullptr;
 }
 
 bool TraceData::get_inter(size_t loc, const u1 *&codes, size_t &size,
@@ -201,9 +199,9 @@ int TraceDataRecord::add_codelet(CodeletsEntry::Codelet codelet) {
     }
 }
 
-void TraceDataRecord::add_method_desc(MethodDesc md) {
+void TraceDataRecord::add_method_info(const Method* method) {
     if (codelet_type == CodeletsEntry::_method_entry_points)
-        trace.method_desc_map[trace.data_end - trace.data_begin] = md;
+        trace.method_info[trace.data_end - trace.data_begin] = method;
     return;
 }
 

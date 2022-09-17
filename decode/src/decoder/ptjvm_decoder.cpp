@@ -256,9 +256,9 @@ static void ptjvm_dump_event(struct ptjvm_decoder *decoder,
       auto cmu = (JvmDumpDecoder::CompiledMethodUnloadInfo *)data;
       jit_image_remove(decoder->image, cmu->code_begin);
     } else if (type == JvmDumpDecoder::_method_entry) {
-      record.add_method_desc(*(MethodDesc *)data);
+      record.add_method_info(*((const Method **)data));
     } else if (type == JvmDumpDecoder::_method_exit) {
-      // record.add_method_desc(*((MethodDesc *)data));
+      continue;
     } else if (type == JvmDumpDecoder::_illegal) {
       break;
     } else if (type == JvmDumpDecoder::_thread_start) {

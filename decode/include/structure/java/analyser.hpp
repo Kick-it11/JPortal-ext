@@ -32,7 +32,8 @@ class Analyser {
     void analyse_call_graph();
     void analyse_all();
     void analyse_callback(const char *name);
-    const Klass *getKlass(string klassName);
+    const Klass *getKlass(string &klassName);
+    const Method *getMethod(string &klassName, string &methodName);
     const list<const Method *> *get_all_methods() { return &all_methods; };
     const list<const Method *> *get_callbacks() { return &callbacks; }
     const list<pair<int, const Method*>> *get_all_call_sites() { return &all_call_sites; }

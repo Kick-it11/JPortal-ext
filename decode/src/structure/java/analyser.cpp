@@ -11,22 +11,20 @@ Analyser::~Analyser() {
     }
 }
 
-const Klass *Analyser::getKlass(string klassName) {
+const Klass *Analyser::getKlass(string& klassName) {
+    if (!_is_parse_all)
+        parse_all();
     auto iter = _Ks.find(klassName);
     if (iter != _Ks.end()) {
         return iter->second;
-    } else if (!_is_parse_all) {
-        for (auto path : _config.classFilePaths) {
-            string file_path = path + "/" + klassName + ".class";
-            if (is_file_exist(file_path)) {
-                _Ks[klassName] = new Klass(klassName, true);
-                ClassFileParser cfp(file_path, *(_Ks[klassName]));
-                cfp.parse_class();
-                return _Ks[klassName];
-            }
-        }
     }
     return nullptr;
+}
+
+const Method* Analyser::getMethod(string& klassName, string& methodName) {
+    const Klass* klass = getKlass(klassName);
+    if (!klass) return nullptr;
+    return klass->getMethod(methodName);
 }
 
 void Analyser::parse_all() {
@@ -267,7 +265,8 @@ void Analyser::analyse_callback(const char *callback) {
     callbacks.clear();
     char klass_name[1024], name[1024];
     while (fscanf(fp, "%s %s", klass_name, name) == 2) {
-        const Klass *klass = getKlass(klass_name);
+        string klassName(klass_name);
+        const Klass *klass = getKlass(klassName);
         if (!klass) {
             fprintf(stderr, "Analyser: no klass named %s.\n", klass_name);
             continue;

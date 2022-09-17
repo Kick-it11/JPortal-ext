@@ -3,34 +3,71 @@
 
 #include <stdint.h>
 #include <string>
+#include <map>
 #include <unordered_map>
 #include "threads.hpp"
-#include "structure/PT/compiled_method_desc.hpp"
-#include "structure/PT/method_desc.hpp"
 #include "structure/java/type_defs.hpp"
  
 using namespace std;
 
+class Method;
 /*
  * Record that gives information about the methods on the compile-time
  * stack at a specific pc address of a compiled method. Each element in
  * the methods array maps to same element in the bcis array.
  */
-typedef struct _PCStackInfo {
-      uint64_t pc;             /* the pc address for this compiled method */
-      jint numstackframes;  /* number of methods on the stack */
-      jint* methods;   /* array of numstackframes method ids */
-      jint* bcis;           /* array of numstackframes bytecode indices */
-} PCStackInfo;
+struct PCStackInfo {
+    uint64_t pc;             /* the pc address for this compiled method */
+    jint numstackframes;  /* number of methods on the stack */
+    jint* methods;   /* array of numstackframes method ids */
+    jint* bcis;           /* array of numstackframes bytecode indices */
+};
 
 /*
  * Record that contains inlining information for each pc address of
  * an nmethod.
  */
-typedef struct _CompiledMethodLoadInlineRecord {
-      jint numpcs;          /* number of pc descriptors in this nmethod */
-      PCStackInfo* pcinfo;  /* array of numpcs pc descriptors */
-} CompiledMethodLoadInlineRecord;
+struct CompiledMethodLoadInlineRecord {
+    jint numpcs;          /* number of pc descriptors in this nmethod */
+    PCStackInfo* pcinfo;  /* array of numpcs pc descriptors */
+};
+
+struct CompiledMethodDesc {
+    uint64_t scopes_pc_size;
+    uint64_t scopes_data_size;
+    uint64_t entry_point;
+    uint64_t verified_entry_point;
+    uint64_t osr_entry_point;
+    int inline_method_cnt;
+    const Method* mainm;
+    map<int, const Method*> methods;
+    CompiledMethodDesc(uint64_t _scopes_pc_size, uint64_t _scopes_data_size,
+                       uint64_t _entry_point, uint64_t _verified_entry_point,
+                       uint64_t _osr_entry_point, int _inline_method_cnt,
+                       const Method* _mainm, map<int, const Method*>& _methods) :
+      scopes_pc_size(_scopes_pc_size),
+      scopes_data_size(_scopes_data_size),
+      entry_point(_entry_point),
+      verified_entry_point(_verified_entry_point),
+      osr_entry_point(_osr_entry_point),
+      inline_method_cnt(_inline_method_cnt),
+      mainm(_mainm), methods(_methods) {}
+
+    const Method* get_mainm () const {
+        return mainm;
+    }
+    const Method* get_method(int id) const {
+        auto iter = methods.find(id);
+        if (iter == methods.end()) return nullptr;
+        return iter->second;
+    }
+    uint64_t get_scopes_pc_size() const { return scopes_pc_size; }
+    uint64_t get_scopes_data_size() const { return scopes_data_size; }
+    uint64_t get_entry_point() const { return entry_point; }
+    uint64_t get_verified_entry_point() const { return verified_entry_point; }
+    uint64_t get_osr_entry_point() const { return osr_entry_point; }
+    int get_inline_method_cnt() const { return inline_method_cnt; }
+};
 
 /* A section of contiguous memory loaded from a file. */
 struct jit_section {

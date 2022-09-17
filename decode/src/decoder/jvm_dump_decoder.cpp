@@ -1,4 +1,5 @@
 #include "decoder/jvm_dump_decoder.hpp"
+#include "structure/java/analyser.hpp"
 #include "structure/PT/load_file.hpp"
 #include "structure/PT/jit_section.hpp"
 #include "structure/PT/codelets_entry.hpp"
@@ -9,9 +10,8 @@
 uint8_t *JvmDumpDecoder::begin = nullptr;
 uint8_t *JvmDumpDecoder::end = nullptr;
 map<long, long> JvmDumpDecoder::thread_map;
-map<int, MethodDesc *> JvmDumpDecoder::md_map;
+map<int, const Method*> JvmDumpDecoder::md_map;
 map<const uint8_t *, jit_section *> JvmDumpDecoder::section_map;
-map<const uint8_t *, CompiledMethodDesc *> JvmDumpDecoder::cmd_map;
 
 JvmDumpDecoder::DumpInfoType JvmDumpDecoder::dumper_event(uint64_t time, long tid,
                                                 const void *&data) {
@@ -119,7 +119,7 @@ long JvmDumpDecoder::get_java_tid(long tid) {
     return iter->second;
 }
 
-void JvmDumpDecoder::initialize(char *dump_data) {
+void JvmDumpDecoder::initialize(char *dump_data, Analyser* analyser) {
     uint8_t *buffer;
     size_t size;
     uint64_t foffset, fsize;
@@ -183,12 +183,12 @@ void JvmDumpDecoder::initialize(char *dump_data) {
                 buffer += me->klass_name_length;
                 const char *name = (const char *)buffer;
                 buffer += me->method_name_length;
-                const char *signature = (const char *)buffer;
+                const char *sig = (const char *)buffer;
                 buffer += me->method_signature_length;
-                MethodDesc *md = new MethodDesc(me->klass_name_length,
-                        me->method_name_length, me->method_signature_length,
-                        klass_name, name, signature);
-                md_map[me->idx] = md;
+                string klassName = string(klass_name, me->klass_name_length);
+                string methodName = string(name, me->method_name_length)+string(sig, me->method_signature_length);
+                const Method* method = analyser->getMethod(klassName, methodName);
+                md_map[me->idx] = method;
                 break;
             }
             case _method_entry: {
@@ -207,8 +207,8 @@ void JvmDumpDecoder::initialize(char *dump_data) {
                 const CompiledMethodLoadInfo *cm;
                 cm = (const CompiledMethodLoadInfo*)buffer;
                 buffer += sizeof(CompiledMethodLoadInfo);
-                map<int, MethodDesc> method_desc;
-                MethodDesc main_md;
+                const Method* mainm = nullptr;
+                map<int, const Method*> methods;
                 for (int i = 0; i < cm->inline_method_cnt; i++) {
                     const InlineMethodInfo*imi;
                     imi = (const InlineMethodInfo*)buffer;
@@ -217,15 +217,13 @@ void JvmDumpDecoder::initialize(char *dump_data) {
                     buffer += imi->klass_name_length;
                     const char *name = (const char *)buffer;
                     buffer += imi->name_length;
-                    const char *signature = (const char *)buffer;
+                    const char *sig = (const char *)buffer;
                     buffer += imi->signature_length;
-                    MethodDesc md(
-                            imi->klass_name_length, imi->name_length,
-                            imi->signature_length, klass_name, 
-                            name, signature);
-                    if (i == 0)
-                        main_md = md;
-                    method_desc.insert(make_pair(imi->method_index, md));
+                    string klassName = string(klass_name, imi->klass_name_length);
+                    string methodName = string(name, imi->name_length)+string(sig, imi->signature_length);
+                    const Method* method = analyser->getMethod(klassName, methodName);
+                    if (i == 0) mainm = method;
+                    methods[imi->method_index] = method;
                 }
                 const uint8_t *insts, *scopes_pc, *scopes_data;
                 insts = (const uint8_t *)buffer;
@@ -233,10 +231,14 @@ void JvmDumpDecoder::initialize(char *dump_data) {
                 scopes_pc = (const uint8_t *)buffer;
                 buffer += cm->scopes_pc_size;
                 scopes_data = (const uint8_t *)buffer;
-                buffer += cm->scopes_data_size;                
+                buffer += cm->scopes_data_size;
+                if (cm->inline_method_cnt < 1 || !methods[0] || !methods[0]->is_jportal()) {
+                    fprintf(stderr, "JvmDumpDecoder: unknown or un-jportal section.\n");
+                    break;
+                }
                 CompiledMethodDesc *cmd = new CompiledMethodDesc(cm->scopes_pc_size,
                       cm->scopes_data_size, cm->entry_point, cm->verified_entry_point,
-                      cm->osr_entry_point, cm->inline_method_cnt, main_md, method_desc);
+                      cm->osr_entry_point, cm->inline_method_cnt, mainm, methods);
                 jit_section *section;
                 int errcode = jit_mk_section(&section, insts, cm->code_begin, cm->code_size,
                                                 scopes_pc, scopes_data, cmd, nullptr);
@@ -253,7 +255,6 @@ void JvmDumpDecoder::initialize(char *dump_data) {
                     break;
                 }
                 section_map[buffer] = section;
-                cmd_map[buffer] = cmd;
                 break;
             }
             case _compiled_method_unload: {
@@ -297,10 +298,6 @@ void JvmDumpDecoder::destroy() {
     for (auto md : md_map)
         delete md.second;
     md_map.clear();
-
-    for (auto cmd : cmd_map)
-        delete cmd.second;
-    cmd_map.clear();
 
     free(begin);
     begin = nullptr;

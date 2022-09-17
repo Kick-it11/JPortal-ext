@@ -6,8 +6,8 @@
 using namespace std;
 
 struct jit_section;
-class CompiledMethodDesc;
-class MethodDesc;
+class Analyser;
+class Method;
 
 class JvmDumpDecoder {
   public:
@@ -126,7 +126,7 @@ class JvmDumpDecoder {
     DumpInfoType dumper_event(uint64_t time, long tid, const void *&data);
     long get_java_tid(long tid);
 
-    static void initialize(char *dump_data);
+    static void initialize(char *dump_data, Analyser* anslyser);
     static void destroy();
 
   private:
@@ -136,9 +136,8 @@ class JvmDumpDecoder {
     static uint8_t *end;
     /* map between system thread id & java thread id */
     static map<long, long> thread_map;
-    static map<int, MethodDesc *> md_map;
+    static map<int, const Method*> md_map;
     static map<const uint8_t *, jit_section *> section_map;
-    static map<const uint8_t *, CompiledMethodDesc *> cmd_map;
 };
 
 #endif

@@ -109,12 +109,7 @@ static void output_jitcode(TraceData* trace, TraceDataAccess& access, FILE* fp, 
     const PCStackInfo **pcs = nullptr;
     size_t size, new_loc;
     assert(trace->get_jit(loc, pcs, size, section, new_loc) && pcs && section && section->cmd);
-    const CompiledMethodDesc *cmd = section->cmd;
-    string klass_name, name, sig;
-    cmd->get_main_method_desc(klass_name, name, sig);
-    const Klass* klass = analyser->getKlass(klass_name);
-    if (!klass) return;
-    const Method* method = klass->getMethod(name+sig);
+    const Method* method = section->cmd->mainm;
     if (!method || !method->is_jportal()) return;
     vector<u1> ans;
     if (codelet == CodeletsEntry::_jitcode_entry) {
@@ -149,10 +144,7 @@ static void output_jitcode(TraceData* trace, TraceDataAccess& access, FILE* fp, 
         for (int j = pc->numstackframes-1; j >= 0; --j) {
             int mi = pc->methods[j];
             int bci = pc->bcis[j];
-            assert(cmd->get_method_desc(mi, klass_name, name, sig));
-            klass = analyser->getKlass(klass_name);
-            if (!klass) continue;
-            method = klass->getMethod(name+sig);
+            method = section->cmd->get_method(mi);
             if (!method || !method->is_jportal()) continue;
             Block* block = method->get_bg()->block(bci);
 

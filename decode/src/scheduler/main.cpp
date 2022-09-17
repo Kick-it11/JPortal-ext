@@ -144,11 +144,12 @@ int main(int argc, char **argv) {
     ///* Initializing *///
     cout<<"Initializing..."<<endl;
     Bytecodes::initialize();
-    JvmDumpDecoder::initialize(dump_data);
     Analyser* analyser = new Analyser(class_config);
     analyser->analyse_all();
     if (callback)
         analyser->analyse_callback(callback);
+
+    JvmDumpDecoder::initialize(dump_data, analyser);
     cout<<"Initializing completed."<<endl;
 
     ///* Decoding *///

@@ -175,8 +175,10 @@ void jit_section_free(struct jit_section *section) {
         free(section->record);
     }
 
+    delete section->cmd;
+
     free(section);
-    
+
     return;
 }
 

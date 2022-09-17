@@ -3,7 +3,6 @@
 
 #include "structure/java/type_defs.hpp"
 #include "structure/java/bytecodes.hpp"
-#include "structure/PT/method_desc.hpp"
 #include "structure/PT/codelets_entry.hpp"
 #include "structure/PT/jit_section.hpp"
 
@@ -11,6 +10,8 @@
 #include <stack>
 #include <list>
 #include <vector>
+
+class Method;
 
 using namespace std;
 
@@ -47,7 +48,7 @@ class TraceData {
     u1 *data_begin = nullptr;
     u1 *data_end = nullptr;
     size_t data_volume = 0;
-    unordered_map<size_t, MethodDesc> method_desc_map;
+    unordered_map<size_t, const Method*> method_info;
 
     unordered_map<long, list<ThreadSplit>> thread_map;
 
@@ -61,7 +62,7 @@ class TraceData {
 
     unordered_map<long, list<ThreadSplit>> &get_thread_map() { return thread_map; }
 
-    bool get_md(size_t loc, MethodDesc &md);
+    const Method* get_method_info(size_t loc);
 
     bool get_inter(size_t loc, const u1* &codes, size_t &size, size_t &new_loc);
 
@@ -69,8 +70,6 @@ class TraceData {
                     const jit_section *&section, size_t &new_loc);
 
     bool get_inter(size_t loc, vector<size_t> &loc_list);
-
-    unordered_map<size_t, MethodDesc> &get_method_desc_map() { return method_desc_map; }
 
     void output();
 };
@@ -94,7 +93,7 @@ class TraceDataRecord {
 
     int add_codelet(CodeletsEntry::Codelet codelet);
 
-    void add_method_desc(MethodDesc md);
+    void add_method_info(const Method* method);
 
     void switch_out(bool loss);
 

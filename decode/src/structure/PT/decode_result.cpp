@@ -41,8 +41,7 @@ const Method* TraceData::get_method_info(size_t loc) {
     return nullptr;
 }
 
-bool TraceData::get_inter(size_t loc, const u1 *&codes, size_t &size,
-                          size_t &new_loc) {
+bool TraceData::get_inter(size_t loc, const u1 *&codes, size_t &size) {
     const u1 *pointer = data_begin + loc;
     if (pointer > data_end)
         return false;
@@ -59,12 +58,10 @@ bool TraceData::get_inter(size_t loc, const u1 *&codes, size_t &size,
         return false;
     codes = pointer;
     size = inter->size;
-    new_loc = pointer - data_begin + inter->size;
     return true;
 }
 
-bool TraceData::get_jit(size_t loc, const PCStackInfo **&codes, size_t &size,
-                        const jit_section *&section, size_t &new_loc) {
+bool TraceData::get_jit(size_t loc, const PCStackInfo **&codes, size_t &size, const jit_section *&section) {
     const u1 *pointer = data_begin + loc;
     if (pointer > data_end)
         return false;
@@ -84,7 +81,6 @@ bool TraceData::get_jit(size_t loc, const PCStackInfo **&codes, size_t &size,
     codes = (const PCStackInfo **)pointer;
     size = jit->size;
     section = jit->section;
-    new_loc = pointer - data_begin + jit->size * sizeof(PCStackInfo *);
     return true;
 }
 

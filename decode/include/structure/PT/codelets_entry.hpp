@@ -39,12 +39,12 @@ class CodeletsEntry {
             _throw_NullPointerException_entry_points,
             _throw_StackOverflowError_entry_points,
             _method_entry_points,
+            _deopt_entry_points,
+            _deopt_reexecute_return_entry_points,
             _bytecode,
             _jitcode_entry,
             _jitcode_osr_entry,
             _jitcode,
-            _deopt_entry_points,
-            _deopt_reexecute_return_entry_points
         };
 
     private:

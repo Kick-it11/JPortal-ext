@@ -64,12 +64,9 @@ class TraceData {
 
     const Method* get_method_info(size_t loc);
 
-    bool get_inter(size_t loc, const u1* &codes, size_t &size, size_t &new_loc);
+    bool get_inter(size_t loc, const u1* &codes, size_t &size);
 
-    bool get_jit(size_t loc, const PCStackInfo**&codes, size_t &size,
-                    const jit_section *&section, size_t &new_loc);
-
-    bool get_inter(size_t loc, vector<size_t> &loc_list);
+    bool get_jit(size_t loc, const PCStackInfo**&codes, size_t &size, const jit_section *&section);
 
     void output();
 };

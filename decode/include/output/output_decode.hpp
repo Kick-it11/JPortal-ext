@@ -4,9 +4,8 @@
 #include <list>
 using namespace std;
 
-class Analyser;
 class TraceData;
 
-void decode_output(Analyser* analyser, list<TraceData*> &traces);
+void output_decode(list<TraceData*> &traces);
 
 #endif 

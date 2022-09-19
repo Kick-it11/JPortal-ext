@@ -8,7 +8,7 @@
 #include "structure/PT/decode_result.hpp"
 #include "decoder/ptjvm_decoder.hpp"
 #include "decoder/jvm_dump_decoder.hpp"
-#include "output/decode_output.hpp"
+#include "output/output_decode.hpp"
 
 class DecodeTask: public Task {
 private:
@@ -76,8 +76,6 @@ void decode(const char *trace_data, Analyser* analyser, list<TraceData*> &traces
         if (worker_count==0)
             break;
     }
-
-    decode_output(analyser, traces);
 }
 
 int main(int argc, char **argv) {
@@ -156,6 +154,9 @@ int main(int argc, char **argv) {
     cout<<"Decoding..."<<endl;
     decode(trace_data, analyser, traces);
     cout<<"Decoding completed."<<endl;
+
+    ///* Output Decode *///
+    output_decode(traces);
 
     ///* Exit *///
     for (auto trace : traces) {

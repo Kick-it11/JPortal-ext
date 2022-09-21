@@ -10,12 +10,148 @@
 #include <algorithm>
 #include <cassert>
 
-class ExecMap {
+class ExecInfo {
 public:
-    const jit_section* section;
-    list<pair<const Method*, Block*>> prev_frame;
-    ExecMap(): section(nullptr) { }
-    ExecMap(const jit_section* s): section(s) { }
+    const jit_section* section; // jit_section, nullptr indicates a segment of inter codes
+    vector<pair<const Method*, Block*>> prev_frame;
+    ExecInfo(): section(nullptr) { }
+    ExecInfo(const jit_section* s): section(s) { }
+};
+
+class JitMatchTree {
+private:
+    const Method* method;
+    map<Block*, int> seqs;
+    JitMatchTree* father;
+    map<Block*, JitMatchTree*> children;
+
+    bool match_next(Block* cur, vector<pair<const Method*, Block*>>& ans) {
+        vector<pair<int, Block*>> vv;
+        unordered_set<Block*> ss;
+        queue<pair<int, Block*>> q;
+        vector<pair<int, int>> find_next;
+        int find_end = -1;
+        while (!q.empty()) {
+            Block* blc = q.front().second;
+            int idx = vv.size();
+            vv.push_back({q.front().first, blc});
+            q.pop();
+            if (blc->get_succs_size() == 0) {
+                if (find_end == -1) find_end = idx;
+                continue;
+            }
+            for (auto iter = blc->get_succs_begin(); iter != blc->get_succs_end(); ++iter) {
+                if (ss.count(*iter)) continue;
+                ss.insert(*iter);
+                if (seqs.count(*iter)) {
+                    find_next.push_back({seqs[*iter], vv.size()});
+                    vv.push_back({idx, *iter});
+                } else {
+                    q.push({idx, *iter});
+                }
+            }
+        }
+        list<pair<const Method*, Block*>> blocks;
+        auto iter = min_element(find_next.begin(), find_next.end());
+        int idx = find_next.empty() ? find_end : iter->second;
+        while (idx > 0) {
+            blocks.push_front({method, vv[idx].second});
+            idx = vv[idx].first;
+        }
+        ans.insert(ans.end(), blocks.begin(), blocks.end());
+        return !blocks.empty();
+    }
+
+public:
+    JitMatchTree(const Method* m, JitMatchTree* f) : method(m), father(f) {}
+    ~JitMatchTree() {
+        for (auto&& child : children)
+            delete child.second;
+    }
+
+    void insert(vector<pair<const Method*, Block*>>& execs, int seq, int idx) {
+        if (idx >= execs.size())
+            return;
+        const Method* m = execs[idx].first;
+        Block* b = execs[idx].second;
+        assert(m == method);
+        if (!seqs.count(b))
+            seqs[b] = seq;
+        if (idx == execs.size()-1)
+            return;
+        if (!children.count(b))
+            children[b] = new JitMatchTree(execs[idx+1].first, this);
+        children[b]->insert(execs, seq, idx+1);
+    }
+
+    void match(vector<pair<const Method*, Block*>>& frame, int idx,
+               set<Block*>& notVisited, vector<pair<const Method*, Block*>>& ans) {
+        BlockGraph* bg = method->get_bg();
+        Block* cur = nullptr;
+        if (idx >= frame.size()) {
+            cur = bg->block(0);
+            frame.push_back({method, cur});
+        } else if (idx == frame.size()-1) {
+            cur = frame[idx].second;
+        } else {
+            cur = frame[idx].second;
+            if (children.count(cur)) {
+                notVisited.erase(cur);
+                children[cur]->match(frame, idx+1, notVisited, ans);
+            } else {
+                return_frame(frame, frame.size()-idx-1, ans);
+            }
+        }
+
+        while (notVisited.size()) {
+            if (children.count(cur))
+                children[cur]->match(frame, idx+1, notVisited, ans);
+            if (!match_next(cur, ans)) {
+                frame.pop_back();
+                break;
+            } else {
+                cur = ans.back().second;
+                notVisited.erase(cur);
+            }
+        }
+    }
+
+    static void return_method(const Method* method, Block* cur, vector<pair<const Method*, Block*>>& ans) {
+        vector<pair<int, Block*>> vv;
+        unordered_set<Block*> ss;
+        queue<pair<int, Block*>> q;
+        vector<pair<int, int>> find_next;
+        int find_end = -1;
+        while (!q.empty()) {
+            Block* blc = q.front().second;
+            int idx = vv.size();
+            vv.push_back({q.front().first, blc});
+            q.pop();
+            if (blc->get_succs_size() == 0)
+                break;
+            for (auto iter = blc->get_succs_begin(); iter != blc->get_succs_end(); ++iter) {
+                if (ss.count(*iter)) continue;
+                ss.insert(*iter);
+                q.push({idx, *iter});
+            }
+        }
+        list<pair<const Method*, Block*>> blocks;
+        int idx = vv.size()-1;
+        while (idx > 0) {
+            blocks.push_front({method, vv[idx].second});
+            idx = vv[idx].first;
+        }
+        ans.insert(ans.end(), blocks.begin(), blocks.end());
+        return;
+    }
+
+    static void return_frame(vector<pair<const Method*, Block*>>& frame, int count, vector<pair<const Method*, Block*>>& blocks) {
+        assert(count <= frame.size());
+        for (int i = 0; i < count; ++i) {
+            return_method(frame.back().first, frame.back().second, blocks);
+            frame.pop_back();
+        }
+    }
 };
 
 static bool output_bytecode(FILE* fp, const u1* codes, size_t size) {
@@ -37,28 +173,29 @@ static void output_jitcode(FILE* fp, const Method* method, Block* blc) {
     }
 }
 
-static void output_jitcode(FILE* fp, list<pair<const Method*, Block*>>& blocks) {
+static void output_jitcode(FILE* fp, vector<pair<const Method*, Block*>>& blocks) {
     for (auto block : blocks)
         output_jitcode(fp, block.first, block.second);
 }
 
-// // todo: find a shortest path to pass all blocks in block_execs
-static bool map_jitcode(ExecMap* jm, set<pair<const Method*, Block*>> &block_execs) {
-}
-
-static bool handle_jitcode(ExecMap* exec, const PCStackInfo **pcs, int size, FILE* fp) {
+static bool handle_jitcode(ExecInfo* exec, const PCStackInfo **pcs, int size,
+                           vector<pair<const Method*, Block*>>& ans) {
     const jit_section* section = exec->section;
     set<const PCStackInfo*> pc_execs;
-    set<pair<const Method*, Block*>> block_execs;
+    set<Block*> block_execs;
     bool notRetry = true;
+    JitMatchTree* tree = new JitMatchTree(section->cmd->mainm, nullptr);
     for (int i = 0; i < size; ++i) {
         const PCStackInfo* pc = pcs[i];
         if (pc_execs.count(pc)) {
-            map_jitcode(exec, block_execs);
-            pc_execs.clear();
+            tree->match(exec->prev_frame, 0, block_execs, ans);
+            delete tree;
+            tree = new JitMatchTree(section->cmd->mainm, nullptr);
             block_execs.clear();
+            pc_execs.clear();
         }
         pc_execs.insert(pc);
+        vector<pair<const Method*, Block*>> frame;
         for (int j = pc->numstackframes-1; j >= 0; --j) {
             int mi = pc->methods[j];
             int bci = pc->bcis[j];
@@ -66,29 +203,32 @@ static bool handle_jitcode(ExecMap* exec, const PCStackInfo **pcs, int size, FIL
             if (!method || !method->is_jportal()) continue;
             Block* block = method->get_bg()->block(bci);
             if (!block) continue;
-            if (exec->prev_frame.empty()) {
-                notRetry = false;
-                output_jitcode(fp, method, block);
-                exec->prev_frame.push_back({method, block});
-                pc_execs.clear();
-                block_execs.clear();
-            } else {
-                block_execs.insert({method, block});
-            }
+            frame.push_back({method, block});
+            block_execs.insert(block);
+        }
+        if (exec->prev_frame.empty()) {
+            ans.insert(ans.end(), frame.begin(), frame.end());
+            exec->prev_frame = frame;
+            block_execs.clear();
+            notRetry = false;
+        } else {
+            tree->insert(frame, i, 0);
         }
     }
-    map_jitcode(exec, block_execs);
+    tree->match(exec->prev_frame, 0, block_execs, ans);
+    delete tree;
     return notRetry;
 }
 
-static void output_return(FILE* fp, stack<ExecMap*> &exec_st, const jit_section* section) {
+static void return_exec(stack<ExecInfo*> &exec_st, const jit_section* section,
+                        vector<pair<const Method*, Block*>>& ans) {
     while (!exec_st.empty() && exec_st.top()->section != section) {
-
-        // return
-        // todo: map
+        JitMatchTree::return_frame(exec_st.top()->prev_frame, exec_st.top()->prev_frame.size(), ans);
+        delete exec_st.top();
+        exec_st.pop();
     }
     if (exec_st.empty()) {
-        exec_st.push(new ExecMap(section));
+        exec_st.push(new ExecInfo(section));
     }
 }
 
@@ -96,17 +236,17 @@ static void output_trace(TraceData* trace, size_t start, size_t end, FILE* fp) {
     TraceDataAccess access(*trace, start, end);
     CodeletsEntry::Codelet codelet, prev_codelet = CodeletsEntry::_illegal;
     size_t loc;
-    stack<ExecMap*> exec_st;
+    stack<ExecInfo*> exec_st;
     while (access.next_trace(codelet, loc)) {
         switch(codelet) {
             default: {
                 fprintf(stderr, "output_trace: unknown codelet(%d)\n", codelet);
-                exec_st = stack<ExecMap*>();
+                exec_st = stack<ExecInfo*>();
                 break;
             }
             case CodeletsEntry::_method_entry_points: {
                 if (exec_st.empty() || exec_st.top()->section)
-                    exec_st.push(new ExecMap(nullptr));
+                    exec_st.push(new ExecInfo(nullptr));
                 break;
             }
             case CodeletsEntry::_throw_ArrayIndexOutOfBoundsException_entry_points:
@@ -128,7 +268,7 @@ static void output_trace(TraceData* trace, size_t start, size_t end, FILE* fp) {
                     exec_st.pop();
                 }
                 if (exec_st.empty() || exec_st.top()->section)
-                    exec_st.push(new ExecMap(nullptr));
+                    exec_st.push(new ExecInfo(nullptr));
                 break;
             }
             case CodeletsEntry::_throw_exception_entry_points: {
@@ -149,7 +289,9 @@ static void output_trace(TraceData* trace, size_t start, size_t end, FILE* fp) {
                 const u1* codes;
                 size_t size;
                 assert(trace->get_inter(loc, codes, size) && codes);
-                output_return(fp, exec_st, nullptr);
+                vector<pair<const Method*, Block*>> blocks;
+                return_exec(exec_st, nullptr, blocks);
+                output_jitcode(fp, blocks);
                 output_bytecode(fp, codes, size);
             }
             case CodeletsEntry::_jitcode_entry:
@@ -160,19 +302,21 @@ static void output_trace(TraceData* trace, size_t start, size_t end, FILE* fp) {
                 size_t size;
                 assert(trace->get_jit(loc, pcs, size, section)
                        && pcs && section && section->cmd);
+                vector<pair<const Method*, Block*>> blocks;
                 if (codelet == CodeletsEntry::_jitcode_entry) {
-                    ExecMap* exec = new ExecMap(section);
+                    ExecInfo* exec = new ExecInfo(section);
                     const Method* method = section->cmd->mainm;
                     Block* block = method->get_bg()->block(0);
-                    output_jitcode(fp, method, block);
+                    blocks.push_back({method, block});
                     exec_st.push(exec);
                 } else if (codelet == CodeletsEntry::_jitcode_osr_entry) {
-                    ExecMap* exec = new ExecMap(section);
+                    ExecInfo* exec = new ExecInfo(section);
                     exec_st.push(exec);
                 } else {
-                    output_return(fp, exec_st, section);
+                    return_exec(exec_st, section, blocks);
                 }
-                handle_jitcode(exec_st.top(), pcs, size, fp);
+                handle_jitcode(exec_st.top(), pcs, size, blocks);
+                output_jitcode(fp, blocks);
             }
         }
     }

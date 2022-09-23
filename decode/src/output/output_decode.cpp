@@ -31,6 +31,8 @@ private:
         queue<pair<int, Block*>> q;
         vector<pair<int, int>> find_next;
         int find_end = -1;
+        q.push({-1, cur});
+        ss.insert(cur);
         while (!q.empty()) {
             Block* blc = q.front().second;
             int idx = vv.size();
@@ -52,8 +54,11 @@ private:
             }
         }
         list<pair<const Method*, Block*>> blocks;
-        auto iter = min_element(find_next.begin(), find_next.end());
-        int idx = find_next.empty() ? find_end : iter->second;
+        int idx = find_end;
+        if (!find_next.empty()) {
+            idx = min_element(find_next.begin(), find_next.end())->second;
+            seqs.erase(vv[idx].second);
+        }
         while (idx > 0) {
             blocks.push_front({method, vv[idx].second});
             idx = vv[idx].first;
@@ -85,73 +90,86 @@ public:
     }
 
     void match(vector<pair<const Method*, Block*>>& frame, int idx,
-               set<Block*>& notVisited, vector<pair<const Method*, Block*>>& ans) {
+               set<pair<const Method*, Block*>>& notVisited, vector<pair<const Method*, Block*>>& ans) {
         BlockGraph* bg = method->get_bg();
         Block* cur = nullptr;
+        notVisited.erase({method, nullptr});
         if (idx >= frame.size()) {
             cur = bg->block(0);
             frame.push_back({method, cur});
-        } else if (idx == frame.size()-1) {
-            cur = frame[idx].second;
+            ans.push_back({method, cur});
+            notVisited.erase({method, cur});
         } else {
             cur = frame[idx].second;
-            if (children.count(cur)) {
-                notVisited.erase(cur);
-                children[cur]->match(frame, idx+1, notVisited, ans);
-            } else {
-                return_frame(frame, frame.size()-idx-1, ans);
+            notVisited.erase({method, cur});
+            if (idx != frame.size()-1 && !children.count(cur)) {
+                for (int i = 0; i < frame.size()-idx-1; ++i)
+                    frame.pop_back();
             }
         }
 
         while (notVisited.size()) {
             if (children.count(cur))
                 children[cur]->match(frame, idx+1, notVisited, ans);
+            if (!notVisited.size())
+                break;
             if (!match_next(cur, ans)) {
                 frame.pop_back();
-                break;
+                return;
             } else {
                 cur = ans.back().second;
-                notVisited.erase(cur);
+                frame[idx] = ans.back();
+                notVisited.erase({method, cur});
             }
         }
+
+        // while (idx == frame.size()-1 && cur->get_succs_size() == 1
+        //     && !Bytecodes::is_invoke(Bytecodes::cast(*(bg->bctcode()+cur->get_bct_codeend()-1)))) {
+        //     ans.push_back({method, *cur->get_succs_begin()});
+        //     cur = ans.back().second;
+        //     frame[idx] = ans.back();
+        //     notVisited.erase({method, cur});
+        // }
     }
 
-    static void return_method(const Method* method, Block* cur, vector<pair<const Method*, Block*>>& ans) {
-        vector<pair<int, Block*>> vv;
-        unordered_set<Block*> ss;
-        queue<pair<int, Block*>> q;
-        vector<pair<int, int>> find_next;
-        int find_end = -1;
-        while (!q.empty()) {
-            Block* blc = q.front().second;
-            int idx = vv.size();
-            vv.push_back({q.front().first, blc});
-            q.pop();
-            if (blc->get_succs_size() == 0)
-                break;
-            for (auto iter = blc->get_succs_begin(); iter != blc->get_succs_end(); ++iter) {
-                if (ss.count(*iter)) continue;
-                ss.insert(*iter);
-                q.push({idx, *iter});
-            }
-        }
-        list<pair<const Method*, Block*>> blocks;
-        int idx = vv.size()-1;
-        while (idx > 0) {
-            blocks.push_front({method, vv[idx].second});
-            idx = vv[idx].first;
-        }
-        ans.insert(ans.end(), blocks.begin(), blocks.end());
-        return;
-    }
+    // static void return_method(const Method* method, Block* cur, vector<pair<const Method*, Block*>>& ans) {
+    //     vector<pair<int, Block*>> vv;
+    //     unordered_set<Block*> ss;
+    //     queue<pair<int, Block*>> q;
+    //     vector<pair<int, int>> find_next;
+    //     int find_end = -1;
+    //     q.push({0, cur});
+    //     ss.insert(cur);
+    //     while (!q.empty()) {
+    //         Block* blc = q.front().second;
+    //         int idx = vv.size();
+    //         vv.push_back({q.front().first, blc});
+    //         q.pop();
+    //         if (blc->get_succs_size() == 0)
+    //             break;
+    //         for (auto iter = blc->get_succs_begin(); iter != blc->get_succs_end(); ++iter) {
+    //             if (ss.count(*iter)) continue;
+    //             ss.insert(*iter);
+    //             q.push({idx, *iter});
+    //         }
+    //     }
+    //     list<pair<const Method*, Block*>> blocks;
+    //     int idx = vv.size()-1;
+    //     while (idx > 0) {
+    //         blocks.push_front({method, vv[idx].second});
+    //         idx = vv[idx].first;
+    //     }
+    //     ans.insert(ans.end(), blocks.begin(), blocks.end());
+    //     return;
+    // }
 
-    static void return_frame(vector<pair<const Method*, Block*>>& frame, int count, vector<pair<const Method*, Block*>>& blocks) {
-        assert(count <= frame.size());
-        for (int i = 0; i < count; ++i) {
-            return_method(frame.back().first, frame.back().second, blocks);
-            frame.pop_back();
-        }
-    }
+    // static void return_frame(vector<pair<const Method*, Block*>>& frame, int count, vector<pair<const Method*, Block*>>& blocks) {
+    //     assert(count <= frame.size());
+    //     for (int i = 0; i < count; ++i) {
+    //         return_method(frame.back().first, frame.back().second, blocks);
+    //         frame.pop_back();
+    //     }
+    // }
 };
 
 static bool output_bytecode(FILE* fp, const u1* codes, size_t size) {
@@ -182,7 +200,7 @@ static bool handle_jitcode(ExecInfo* exec, const PCStackInfo **pcs, int size,
                            vector<pair<const Method*, Block*>>& ans) {
     const jit_section* section = exec->section;
     set<const PCStackInfo*> pc_execs;
-    set<Block*> block_execs;
+    set<pair<const Method*, Block*>> block_execs;
     bool notRetry = true;
     JitMatchTree* tree = new JitMatchTree(section->cmd->mainm, nullptr);
     for (int i = 0; i < size; ++i) {
@@ -204,7 +222,7 @@ static bool handle_jitcode(ExecInfo* exec, const PCStackInfo **pcs, int size,
             Block* block = method->get_bg()->block(bci);
             if (!block) continue;
             frame.push_back({method, block});
-            block_execs.insert(block);
+            block_execs.insert({method, block});
         }
         if (exec->prev_frame.empty()) {
             ans.insert(ans.end(), frame.begin(), frame.end());
@@ -223,7 +241,7 @@ static bool handle_jitcode(ExecInfo* exec, const PCStackInfo **pcs, int size,
 static void return_exec(stack<ExecInfo*> &exec_st, const jit_section* section,
                         vector<pair<const Method*, Block*>>& ans) {
     while (!exec_st.empty() && exec_st.top()->section != section) {
-        JitMatchTree::return_frame(exec_st.top()->prev_frame, exec_st.top()->prev_frame.size(), ans);
+        // JitMatchTree::return_frame(exec_st.top()->prev_frame, exec_st.top()->prev_frame.size(), ans);
         delete exec_st.top();
         exec_st.pop();
     }
@@ -293,6 +311,7 @@ static void output_trace(TraceData* trace, size_t start, size_t end, FILE* fp) {
                 return_exec(exec_st, nullptr, blocks);
                 output_jitcode(fp, blocks);
                 output_bytecode(fp, codes, size);
+                break;
             }
             case CodeletsEntry::_jitcode_entry:
             case CodeletsEntry::_jitcode_osr_entry:
@@ -308,6 +327,7 @@ static void output_trace(TraceData* trace, size_t start, size_t end, FILE* fp) {
                     const Method* method = section->cmd->mainm;
                     Block* block = method->get_bg()->block(0);
                     blocks.push_back({method, block});
+                    exec->prev_frame.push_back({method, block});
                     exec_st.push(exec);
                 } else if (codelet == CodeletsEntry::_jitcode_osr_entry) {
                     ExecInfo* exec = new ExecInfo(section);
@@ -317,6 +337,7 @@ static void output_trace(TraceData* trace, size_t start, size_t end, FILE* fp) {
                 }
                 handle_jitcode(exec_st.top(), pcs, size, blocks);
                 output_jitcode(fp, blocks);
+                break;
             }
         }
     }

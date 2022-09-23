@@ -67,6 +67,7 @@ bool TraceData::get_jit(size_t loc, const PCStackInfo **&codes, size_t &size, co
         return false;
     CodeletsEntry::Codelet codelet = CodeletsEntry::Codelet(*pointer);
     if (codelet != CodeletsEntry::_jitcode_entry &&
+        codelet != CodeletsEntry::_jitcode_osr_entry &&
         codelet != CodeletsEntry::_jitcode)
         return false;
     pointer++;
@@ -113,6 +114,7 @@ int TraceDataRecord::add_jitcode(u8 time, const jit_section *section,
     current_time = time;
     if (codelet_type != CodeletsEntry::_jitcode
         && codelet_type != CodeletsEntry::_jitcode_entry
+        && codelet_type != CodeletsEntry::_jitcode_osr_entry
         || last_section != section || entry == section->cmd->get_entry_point()
         || entry == section->cmd->get_verified_entry_point()) {
         if (entry == section->cmd->get_osr_entry_point()
@@ -246,7 +248,7 @@ bool TraceDataAccess::next_trace(CodeletsEntry::Codelet &codelet, size_t &loc) {
     }
     codelet = CodeletsEntry::Codelet(*current);
     if (codelet < CodeletsEntry::_unimplemented_bytecode_entry_points ||
-        codelet > CodeletsEntry::_deopt_reexecute_return_entry_points) {
+        codelet > CodeletsEntry::_jitcode) {
         fprintf(stderr, "trace data access: format error %ld.\n", loc);
         current = terminal;
         loc = current - trace.data_begin;
@@ -264,6 +266,7 @@ bool TraceDataAccess::next_trace(CodeletsEntry::Codelet &codelet, size_t &loc) {
         }
         current = current + sizeof(InterRecord) + inter->size;
     } else if (codelet == CodeletsEntry::_jitcode_entry ||
+               codelet == CodeletsEntry::_jitcode_osr_entry ||
                codelet == CodeletsEntry::_jitcode) {
         const JitRecord *jit = (const JitRecord *)current;
         if (current + sizeof(JitRecord) + jit->size * sizeof(PCStackInfo *) > trace.data_end

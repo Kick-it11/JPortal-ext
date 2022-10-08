@@ -67,37 +67,12 @@ private:
         return !blocks.empty();
     }
 
-public:
-    JitMatchTree(const Method* m, JitMatchTree* f) : method(m), father(f) {}
-    ~JitMatchTree() {
-        for (auto&& child : children)
-            delete child.second;
-    }
-
-    void insert(vector<pair<const Method*, Block*>>& execs, int seq, int idx) {
-        if (idx >= execs.size())
-            return;
-        const Method* m = execs[idx].first;
-        Block* b = execs[idx].second;
-        assert(m == method);
-        if (!seqs.count(b))
-            seqs[b] = seq;
-        if (idx == execs.size()-1)
-            return;
-        if (!children.count(b))
-            children[b] = new JitMatchTree(execs[idx+1].first, this);
-        children[b]->insert(execs, seq, idx+1);
-    }
-
-    void match(vector<pair<const Method*, Block*>>& frame, int idx,
-               set<pair<const Method*, Block*>>& notVisited, vector<pair<const Method*, Block*>>& ans) {
-        BlockGraph* bg = method->get_bg();
+    void skip_match(vector<pair<const Method*, Block*>>& frame, int idx,
+                    set<pair<const Method*, Block*>>& notVisited,
+                    vector<pair<const Method*, Block*>>& ans) {
         Block* cur = nullptr;
-        notVisited.erase({method, nullptr});
         if (idx >= frame.size()) {
-            cur = bg->block(0);
             frame.push_back({method, cur});
-            ans.push_back({method, cur});
             notVisited.erase({method, cur});
         } else {
             cur = frame[idx].second;
@@ -106,6 +81,68 @@ public:
                 for (int i = 0; i < frame.size()-idx-1; ++i)
                     frame.pop_back();
             }
+        }
+
+        while (!seqs.empty()) {
+            auto iter = min_element(seqs.begin(), seqs.end(), [](pair<Block*, int>&& l, pair<Block*, int>&& r)
+                                    ->bool { return l.second < r.second; });
+            cur = iter->first;
+            notVisited.erase({method, cur});
+            seqs.erase(iter);
+            if (children.count(cur))
+                children[cur]->match(frame, idx+1, notVisited, ans);
+        }
+
+        if (idx == frame.size()-1)
+            frame.pop_back();
+    }
+
+public:
+    JitMatchTree(const Method* m, JitMatchTree* f) : method(m), father(f) {}
+    ~JitMatchTree() {
+        for (auto&& child : children)
+            delete child.second;
+    }
+
+    bool insert(vector<pair<const Method*, Block*>>& execs, int seq, int idx) {
+        if (idx >= execs.size())
+            return true;
+        const Method* m = execs[idx].first;
+        Block* b = execs[idx].second;
+        if (m != method)
+            return false;
+        if (idx < execs.size()-1) {
+            if (!children.count(b))
+                children[b] = new JitMatchTree(execs[idx+1].first, this);
+            if (!children[b]->insert(execs, seq, idx+1))
+                return false;
+        }
+        if (!seqs.count(b))
+            seqs[b] = seq;
+        return true;
+    }
+
+    void match(vector<pair<const Method*, Block*>>& frame, int idx,
+               set<pair<const Method*, Block*>>& notVisited, vector<pair<const Method*, Block*>>& ans) {
+        notVisited.erase({method, nullptr});
+        if (!method || !method->is_jportal())
+            return skip_match(frame, idx, notVisited, ans);
+
+        BlockGraph* bg = method->get_bg();
+        Block* cur = nullptr;
+        if (idx < frame.size() && frame[idx].first != method)
+            return_frame(frame, frame.size()-idx, ans);
+        if (idx >= frame.size()) {
+            cur = bg->block(0);
+            frame.push_back({method, cur});
+            ans.push_back({method, cur});
+            notVisited.erase({method, cur});
+        } else {
+            cur = frame[idx].second;
+            if (!cur) cur = bg->block(0);
+            notVisited.erase({method, cur});
+            if (idx < frame.size()-1 && !children.count(cur))
+                return_frame(frame, frame.size()-idx-1, ans);
         }
 
         while (notVisited.size()) {
@@ -123,53 +160,46 @@ public:
             }
         }
 
-        // while (idx == frame.size()-1 && cur->get_succs_size() == 1
-        //     && !Bytecodes::is_invoke(Bytecodes::cast(*(bg->bctcode()+cur->get_bct_codeend()-1)))) {
-        //     ans.push_back({method, *cur->get_succs_begin()});
-        //     cur = ans.back().second;
-        //     frame[idx] = ans.back();
-        //     notVisited.erase({method, cur});
-        // }
     }
 
-    // static void return_method(const Method* method, Block* cur, vector<pair<const Method*, Block*>>& ans) {
-    //     vector<pair<int, Block*>> vv;
-    //     unordered_set<Block*> ss;
-    //     queue<pair<int, Block*>> q;
-    //     vector<pair<int, int>> find_next;
-    //     int find_end = -1;
-    //     q.push({0, cur});
-    //     ss.insert(cur);
-    //     while (!q.empty()) {
-    //         Block* blc = q.front().second;
-    //         int idx = vv.size();
-    //         vv.push_back({q.front().first, blc});
-    //         q.pop();
-    //         if (blc->get_succs_size() == 0)
-    //             break;
-    //         for (auto iter = blc->get_succs_begin(); iter != blc->get_succs_end(); ++iter) {
-    //             if (ss.count(*iter)) continue;
-    //             ss.insert(*iter);
-    //             q.push({idx, *iter});
-    //         }
-    //     }
-    //     list<pair<const Method*, Block*>> blocks;
-    //     int idx = vv.size()-1;
-    //     while (idx > 0) {
-    //         blocks.push_front({method, vv[idx].second});
-    //         idx = vv[idx].first;
-    //     }
-    //     ans.insert(ans.end(), blocks.begin(), blocks.end());
-    //     return;
-    // }
+    static void return_method(const Method* method, Block* cur, vector<pair<const Method*, Block*>>& ans) {
+        vector<pair<int, Block*>> vv;
+        unordered_set<Block*> ss;
+        queue<pair<int, Block*>> q;
+        vector<pair<int, int>> find_next;
+        int find_end = -1;
+        q.push({0, cur});
+        ss.insert(cur);
+        while (!q.empty()) {
+            Block* blc = q.front().second;
+            int idx = vv.size();
+            vv.push_back({q.front().first, blc});
+            q.pop();
+            if (blc->get_succs_size() == 0)
+                break;
+            for (auto iter = blc->get_succs_begin(); iter != blc->get_succs_end(); ++iter) {
+                if (ss.count(*iter)) continue;
+                ss.insert(*iter);
+                q.push({idx, *iter});
+            }
+        }
+        list<pair<const Method*, Block*>> blocks;
+        int idx = vv.size()-1;
+        while (idx > 0) {
+            blocks.push_front({method, vv[idx].second});
+            idx = vv[idx].first;
+        }
+        ans.insert(ans.end(), blocks.begin(), blocks.end());
+        return;
+    }
 
-    // static void return_frame(vector<pair<const Method*, Block*>>& frame, int count, vector<pair<const Method*, Block*>>& blocks) {
-    //     assert(count <= frame.size());
-    //     for (int i = 0; i < count; ++i) {
-    //         return_method(frame.back().first, frame.back().second, blocks);
-    //         frame.pop_back();
-    //     }
-    // }
+    static void return_frame(vector<pair<const Method*, Block*>>& frame, int count, vector<pair<const Method*, Block*>>& blocks) {
+        assert(count <= frame.size());
+        for (int i = 0; i < count; ++i) {
+            return_method(frame.back().first, frame.back().second, blocks);
+            frame.pop_back();
+        }
+    }
 };
 
 static bool output_bytecode(FILE* fp, const u1* codes, size_t size) {
@@ -182,18 +212,18 @@ static bool output_bytecode(FILE* fp, const u1* codes, size_t size) {
     return true;
 }
 
-static void output_jitcode(FILE* fp, const Method* method, Block* blc) {
-    const u1* codes = method->get_bg()->bctcode();
-    for (int i = blc->get_bct_codebegin(); i < blc->get_bct_codeend(); ++i) {
-        // fwrite(codes+i, 1, 1, fp);
-        fprintf(fp, "%hhu\n", *(codes+i));
-        // fprintf(fp, "%s\n", Bytecodes::name_for(Bytecodes::cast(*(codes+i))));
-    }
-}
-
 static void output_jitcode(FILE* fp, vector<pair<const Method*, Block*>>& blocks) {
-    for (auto block : blocks)
-        output_jitcode(fp, block.first, block.second);
+    for (auto block : blocks) {
+        const Method* method = block.first;
+        Block* blc = block.second;
+        assert(method && method->is_jportal() && blc);
+        const u1* codes = method->get_bg()->bctcode();
+        for (int i = blc->get_bct_codebegin(); i < blc->get_bct_codeend(); ++i) {
+            // fwrite(codes+i, 1, 1, fp);
+            fprintf(fp, "%hhu\n", *(codes+i));
+            // fprintf(fp, "%s\n", Bytecodes::name_for(Bytecodes::cast(*(codes+i))));
+        }
+    }
 }
 
 static bool handle_jitcode(ExecInfo* exec, const PCStackInfo **pcs, int size,
@@ -203,45 +233,47 @@ static bool handle_jitcode(ExecInfo* exec, const PCStackInfo **pcs, int size,
     set<pair<const Method*, Block*>> block_execs;
     bool notRetry = true;
     JitMatchTree* tree = new JitMatchTree(section->cmd->mainm, nullptr);
+    auto call_match = [&exec, &tree, &block_execs, &pc_execs, &ans, section] (bool newtree) -> void {
+        tree->match(exec->prev_frame, 0, block_execs, ans);
+        delete tree;
+        tree = newtree? new JitMatchTree(section->cmd->mainm, nullptr) : nullptr;
+        block_execs.clear();
+        pc_execs.clear();
+    };
     for (int i = 0; i < size; ++i) {
         const PCStackInfo* pc = pcs[i];
-        if (pc_execs.count(pc)) {
-            tree->match(exec->prev_frame, 0, block_execs, ans);
-            delete tree;
-            tree = new JitMatchTree(section->cmd->mainm, nullptr);
-            block_execs.clear();
-            pc_execs.clear();
-        }
-        pc_execs.insert(pc);
+        if (pc_execs.count(pc))
+            call_match(true);
         vector<pair<const Method*, Block*>> frame;
         for (int j = pc->numstackframes-1; j >= 0; --j) {
             int mi = pc->methods[j];
             int bci = pc->bcis[j];
             const Method* method = section->cmd->get_method(mi);
-            if (!method || !method->is_jportal()) continue;
-            Block* block = method->get_bg()->block(bci);
-            if (!block) continue;
+            Block* block = (method && method->is_jportal())? method->get_bg()->block(bci) : (Block*)(long long)bci;
             frame.push_back({method, block});
             block_execs.insert({method, block});
         }
         if (exec->prev_frame.empty()) {
-            ans.insert(ans.end(), frame.begin(), frame.end());
+            for (auto blc : frame)
+                if (blc.first && blc.first->is_jportal() && blc.second)
+                    ans.push_back(blc);
             exec->prev_frame = frame;
             block_execs.clear();
             notRetry = false;
-        } else {
+        } else if (!tree->insert(frame, i, 0)) {
+            call_match(true);
             tree->insert(frame, i, 0);
         }
+        pc_execs.insert(pc);
     }
-    tree->match(exec->prev_frame, 0, block_execs, ans);
-    delete tree;
+    call_match(false);
     return notRetry;
 }
 
 static void return_exec(stack<ExecInfo*> &exec_st, const jit_section* section,
                         vector<pair<const Method*, Block*>>& ans) {
     while (!exec_st.empty() && exec_st.top()->section != section) {
-        // JitMatchTree::return_frame(exec_st.top()->prev_frame, exec_st.top()->prev_frame.size(), ans);
+        JitMatchTree::return_frame(exec_st.top()->prev_frame, exec_st.top()->prev_frame.size(), ans);
         delete exec_st.top();
         exec_st.pop();
     }
@@ -340,6 +372,11 @@ static void output_trace(TraceData* trace, size_t start, size_t end, FILE* fp) {
                 break;
             }
         }
+    }
+    while (!exec_st.empty()) {
+        JitMatchTree::return_frame(exec_st.top()->prev_frame, exec_st.top()->prev_frame.size(), ans);
+        delete exec_st.top();
+        exec_st.pop();
     }
 }
 

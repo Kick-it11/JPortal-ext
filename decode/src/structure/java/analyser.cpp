@@ -1,7 +1,7 @@
 #include "structure/java/analyser.hpp"
 #include "structure/java/classFileParser.hpp"
 #include "structure/common.hpp"
-#include "structure/PT/codelets_entry.hpp"
+#include "structure/java-pt/codelets_entry.hpp"
 #include <dirent.h>
 
 Analyser::Analyser(string configFile) : _config(configFile) {}

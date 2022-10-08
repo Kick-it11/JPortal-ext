@@ -1,9 +1,9 @@
-#include "structure/PT/jit_section.hpp"
-#include "structure/PT/jit_image.hpp"
+#include "structure/java-pt/jit_section.hpp"
+#include "structure/java-pt/jit_image.hpp"
+#include "structure/pt/pt.hpp"
 
 #include <stdlib.h>
 #include <string.h>
-#include <intel-pt.h>
 
 static char *dupstr(const char *str)
 {

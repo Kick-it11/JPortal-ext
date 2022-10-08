@@ -1,9 +1,9 @@
-#include "structure/PT/pt_insn.hpp"
-#include "structure/PT/pt_ild.hpp"
-#include "structure/PT/jit_section.hpp"
-#include "structure/PT/jit_image.hpp"
+#include "structure/java-pt/pt_insn.hpp"
+#include "structure/java-pt/pt_ild.hpp"
+#include "structure/java-pt/jit_section.hpp"
+#include "structure/java-pt/jit_image.hpp"
 
-#include <intel-pt.h>
+#include <structure/pt/pt.hpp>
 
 int pt_insn_changes_cpl(const struct pt_insn *insn,
             const struct pt_insn_ext *iext)

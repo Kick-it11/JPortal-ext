@@ -1,8 +1,8 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 2.8)
 project(new-decode)
 
 set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti -g -pthread")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti -g -pthread -std=c++11")
 
 set(LIBIPT_INCLUDE "" CACHE PATH "")
 set(LIBIPT_LIBDIR "" CACHE PATH "")
@@ -15,5 +15,4 @@ target_link_libraries(decode
   output_lib
   decoder_lib
   structure_lib
-  ipt
 )

@@ -1,4 +1,4 @@
-#include "structure/PT/decode_result.hpp"
+#include "structure/java-pt/decode_result.hpp"
 #include "structure/java/method.hpp"
 #include "structure/java/klass.hpp"
 #include "structure/java/analyser.hpp"
@@ -374,7 +374,9 @@ static void output_trace(TraceData* trace, size_t start, size_t end, FILE* fp) {
         }
     }
     while (!exec_st.empty()) {
-        JitMatchTree::return_frame(exec_st.top()->prev_frame, exec_st.top()->prev_frame.size(), ans);
+        vector<pair<const Method*, Block*>> blocks;
+        JitMatchTree::return_frame(exec_st.top()->prev_frame, exec_st.top()->prev_frame.size(), blocks);
+        output_jitcode(fp, blocks);
         delete exec_st.top();
         exec_st.pop();
     }
@@ -391,7 +393,7 @@ void output_decode(list<TraceData*> &traces) {
     
     for (auto iter = threads_data.begin(); iter != threads_data.end(); ++iter)
         sort(iter->second.begin(), iter->second.end(),
-             [] (pair<ThreadSplit, TraceData*>& x, pair<ThreadSplit, TraceData*>& y) -> bool {
+             [] (const pair<ThreadSplit, TraceData*>& x, const pair<ThreadSplit, TraceData*>& y) -> bool {
                 return x.first.start_time < y.first.start_time
                        || x.first.start_time == y.first.start_time
                           &&  x.first.end_time < y.first.end_time;});

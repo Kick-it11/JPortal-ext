@@ -22,9 +22,9 @@
  *
  */
 
-#include "structure/PT/pcDesc.hpp"
-#include "structure/PT/scopeDesc.hpp"
-#include "structure/PT/compressedStream.hpp"
+#include "structure/java-pt/pcDesc.hpp"
+#include "structure/java-pt/scopeDesc.hpp"
+#include "structure/java-pt/compressedStream.hpp"
 
 const int serialized_null = 0;
 const int InvocationEntryBci   = -1;

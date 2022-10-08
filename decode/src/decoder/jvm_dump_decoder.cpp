@@ -1,8 +1,8 @@
 #include "decoder/jvm_dump_decoder.hpp"
 #include "structure/java/analyser.hpp"
-#include "structure/PT/load_file.hpp"
-#include "structure/PT/jit_section.hpp"
-#include "structure/PT/codelets_entry.hpp"
+#include "structure/java-pt/load_file.hpp"
+#include "structure/java-pt/jit_section.hpp"
+#include "structure/java-pt/codelets_entry.hpp"
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>

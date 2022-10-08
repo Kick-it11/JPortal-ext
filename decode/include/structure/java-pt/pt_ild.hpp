@@ -1,7 +1,7 @@
 #ifndef PT_ILD_HPP
 #define PT_ILD_HPP
 
-#include <intel-pt.h>
+#include <structure/pt/pt.hpp>
 
 
 typedef enum {

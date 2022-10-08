@@ -1,8 +1,8 @@
-#include "structure/PT/jit_section.hpp"
-#include "structure/PT/pcDesc.hpp"
-#include "structure/PT/scopeDesc.hpp"
-#include "structure/PT/compressedStream.hpp"
-#include <intel-pt.h>
+#include "structure/java-pt/jit_section.hpp"
+#include "structure/java-pt/pcDesc.hpp"
+#include "structure/java-pt/scopeDesc.hpp"
+#include "structure/java-pt/compressedStream.hpp"
+#include <structure/pt/pt.hpp>
 #include <stdlib.h>
 
 int create_inline_record(CompiledMethodLoadInlineRecord *record,

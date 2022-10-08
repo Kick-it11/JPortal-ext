@@ -7,13 +7,14 @@
 #include "decoder/jvm_dump_decoder.hpp"
 #include "decoder/ptjvm_decoder.hpp"
 #include "decoder/sideband_decoder.hpp"
-#include "structure/PT/codelets_entry.hpp"
-#include "structure/PT/decode_result.hpp"
-#include "structure/PT/jit_image.hpp"
-#include "structure/PT/jit_section.hpp"
-#include "structure/PT/load_file.hpp"
-#include "structure/PT/pt_ild.hpp"
-#include "structure/PT/pt_insn.hpp"
+#include "structure/pt/pt_config.hpp"
+#include "structure/java-pt/codelets_entry.hpp"
+#include "structure/java-pt/decode_result.hpp"
+#include "structure/java-pt/jit_image.hpp"
+#include "structure/java-pt/jit_section.hpp"
+#include "structure/java-pt/load_file.hpp"
+#include "structure/java-pt/pt_ild.hpp"
+#include "structure/java-pt/pt_insn.hpp"
 #include "structure/java/analyser.hpp"
 
 #define PERF_RECORD_AUXTRACE 71
@@ -340,117 +341,6 @@ static inline size_t pt_filter_addr_ncfg(void) {
   return (sizeof(struct pt_conf_addr_filter) -
           offsetof(struct pt_conf_addr_filter, addr0_a)) /
          (2 * sizeof(uint64_t));
-}
-
-uint32_t pt_filter_addr_cfg(const struct pt_conf_addr_filter *filter,
-                            uint8_t n) {
-  if (!filter)
-    return 0u;
-
-  if (pt_filter_addr_ncfg() <= n)
-    return 0u;
-
-  return (filter->config.addr_cfg >> (4 * n)) & 0xf;
-}
-
-uint64_t pt_filter_addr_a(const struct pt_conf_addr_filter *filter, uint8_t n) {
-  const uint64_t *addr;
-
-  if (!filter)
-    return 0ull;
-
-  if (pt_filter_addr_ncfg() <= n)
-    return 0ull;
-
-  addr = &filter->addr0_a;
-  return addr[2 * n];
-}
-
-uint64_t pt_filter_addr_b(const struct pt_conf_addr_filter *filter, uint8_t n) {
-  const uint64_t *addr;
-
-  if (!filter)
-    return 0ull;
-
-  if (pt_filter_addr_ncfg() <= n)
-    return 0ull;
-
-  addr = &filter->addr0_a;
-  return addr[(2 * n) + 1];
-}
-
-static int pt_filter_check_cfg_filter(const struct pt_conf_addr_filter *filter,
-                                      uint64_t addr) {
-  uint8_t n;
-
-  if (!filter)
-    return -pte_internal;
-
-  for (n = 0; n < pt_filter_addr_ncfg(); ++n) {
-    uint64_t addr_a, addr_b;
-    uint32_t addr_cfg;
-
-    addr_cfg = pt_filter_addr_cfg(filter, n);
-    if (addr_cfg != pt_addr_cfg_filter)
-      continue;
-
-    addr_a = pt_filter_addr_a(filter, n);
-    addr_b = pt_filter_addr_b(filter, n);
-
-    /* Note that both A and B are inclusive. */
-    if ((addr_a <= addr) && (addr <= addr_b))
-      return 1;
-  }
-
-  /* No filter hit.  If we have at least one FilterEn filter, this means
-   * that tracing is disabled; otherwise, tracing is enabled.
-   */
-  for (n = 0; n < pt_filter_addr_ncfg(); ++n) {
-    uint32_t addr_cfg;
-
-    addr_cfg = pt_filter_addr_cfg(filter, n);
-    if (addr_cfg == pt_addr_cfg_filter)
-      return 0;
-  }
-
-  return 1;
-}
-
-static int pt_filter_check_cfg_stop(const struct pt_conf_addr_filter *filter,
-                                    uint64_t addr) {
-  uint8_t n;
-
-  if (!filter)
-    return -pte_internal;
-
-  for (n = 0; n < pt_filter_addr_ncfg(); ++n) {
-    uint64_t addr_a, addr_b;
-    uint32_t addr_cfg;
-
-    addr_cfg = pt_filter_addr_cfg(filter, n);
-    if (addr_cfg != pt_addr_cfg_stop)
-      continue;
-
-    addr_a = pt_filter_addr_a(filter, n);
-    addr_b = pt_filter_addr_b(filter, n);
-
-    /* Note that both A and B are inclusive. */
-    if ((addr_a <= addr) && (addr <= addr_b))
-      return 0;
-  }
-
-  return 1;
-}
-
-static int pt_filter_addr_check(const struct pt_conf_addr_filter *filter,
-                                uint64_t addr) {
-  int status;
-
-  status = pt_filter_check_cfg_stop(filter, addr);
-  if (status <= 0)
-    return status;
-
-  return pt_filter_check_cfg_filter(filter, addr);
 }
 
 static int pt_insn_at_skl014(const struct pt_event *ev,

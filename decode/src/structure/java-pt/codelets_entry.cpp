@@ -1,4 +1,4 @@
-#include "structure/PT/codelets_entry.hpp"
+#include "structure/java-pt/codelets_entry.hpp"
 
 #include <cstdio>
 

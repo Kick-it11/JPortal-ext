@@ -3,7 +3,7 @@
 
 #include <inttypes.h>
 
-#include <intel-pt.h>
+#include <structure/pt/pt.hpp>
 
 struct pt_insn_ext;
 

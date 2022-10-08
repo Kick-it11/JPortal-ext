@@ -5,7 +5,7 @@
 #include "structure/task/worker.hpp"
 #include "structure/task/task_manager.hpp"
 #include "structure/java/analyser.hpp"
-#include "structure/PT/decode_result.hpp"
+#include "structure/java-pt/decode_result.hpp"
 #include "decoder/ptjvm_decoder.hpp"
 #include "decoder/jvm_dump_decoder.hpp"
 #include "output/output_decode.hpp"

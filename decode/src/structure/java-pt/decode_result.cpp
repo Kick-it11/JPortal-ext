@@ -1,4 +1,4 @@
-#include "structure/PT/decode_result.hpp"
+#include "structure/java-pt/decode_result.hpp"
 
 #include <stdlib.h>
 #include <string.h>

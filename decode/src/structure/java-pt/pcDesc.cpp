@@ -1,4 +1,4 @@
-#include "structure/PT/pcDesc.hpp"
+#include "structure/java-pt/pcDesc.hpp"
 
 PcDesc::PcDesc(int pc_offset, int scope_decode_offset, int obj_decode_offset) {
   _pc_offset           = pc_offset;

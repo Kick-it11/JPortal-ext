@@ -1,4 +1,4 @@
-#include "structure/java/classFileParser.hpp"
+#include "structure/java/class_file_parser.hpp"
 
 #define JAVA_CLASSFILE_MAGIC 0xCAFEBABE
 #define JAVA_MIN_SUPPORTED_VERSION 45

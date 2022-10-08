@@ -25,7 +25,7 @@
 #ifndef SHARE_VM_CODE_SCOPEDESC_HPP
 #define SHARE_VM_CODE_SCOPEDESC_HPP
 
-#include "pcDesc.hpp"
+#include "pc_desc.hpp"
 
 typedef unsigned char u_char;
 // ScopeDescs contain the information that makes source-level debugging of

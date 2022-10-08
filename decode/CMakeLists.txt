@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8)
-project(new-decode)
+project(decode)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti -g -pthread -std=c++11")

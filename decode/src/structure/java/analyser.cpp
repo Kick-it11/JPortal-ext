@@ -1,5 +1,5 @@
 #include "structure/java/analyser.hpp"
-#include "structure/java/classFileParser.hpp"
+#include "structure/java/class_file_parser.hpp"
 #include "structure/common.hpp"
 #include "structure/java-pt/codelets_entry.hpp"
 #include <dirent.h>

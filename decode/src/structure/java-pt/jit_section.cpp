@@ -1,7 +1,7 @@
 #include "structure/java-pt/jit_section.hpp"
-#include "structure/java-pt/pcDesc.hpp"
-#include "structure/java-pt/scopeDesc.hpp"
-#include "structure/java-pt/compressedStream.hpp"
+#include "structure/java-pt/pc_desc.hpp"
+#include "structure/java-pt/scope_desc.hpp"
+#include "structure/java-pt/compressed_stream.hpp"
 #include <structure/pt/pt.hpp>
 #include <stdlib.h>
 

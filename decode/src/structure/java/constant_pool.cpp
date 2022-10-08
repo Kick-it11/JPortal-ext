@@ -1,4 +1,4 @@
-#include "structure/java/constantPool.hpp"
+#include "structure/java/constant_pool.hpp"
 
 const string ConstantPool::symbol_at(int which) {
     switch (_constants[which]->tag()) {

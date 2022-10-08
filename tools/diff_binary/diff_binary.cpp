@@ -400,7 +400,7 @@ class MyersDiff {
 
 int main(int argc, char** argv) {
     if (argc != 3) {
-        fprintf(stderr, "diff_binary: arguments error.\n\t\t diff_binary acc_file decode_file");
+        fprintf(stderr, "diff_binary: arguments error.\n\t\t diff_binary acc_file decode_file\n");
         return 1;
     }
     char* acc_file = argv[1];

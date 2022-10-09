@@ -3,7 +3,7 @@
 
 #include <map>
 
-using namespace std;
+using std::map;
 
 struct jit_section;
 class Analyser;

@@ -7,15 +7,15 @@
 #include "decoder/jvm_dump_decoder.hpp"
 #include "decoder/ptjvm_decoder.hpp"
 #include "decoder/sideband_decoder.hpp"
-#include "structure/pt/pt_config.hpp"
-#include "structure/java-pt/codelets_entry.hpp"
-#include "structure/java-pt/decode_result.hpp"
-#include "structure/java-pt/jit_image.hpp"
-#include "structure/java-pt/jit_section.hpp"
-#include "structure/java-pt/load_file.hpp"
-#include "structure/java-pt/pt_ild.hpp"
-#include "structure/java-pt/pt_insn.hpp"
-#include "structure/java/analyser.hpp"
+#include "pt/pt_config.hpp"
+#include "java-pt/codelets_entry.hpp"
+#include "java-pt/decode_result.hpp"
+#include "java-pt/jit_image.hpp"
+#include "java-pt/jit_section.hpp"
+#include "java-pt/load_file.hpp"
+#include "java-pt/pt_ild.hpp"
+#include "java-pt/pt_insn.hpp"
+#include "java/analyser.hpp"
 
 #define PERF_RECORD_AUXTRACE 71
 #define PERF_RECORD_AUX_ADVANCE 72
@@ -197,7 +197,7 @@ static void ptjvm_add_ic(struct ptjvm_decoder *decoder,
   if (jit_image_find(decoder->image, &section, src) < 0)
     return;
 
-  (*decoder->ics)[make_pair(src, section)] = dest;
+  (*decoder->ics)[{src, section}] = dest;
 
   jit_section_put(section);
 
@@ -212,7 +212,7 @@ static void ptjvm_clear_ic(struct ptjvm_decoder *decoder, uint64_t src) {
   if (jit_image_find(decoder->image, &section, src) < 0)
     return;
 
-  auto iter = decoder->ics->find(make_pair(src, section));
+  auto iter = decoder->ics->find({src, section});
   if (iter == decoder->ics->end())
     return;
   decoder->ics->erase(iter);
@@ -227,7 +227,7 @@ static bool ptjvm_get_ic(struct ptjvm_decoder *decoder,
   if (!decoder || !decoder->ics || !decoder->image)
     return false;
 
-  auto iter = decoder->ics->find(make_pair(ip, section));
+  auto iter = decoder->ics->find({ip, section});
   if (iter == decoder->ics->end())
     return false;
   ip = iter->second;
@@ -2316,12 +2316,12 @@ int ptjvm_split(const char *trace_data, map<int, list<TracePart>> &splits) {
           coarse_traceparts[cpu_id].first.push_back(PTTracePart());
         }
         coarse_traceparts[cpu_id].first.back().pt_offsets.push_back(
-            make_pair(begin, end));
+            {begin, end});
         coarse_traceparts[cpu_id].first.back().pt_size += (end - begin);
       }
     } else {
       coarse_traceparts[cpu_id].second.sb_offsets.push_back(
-          make_pair(begin, end));
+          {begin, end});
       coarse_traceparts[cpu_id].second.sb_size += (end - begin);
     }
   }

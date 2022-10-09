@@ -2,7 +2,7 @@
 #define PT_JVM_DECODER_HPP
 
 #include <list>
-using namespace std;
+using std::list;
 
 class Analyser;
 class TraceDataRecord;

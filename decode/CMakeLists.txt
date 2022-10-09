@@ -4,15 +4,20 @@ project(decode)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti -g -pthread -std=c++11")
 
-set(LIBIPT_INCLUDE "" CACHE PATH "")
-set(LIBIPT_LIBDIR "" CACHE PATH "")
-
 include_directories(include)
-add_subdirectory(src)
 
-add_executable(decode src/scheduler/main.cpp)
-target_link_libraries(decode
-  output_lib
-  decoder_lib
-  structure_lib
+aux_source_directory(src/decoder/ decoder_srcs)
+aux_source_directory(src/java/ java_srcs)
+aux_source_directory(src/java-pt/ java_pt_srcs)
+aux_source_directory(src/output/ output_srcs)
+aux_source_directory(src/pt/ pt_srcs)
+aux_source_directory(src/task/ task_srcs)
+
+add_executable(decode src/main.cpp
+  ${decoder_srcs}
+  ${java_srcs}
+  ${java_pt_srcs}
+  ${output_srcs}
+  ${pt_srcs}
+  ${task_srcs}
 )

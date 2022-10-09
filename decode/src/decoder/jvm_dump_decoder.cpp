@@ -1,8 +1,9 @@
 #include "decoder/jvm_dump_decoder.hpp"
-#include "structure/java/analyser.hpp"
-#include "structure/java-pt/load_file.hpp"
-#include "structure/java-pt/jit_section.hpp"
-#include "structure/java-pt/codelets_entry.hpp"
+#include "java/analyser.hpp"
+#include "java/method.hpp"
+#include "java-pt/load_file.hpp"
+#include "java-pt/jit_section.hpp"
+#include "java-pt/codelets_entry.hpp"
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -187,7 +188,7 @@ void JvmDumpDecoder::initialize(char *dump_data, Analyser* analyser) {
                 buffer += me->method_signature_length;
                 string klassName = string(klass_name, me->klass_name_length);
                 string methodName = string(name, me->method_name_length)+string(sig, me->method_signature_length);
-                const Method* method = analyser->getMethod(klassName, methodName);
+                const Method* method = analyser->get_method(klassName, methodName);
                 md_map[me->idx] = method;
                 break;
             }
@@ -221,7 +222,7 @@ void JvmDumpDecoder::initialize(char *dump_data, Analyser* analyser) {
                     buffer += imi->signature_length;
                     string klassName = string(klass_name, imi->klass_name_length);
                     string methodName = string(name, imi->name_length)+string(sig, imi->signature_length);
-                    const Method* method = analyser->getMethod(klassName, methodName);
+                    const Method* method = analyser->get_method(klassName, methodName);
                     if (i == 0) mainm = method;
                     methods[imi->method_index] = method;
                 }

@@ -3,7 +3,7 @@
 
 #include <linux/perf_event.h>
 
-#include "structure/pt/pt.hpp"
+#include "pt/pt.hpp"
 
 #include <stdint.h>
 #include <stddef.h>

@@ -1,14 +1,22 @@
-#include "structure/java-pt/decode_result.hpp"
-#include "structure/java/method.hpp"
-#include "structure/java/klass.hpp"
-#include "structure/java/analyser.hpp"
+#include "java-pt/decode_result.hpp"
+#include "java/method.hpp"
+#include "java/klass.hpp"
+#include "java/analyser.hpp"
+#include "java/block.hpp"
 #include "output/output_decode.hpp"
 
 #include <queue>
 #include <stack>
+#include <set>
+#include <vector>
 #include <iostream>
 #include <algorithm>
 #include <cassert>
+
+using std::queue;
+using std::set;
+using std::stack;
+using std::vector;
 
 class ExecInfo {
 public:
@@ -202,7 +210,7 @@ public:
     }
 };
 
-static bool output_bytecode(FILE* fp, const u1* codes, size_t size) {
+static bool output_bytecode(FILE* fp, const uint8_t* codes, size_t size) {
     // output bytecode
     for (int i = 0; i < size; i++) {
         // fwrite(codes+i, 1, 1, fp);
@@ -217,7 +225,7 @@ static void output_jitcode(FILE* fp, vector<pair<const Method*, Block*>>& blocks
         const Method* method = block.first;
         Block* blc = block.second;
         assert(method && method->is_jportal() && blc);
-        const u1* codes = method->get_bg()->bctcode();
+        const uint8_t* codes = method->get_bg()->bctcode();
         for (int i = blc->get_bct_codebegin(); i < blc->get_bct_codeend(); ++i) {
             // fwrite(codes+i, 1, 1, fp);
             fprintf(fp, "%hhu\n", *(codes+i));
@@ -336,7 +344,7 @@ static void output_trace(TraceData* trace, size_t start, size_t end, FILE* fp) {
                 break;
             }
             case CodeletsEntry::_bytecode: {
-                const u1* codes;
+                const uint8_t* codes;
                 size_t size;
                 assert(trace->get_inter(loc, codes, size) && codes);
                 vector<pair<const Method*, Block*>> blocks;

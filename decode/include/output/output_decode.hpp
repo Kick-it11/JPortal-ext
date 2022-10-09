@@ -2,7 +2,6 @@
 #define _decode_output_hpp
 
 #include <list>
-using namespace std;
 
 class TraceData;
 

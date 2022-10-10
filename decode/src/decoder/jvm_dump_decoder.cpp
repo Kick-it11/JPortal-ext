@@ -1,9 +1,9 @@
 #include "decoder/jvm_dump_decoder.hpp"
 #include "java/analyser.hpp"
 #include "java/method.hpp"
-#include "java-pt/load_file.hpp"
-#include "java-pt/jit_section.hpp"
-#include "java-pt/codelets_entry.hpp"
+#include "runtime/load_file.hpp"
+#include "runtime/jit_section.hpp"
+#include "runtime/codelets_entry.hpp"
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -24,10 +24,10 @@ JvmDumpDecoder::DumpInfoType JvmDumpDecoder::dumper_event(uint64_t time, long ti
            return _illegal;
         current += sizeof(DumpInfo);
         switch(info->type) {
-            case _interpreter_info: {
+            case _codelet_info: {
                 data = current;
-                current += sizeof(InterpreterInfo);
-                return _interpreter_info;
+                current += sizeof(CodeletsInfo);
+                return _codelet_info;
             }
             case _method_entry_initial: {
                 const MethodEntryInitial* me;
@@ -147,33 +147,10 @@ void JvmDumpDecoder::initialize(char *dump_data, Analyser* analyser) {
            return;
         buffer += sizeof(DumpInfo);
         switch(info->type) {
-            case _interpreter_info: {
-                auto inter = (JvmDumpDecoder::InterpreterInfo *)buffer;
-                buffer += sizeof(InterpreterInfo);
-                CodeletsEntry::low_bound = inter->low_bound;
-                CodeletsEntry::high_bound = inter->high_bound;
-                CodeletsEntry::unimplemented_bytecode = inter->unimplemented_bytecode;
-                CodeletsEntry::illegal_bytecode_sequence = inter->illegal_bytecode_sequence;
-                memcpy(CodeletsEntry::return_entry, inter->return_entry, CodeletsEntry::number_of_return_entries*CodeletsEntry::number_of_states*sizeof(address));
-                memcpy(CodeletsEntry::invoke_return_entry, inter->invoke_return_entry, CodeletsEntry::number_of_return_addrs*sizeof(address));
-                memcpy(CodeletsEntry::invokeinterface_return_entry, inter->invokeinterface_return_entry, CodeletsEntry::number_of_return_addrs*sizeof(address));
-                memcpy(CodeletsEntry::invokedynamic_return_entry, inter->invokedynamic_return_entry, CodeletsEntry::number_of_return_addrs*sizeof(address));
-                memcpy(CodeletsEntry::native_abi_to_tosca, inter->native_abi_to_tosca, CodeletsEntry::number_of_result_handlers*sizeof(address));
-                CodeletsEntry::rethrow_exception_entry = inter->rethrow_exception_entry;
-                CodeletsEntry::throw_exception_entry = inter->throw_exception_entry;
-                CodeletsEntry::remove_activation_preserving_args_entry = inter->remove_activation_preserving_args_entry;
-                CodeletsEntry::remove_activation_entry = inter->remove_activation_entry;
-                CodeletsEntry::throw_ArrayIndexOutOfBoundsException_entry = inter->throw_ArrayIndexOutOfBoundsException_entry;
-                CodeletsEntry::throw_ArrayStoreException_entry = inter->throw_ArrayStoreException_entry;
-                CodeletsEntry::throw_ArithmeticException_entry = inter->throw_ArithmeticException_entry;
-                CodeletsEntry::throw_ClassCastException_entry = inter->throw_ClassCastException_entry;
-                CodeletsEntry::throw_NullPointerException_entry = inter->throw_NullPointerException_entry;
-                CodeletsEntry::throw_StackOverflowError_entry = inter->throw_StackOverflowError_entry;
-                memcpy(CodeletsEntry::entry_table, inter->entry_table, CodeletsEntry::number_of_method_entries*sizeof(address));
-                memcpy(CodeletsEntry::normal_table, inter->normal_table, CodeletsEntry::dispatch_length*CodeletsEntry::number_of_states*sizeof(address));
-                memcpy(CodeletsEntry::wentry_point, inter->wentry_point, CodeletsEntry::dispatch_length*sizeof(address));
-                memcpy(CodeletsEntry::deopt_entry, inter->deopt_entry, CodeletsEntry::number_of_deopt_entries*CodeletsEntry::number_of_states*sizeof(address));
-                CodeletsEntry::deopt_reexecute_return_entry = inter->deopt_reexecute_return_entry;
+            case _codelet_info: {
+                CodeletsInfo* entries = (CodeletsInfo *)buffer;
+                buffer += sizeof(CodeletsInfo);
+                CodeletsEntry::initialize(entries);
                 break;
             }
             case _method_entry_initial: {

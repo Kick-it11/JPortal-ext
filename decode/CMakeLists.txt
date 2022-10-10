@@ -8,7 +8,7 @@ include_directories(include)
 
 aux_source_directory(src/decoder/ decoder_srcs)
 aux_source_directory(src/java/ java_srcs)
-aux_source_directory(src/java-pt/ java_pt_srcs)
+aux_source_directory(src/runtime/ runtime_srcs)
 aux_source_directory(src/output/ output_srcs)
 aux_source_directory(src/pt/ pt_srcs)
 aux_source_directory(src/task/ task_srcs)
@@ -16,7 +16,7 @@ aux_source_directory(src/task/ task_srcs)
 add_executable(decode src/main.cpp
   ${decoder_srcs}
   ${java_srcs}
-  ${java_pt_srcs}
+  ${runtime_srcs}
   ${output_srcs}
   ${pt_srcs}
   ${task_srcs}

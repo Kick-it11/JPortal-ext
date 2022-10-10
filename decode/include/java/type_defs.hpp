@@ -14,6 +14,8 @@ using u2 = unsigned short;
 using u4 = unsigned int;
 using u8 = unsigned long long;
 
+using address = u8;
+
 inline jint alignup(jint offset) {
     jint alignup = offset % 4;
     if (alignup)

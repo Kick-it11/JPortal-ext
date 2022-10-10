@@ -1,6 +1,6 @@
-#include "java-pt/pt_ild.hpp"
-#include "java-pt/pt_ild_defs.hpp"
-#include "java-pt/pt_insn.hpp"
+#include "runtime/pt_ild.hpp"
+#include "runtime/pt_ild_defs.hpp"
+#include "runtime/pt_insn.hpp"
 
 static const uint8_t eamode_table[2][4] = {
     /* Default: */ {

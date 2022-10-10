@@ -1,4 +1,4 @@
-#include "java-pt/decode_result.hpp"
+#include "decoder/decode_result.hpp"
 #include "java/method.hpp"
 #include "java/klass.hpp"
 #include "java/analyser.hpp"
@@ -302,24 +302,24 @@ static void output_trace(TraceData* trace, size_t start, size_t end, FILE* fp) {
                 exec_st = stack<ExecInfo*>();
                 break;
             }
-            case CodeletsEntry::_method_entry_points: {
+            case CodeletsEntry::_method_entry: {
                 if (exec_st.empty() || exec_st.top()->section)
                     exec_st.push(new ExecInfo(nullptr));
                 break;
             }
-            case CodeletsEntry::_throw_ArrayIndexOutOfBoundsException_entry_points:
-            case CodeletsEntry::_throw_ArrayStoreException_entry_points:
-            case CodeletsEntry::_throw_ArithmeticException_entry_points:
-            case CodeletsEntry::_throw_ClassCastException_entry_points:
-            case CodeletsEntry::_throw_NullPointerException_entry_points:
-            case CodeletsEntry::_throw_StackOverflowError_entry_points: {
+            case CodeletsEntry::_throw_ArrayIndexOutOfBoundsException:
+            case CodeletsEntry::_throw_ArrayStoreException:
+            case CodeletsEntry::_throw_ArithmeticException:
+            case CodeletsEntry::_throw_ClassCastException:
+            case CodeletsEntry::_throw_NullPointerException:
+            case CodeletsEntry::_throw_StackOverflowError: {
                 break;
             }
-            case CodeletsEntry::_rethrow_exception_entry_entry_points: {
+            case CodeletsEntry::_rethrow_exception: {
                 break;
             }
-            case CodeletsEntry::_deopt_entry_points:
-            case CodeletsEntry::_deopt_reexecute_return_entry_points: {
+            case CodeletsEntry::_deopt:
+            case CodeletsEntry::_deopt_reexecute_return: {
                 // deopt
                 if (!exec_st.empty() && exec_st.top()->section) {
                     delete exec_st.top();
@@ -329,18 +329,18 @@ static void output_trace(TraceData* trace, size_t start, size_t end, FILE* fp) {
                     exec_st.push(new ExecInfo(nullptr));
                 break;
             }
-            case CodeletsEntry::_throw_exception_entry_points: {
+            case CodeletsEntry::_throw_exception: {
                 // exception handling or throw
                 break;
             }
-            case CodeletsEntry::_remove_activation_entry_points:
-            case CodeletsEntry::_remove_activation_preserving_args_entry_points: {
+            case CodeletsEntry::_remove_activation:
+            case CodeletsEntry::_remove_activation_preserving_args: {
                 // after throw exception or deoptimize
                 break;
             }
-            case CodeletsEntry::_invoke_return_entry_points:
-            case CodeletsEntry::_invokedynamic_return_entry_points: 
-            case CodeletsEntry::_invokeinterface_return_entry_points: {
+            case CodeletsEntry::_invoke_return:
+            case CodeletsEntry::_invokedynamic_return: 
+            case CodeletsEntry::_invokeinterface_return: {
                 break;
             }
             case CodeletsEntry::_bytecode: {

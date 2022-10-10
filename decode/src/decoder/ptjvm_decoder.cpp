@@ -7,14 +7,14 @@
 #include "decoder/jvm_dump_decoder.hpp"
 #include "decoder/ptjvm_decoder.hpp"
 #include "decoder/sideband_decoder.hpp"
-#include "java-pt/pt_ild.hpp"
-#include "java-pt/pt_insn.hpp"
+#include "runtime/pt_ild.hpp"
+#include "runtime/pt_insn.hpp"
 
-#include "java-pt/codelets_entry.hpp"
-#include "java-pt/decode_result.hpp"
-#include "java-pt/jit_image.hpp"
-#include "java-pt/jit_section.hpp"
-#include "java-pt/load_file.hpp"
+#include "runtime/codelets_entry.hpp"
+#include "decoder/decode_result.hpp"
+#include "runtime/jit_image.hpp"
+#include "runtime/jit_section.hpp"
+#include "runtime/load_file.hpp"
 #include "java/analyser.hpp"
 
 #define PERF_RECORD_AUXTRACE 71
@@ -244,7 +244,7 @@ static void ptjvm_dump_event(struct ptjvm_decoder *decoder,
     JvmDumpDecoder *dumper = decoder->jvmdump;
     const void *data = nullptr;
     type = dumper->dumper_event(decoder->time, decoder->tid, data);
-    if (type == JvmDumpDecoder::_interpreter_info) {
+    if (type == JvmDumpDecoder::_codelet_info) {
       continue;
     } else if (type == JvmDumpDecoder::_compiled_method_load) {
       jit_section *section = (jit_section *)data;

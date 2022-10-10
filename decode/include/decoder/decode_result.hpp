@@ -3,8 +3,8 @@
 
 #include "java/type_defs.hpp"
 #include "java/bytecodes.hpp"
-#include "java-pt/codelets_entry.hpp"
-#include "java-pt/jit_section.hpp"
+#include "runtime/codelets_entry.hpp"
+#include "runtime/jit_section.hpp"
 
 #include <unordered_map>
 #include <stack>

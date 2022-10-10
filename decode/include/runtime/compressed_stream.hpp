@@ -38,8 +38,6 @@ typedef float           jfloat;
 typedef double          jdouble;
 typedef signed char jbyte;
 
-typedef jint            jsize;
-
 const int LogBitsPerByte     = 3;
 const int BitsPerByte        = 1 << LogBitsPerByte; 
 // Simple interface for filing out and filing in basic types

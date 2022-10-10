@@ -1,4 +1,4 @@
-#include "java-pt/decode_result.hpp"
+#include "decoder/decode_result.hpp"
 
 #include <stdlib.h>
 #include <string.h>
@@ -148,19 +148,19 @@ int TraceDataRecord::add_jitcode(u8 time, const jit_section *section,
 
 int TraceDataRecord::add_codelet(CodeletsEntry::Codelet codelet) {
     switch (codelet) {
-        case CodeletsEntry::_method_entry_points:
-        case CodeletsEntry::_throw_ArrayIndexOutOfBoundsException_entry_points:
-        case CodeletsEntry::_throw_ArrayStoreException_entry_points:
-        case CodeletsEntry::_throw_ArithmeticException_entry_points:
-        case CodeletsEntry::_throw_ClassCastException_entry_points:
-        case CodeletsEntry::_throw_NullPointerException_entry_points:
-        case CodeletsEntry::_throw_StackOverflowError_entry_points:
-        case CodeletsEntry::_rethrow_exception_entry_entry_points:
-        case CodeletsEntry::_deopt_entry_points:
-        case CodeletsEntry::_deopt_reexecute_return_entry_points:
-        case CodeletsEntry::_throw_exception_entry_points:
-        case CodeletsEntry::_remove_activation_entry_points:
-        case CodeletsEntry::_remove_activation_preserving_args_entry_points: {
+        case CodeletsEntry::_method_entry:
+        case CodeletsEntry::_throw_ArrayIndexOutOfBoundsException:
+        case CodeletsEntry::_throw_ArrayStoreException:
+        case CodeletsEntry::_throw_ArithmeticException:
+        case CodeletsEntry::_throw_ClassCastException:
+        case CodeletsEntry::_throw_NullPointerException:
+        case CodeletsEntry::_throw_StackOverflowError:
+        case CodeletsEntry::_rethrow_exception:
+        case CodeletsEntry::_deopt:
+        case CodeletsEntry::_deopt_reexecute_return:
+        case CodeletsEntry::_throw_exception:
+        case CodeletsEntry::_remove_activation:
+        case CodeletsEntry::_remove_activation_preserving_args: {
             codelet_type = codelet;
             if (trace.write(&codelet_type, 1) < 0) {
                 fprintf(stderr, "trace data record: fail to write.\n");
@@ -168,10 +168,10 @@ int TraceDataRecord::add_codelet(CodeletsEntry::Codelet codelet) {
             }
             return 0;
         }
-        case CodeletsEntry::_invoke_return_entry_points:
-        case CodeletsEntry::_invokedynamic_return_entry_points: 
-        case CodeletsEntry::_invokeinterface_return_entry_points: {
-            if (codelet_type == CodeletsEntry::_method_entry_points) {
+        case CodeletsEntry::_invoke_return:
+        case CodeletsEntry::_invokedynamic_return:
+        case CodeletsEntry::_invokeinterface_return: {
+            if (codelet_type == CodeletsEntry::_method_entry) {
                 trace.data_end--;
                 codelet_type = CodeletsEntry::_illegal;
                 return 0;
@@ -184,7 +184,7 @@ int TraceDataRecord::add_codelet(CodeletsEntry::Codelet codelet) {
             return 0;
         }
         case CodeletsEntry::_result_handlers_for_native_calls: {
-            if (codelet_type == CodeletsEntry::_method_entry_points)
+            if (codelet_type == CodeletsEntry::_method_entry)
                 trace.data_end--;
             codelet_type = CodeletsEntry::_illegal;
             return 0;
@@ -198,7 +198,7 @@ int TraceDataRecord::add_codelet(CodeletsEntry::Codelet codelet) {
 }
 
 void TraceDataRecord::add_method_info(const Method* method) {
-    if (codelet_type == CodeletsEntry::_method_entry_points)
+    if (codelet_type == CodeletsEntry::_method_entry)
         trace.method_info[trace.data_end - trace.data_begin] = method;
     return;
 }
@@ -247,7 +247,7 @@ bool TraceDataAccess::next_trace(CodeletsEntry::Codelet &codelet, size_t &loc) {
         return false;
     }
     codelet = CodeletsEntry::Codelet(*current);
-    if (codelet < CodeletsEntry::_unimplemented_bytecode_entry_points ||
+    if (codelet < CodeletsEntry::_unimplemented_bytecode ||
         codelet > CodeletsEntry::_jitcode) {
         fprintf(stderr, "trace data access: format error %ld.\n", loc);
         current = terminal;

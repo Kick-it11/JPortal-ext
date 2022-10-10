@@ -19,7 +19,7 @@ class JvmDumpDecoder {
       _compiled_method_load,
       _compiled_method_unload,
       _thread_start,
-      _interpreter_info,
+      _codelet_info,
       _inline_cache_add,
       _inline_cache_clear,
       _no_thing
@@ -30,33 +30,6 @@ class JvmDumpDecoder {
         /* total size: following MethodEntry/CompiledMethod size included*/
         uint64_t size;
         uint64_t time;
-    };
-
-    struct InterpreterInfo {
-      uint64_t low_bound;
-      uint64_t high_bound;
-      uint64_t unimplemented_bytecode;
-      uint64_t illegal_bytecode_sequence;
-      uint64_t return_entry[6][10];
-      uint64_t invoke_return_entry[10];
-      uint64_t invokeinterface_return_entry[10];
-      uint64_t invokedynamic_return_entry[10];
-      uint64_t native_abi_to_tosca[10];
-      uint64_t rethrow_exception_entry;
-      uint64_t throw_exception_entry;
-      uint64_t remove_activation_preserving_args_entry;
-      uint64_t remove_activation_entry;
-      uint64_t throw_ArrayIndexOutOfBoundsException_entry;
-      uint64_t throw_ArrayStoreException_entry;
-      uint64_t throw_ArithmeticException_entry;
-      uint64_t throw_ClassCastException_entry;
-      uint64_t throw_NullPointerException_entry;
-      uint64_t throw_StackOverflowError_entry;
-      uint64_t entry_table[34];
-      uint64_t normal_table[256][10];
-      uint64_t wentry_point[256];
-      uint64_t deopt_entry[7][10];
-      uint64_t deopt_reexecute_return_entry;
     };
 
     struct MethodEntryInitial {

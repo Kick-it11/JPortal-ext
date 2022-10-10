@@ -1,7 +1,7 @@
-#include "java-pt/pt_insn.hpp"
-#include "java-pt/pt_ild.hpp"
-#include "java-pt/jit_section.hpp"
-#include "java-pt/jit_image.hpp"
+#include "runtime/pt_insn.hpp"
+#include "runtime/pt_ild.hpp"
+#include "runtime/jit_section.hpp"
+#include "runtime/jit_image.hpp"
 
 #include "pt/pt.hpp"
 

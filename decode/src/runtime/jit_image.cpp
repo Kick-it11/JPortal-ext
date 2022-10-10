@@ -1,5 +1,5 @@
-#include "java-pt/jit_section.hpp"
-#include "java-pt/jit_image.hpp"
+#include "runtime/jit_section.hpp"
+#include "runtime/jit_image.hpp"
 #include "pt/pt.hpp"
 
 #include <stdlib.h>

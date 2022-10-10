@@ -26,7 +26,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "pt/pt_config.hpp"
 #include "pt/pt_opcodes.hpp"
 
 #include "pt/pt.hpp"

@@ -31,7 +31,6 @@
 #include "pt/pt_decoder_function.hpp"
 #include "pt/pt_packet.hpp"
 #include "pt/pt_packet_decoder.hpp"
-#include "pt/pt_config.hpp"
 #include "pt/pt_opcodes.hpp"
 #include "pt/pt_compiler.hpp"
 

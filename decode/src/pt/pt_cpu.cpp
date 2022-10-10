@@ -26,8 +26,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "pt/pt_cpu.hpp"
-
 #include "pt/pt.hpp"
 
 #include <limits.h>

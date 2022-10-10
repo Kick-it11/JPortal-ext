@@ -466,6 +466,21 @@ static inline void pt_config_init(struct pt_config *config)
 	config->size = sizeof(*config);
 }
 
+/* Read the configuration provided by a library user and zero-initialize
+ * missing fields.
+ *
+ * We keep the user's size value if it is smaller than sizeof(*@config) to
+ * allow decoders to detect missing configuration bits.
+ *
+ * Returns zero on success, a negative error code otherwise.
+ * Returns -pte_internal if @config is NULL.
+ * Returns -pte_invalid if @uconfig is NULL.
+ * Returns -pte_bad_config if @config is too small to be useful.
+ */
+
+extern pt_export int pt_config_from_user(struct pt_config *config,
+			const struct pt_config *uconfig);
+
 /** Determine errata for a given cpu.
  *
  * Updates \@errata based on \@cpu.
@@ -477,11 +492,20 @@ static inline void pt_config_init(struct pt_config *config)
 extern pt_export int pt_cpu_errata(struct pt_errata *errata,
 				   const struct pt_cpu *cpu);
 
+/* Parses @s which should be of format family/model[/stepping] and
+ * stores the value in @cpu on success.
+ * The optional stepping defaults to 0 if omitted.
+ *
+ * Returns 0 on success.
+ * Returns -pte_invalid if @cpu or @s is NULL.
+ * Returns -pte_invalid if @s could not be parsed.
+ */
+extern pt_export int pt_cpu_parse(struct pt_cpu *cpu, const char *s);
 
+extern pt_export int pt_filter_addr_check(const struct pt_conf_addr_filter *filter,
+						uint64_t addr);
 
-/* Packet encoder / decoder. */
-
-
+/* Packet decoder. */
 
 /** Intel PT packet types. */
 enum pt_packet_type {

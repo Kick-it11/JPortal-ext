@@ -3,7 +3,7 @@
 #include "java-pt/jit_section.hpp"
 #include "java-pt/jit_image.hpp"
 
-#include <pt/pt.hpp>
+#include "pt/pt.hpp"
 
 int pt_insn_changes_cpl(const struct pt_insn *insn,
             const struct pt_insn_ext *iext)

@@ -7,14 +7,14 @@
 #include "decoder/jvm_dump_decoder.hpp"
 #include "decoder/ptjvm_decoder.hpp"
 #include "decoder/sideband_decoder.hpp"
-#include "pt/pt_config.hpp"
+#include "java-pt/pt_ild.hpp"
+#include "java-pt/pt_insn.hpp"
+
 #include "java-pt/codelets_entry.hpp"
 #include "java-pt/decode_result.hpp"
 #include "java-pt/jit_image.hpp"
 #include "java-pt/jit_section.hpp"
 #include "java-pt/load_file.hpp"
-#include "java-pt/pt_ild.hpp"
-#include "java-pt/pt_insn.hpp"
 #include "java/analyser.hpp"
 
 #define PERF_RECORD_AUXTRACE 71
@@ -1928,54 +1928,6 @@ static int get_arg_uint8(uint8_t *value, const char *option, const char *arg,
   *value = (uint8_t)val;
 
   return 1;
-}
-
-static int pt_cpu_parse(struct pt_cpu *cpu, const char *s) {
-  const char sep = '/';
-  char *endptr;
-  long family, model, stepping;
-
-  if (!cpu || !s)
-    return -pte_invalid;
-
-  family = strtol(s, &endptr, 0);
-  if (s == endptr || *endptr == '\0' || *endptr != sep)
-    return -pte_invalid;
-
-  if (family < 0 || family > USHRT_MAX)
-    return -pte_invalid;
-
-  /* skip separator */
-  s = endptr + 1;
-
-  model = strtol(s, &endptr, 0);
-  if (s == endptr || (*endptr != '\0' && *endptr != sep))
-    return -pte_invalid;
-
-  if (model < 0 || model > UCHAR_MAX)
-    return -pte_invalid;
-
-  if (*endptr == '\0')
-    /* stepping was omitted, it defaults to 0 */
-    stepping = 0;
-  else {
-    /* skip separator */
-    s = endptr + 1;
-
-    stepping = strtol(s, &endptr, 0);
-    if (*endptr != '\0')
-      return -pte_invalid;
-
-    if (stepping < 0 || stepping > UCHAR_MAX)
-      return -pte_invalid;
-  }
-
-  cpu->vendor = pcv_intel;
-  cpu->family = (uint16_t)family;
-  cpu->model = (uint8_t)model;
-  cpu->stepping = (uint8_t)stepping;
-
-  return 0;
 }
 
 int ptjvm_decode(TracePart tracepart, TraceDataRecord record,

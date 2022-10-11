@@ -1,7 +1,7 @@
 #ifndef DECODE_RESULT
 #define DECODE_RESULT
 
-#include "java/type_defs.hpp"
+#include "utilities/definitions.hpp"
 #include "java/bytecodes.hpp"
 #include "runtime/codelets_entry.hpp"
 #include "runtime/jit_section.hpp"
@@ -22,8 +22,8 @@ struct InterRecord {
 
 struct JitRecord {
     u8 size = 0;
-    const jit_section *section = nullptr;
-    JitRecord(const jit_section *_section) :
+    const JitSection *section = nullptr;
+    JitRecord(const JitSection *_section) :
       section(_section) {}
 };
 
@@ -67,7 +67,7 @@ class TraceData {
 
     bool get_inter(size_t loc, const u1* &codes, size_t &size);
 
-    bool get_jit(size_t loc, const PCStackInfo**&codes, size_t &size, const jit_section *&section);
+    bool get_jit(size_t loc, const PCStackInfo**&codes, size_t &size, const JitSection *&section);
 
     void output();
 };
@@ -79,7 +79,7 @@ class TraceDataRecord {
     size_t loc;
     u8 current_time = 0;
     ThreadSplit *thread= nullptr;
-    const jit_section *last_section = nullptr;
+    const JitSection *last_section = nullptr;
     Bytecodes::Code last_bytecode = Bytecodes::_illegal;
   public:
     TraceDataRecord(TraceData &_trace) :
@@ -87,7 +87,7 @@ class TraceDataRecord {
 
     int add_bytecode(u8 time, Bytecodes::Code bytecode);
 
-    int add_jitcode(u8 time, const jit_section *section, PCStackInfo *pc, u8 entry);
+    int add_jitcode(u8 time, const JitSection *section, PCStackInfo *pc, u8 entry);
 
     int add_codelet(CodeletsEntry::Codelet codelet);
 

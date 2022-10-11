@@ -1,7 +1,7 @@
 #include "java/analyser.hpp"
-#include "java/buffer_stream.hpp"
 #include "java/class_file_parser.hpp"
 #include "java/constant_pool.hpp"
+#include "java/class_file_stream.hpp"
 
 #include <cassert>
 #include <cstring>
@@ -58,7 +58,7 @@ ClassFileParser::ClassFileParser(string &file_path, Analyser *analyser, Klass* k
             assert(file_handle.peek() == EOF);
             // close file
             file_handle.close();
-            BufferStream* stream = new BufferStream(buffer, st.st_size);
+            ClassFileStream* stream = new ClassFileStream(buffer, st.st_size);
 
             parse_class(stream);
 
@@ -71,7 +71,7 @@ ClassFileParser::ClassFileParser(string &file_path, Analyser *analyser, Klass* k
 ClassFileParser::~ClassFileParser() {
 }
 
-void ClassFileParser::parse_class(const BufferStream *const stream) {
+void ClassFileParser::parse_class(const ClassFileStream *const stream) {
     assert(stream != NULL);
 
     // Magic value
@@ -127,7 +127,7 @@ void ClassFileParser::parse_class(const BufferStream *const stream) {
     return;
 }
 
-void ClassFileParser::parse_constant_pool(const BufferStream *const stream,
+void ClassFileParser::parse_constant_pool(const ClassFileStream *const stream,
                                           ConstantPool *const cp,
                                           const int length) {
     assert(stream != NULL);
@@ -339,7 +339,7 @@ void ClassFileParser::parse_constant_pool(const BufferStream *const stream,
     }
 }
 
-void ClassFileParser::parse_fields(const BufferStream *const stream,
+void ClassFileParser::parse_fields(const ClassFileStream *const stream,
                                    ConstantPool *cp) {
     assert(stream != NULL);
     const u2 length = stream->get_u2();
@@ -362,7 +362,7 @@ void ClassFileParser::parse_fields(const BufferStream *const stream,
 }
 
 // Parse methods
-void ClassFileParser::parse_methods(const BufferStream *const stream,
+void ClassFileParser::parse_methods(const ClassFileStream *const stream,
                                     ConstantPool *cp) {
     assert(stream != NULL);
     const u2 length = stream->get_u2();
@@ -371,7 +371,7 @@ void ClassFileParser::parse_methods(const BufferStream *const stream,
     } // End of for
 }
 
-Method *ClassFileParser::parse_method(const BufferStream *const stream,
+Method *ClassFileParser::parse_method(const ClassFileStream *const stream,
                                       ConstantPool *cp) {
     assert(stream != NULL);
 
@@ -437,7 +437,7 @@ Method *ClassFileParser::parse_method(const BufferStream *const stream,
 
 // Classfile attribute parsing
 void ClassFileParser::parse_classfile_attributes(
-    const BufferStream *const stream) {
+    const ClassFileStream *const stream) {
     assert(stream != NULL);
 
     u2 attributes_count = stream->get_u2();

@@ -1,6 +1,6 @@
-#include "runtime/pt_ild.hpp"
-#include "runtime/pt_ild_defs.hpp"
-#include "runtime/pt_insn.hpp"
+#include "decoder/pt_ild.hpp"
+#include "decoder/pt_ild_defs.hpp"
+#include "decoder/pt_insn.hpp"
 
 static const uint8_t eamode_table[2][4] = {
     /* Default: */ {

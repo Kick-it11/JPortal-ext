@@ -1,6 +1,6 @@
 #include "java/block.hpp"
-#include "java/buffer_stream.hpp"
 #include "java/bytecodes.hpp"
+#include "java/class_file_stream.hpp"
 
 #include <bitset>
 #include <iomanip>
@@ -41,7 +41,7 @@ void BlockGraph::build_graph() {
         return;
     int current_offset = 0;
     Block *current = nullptr;
-    BufferStream bs(_code, _code_length);
+    ClassFileStream bs(_code, _code_length);
     int bc_size = 0;
     _code_count = 0;
     unordered_set<int> block_start;
@@ -356,7 +356,7 @@ void BlockGraph::build_graph() {
         }
     }
     // build exception table
-    BufferStream excep_bs(_exception_table,
+    ClassFileStream excep_bs(_exception_table,
                           _exception_table_length * 4 * sizeof(u2));
     for (int i = 0; i < _exception_table_length; ++i) {
         u2 a1 = excep_bs.get_u2();
@@ -494,7 +494,7 @@ void BCTBlockList::build_list() {
     if (_is_build_list)
         return;
     BCTBlock *current = nullptr;
-    BufferStream bs(_code, _code_length);
+    ClassFileStream bs(_code, _code_length);
     int bc_size = 0;
     if (!bs.at_eos()) {
         // exception handling indication

@@ -6,7 +6,7 @@
 #include <pt/pt.hpp>
 
 struct pt_insn_ext;
-
+class JitImage;
 
 /* A finer-grain classification of instructions used internally. */
 typedef enum {
@@ -166,8 +166,7 @@ extern int pt_insn_next_ip(uint64_t *ip, const struct pt_insn *insn,
  * Returns the size in bytes on success, a negative error code otherwise.
  * Returns -pte_bad_insn if the instruction could not be decoded.
  */
-extern int pt_insn_decode(struct pt_insn *insn, struct pt_insn_ext *iext,
-           struct jit_image *image);
+extern int pt_insn_decode(struct pt_insn *insn, struct pt_insn_ext *iext, JitImage *image);
 
 /* Determine if a range of instructions is contiguous.
  *
@@ -179,7 +178,7 @@ extern int pt_insn_decode(struct pt_insn *insn, struct pt_insn_ext *iext,
  */
 extern int pt_insn_range_is_contiguous(uint64_t begin, uint64_t end,
                        enum pt_exec_mode mode,
-                       struct jit_image* image,
+                       JitImage* image,
                        size_t nsteps);
 
 #endif /* PT_INSN_H */

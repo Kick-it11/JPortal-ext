@@ -1,7 +1,7 @@
 #ifndef JAVA_BYTECODES_HPP
 #define JAVA_BYTECODES_HPP
 
-#include "type_defs.hpp"
+#include "utilities/definitions.hpp"
 
 class Bytecodes {
   public:

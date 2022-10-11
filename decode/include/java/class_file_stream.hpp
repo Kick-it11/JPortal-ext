@@ -1,22 +1,27 @@
-#ifndef JAVA_BUFFER_STREAM_HPP
-#define JAVA_BUFFER_STREAM_HPP
+#ifndef CLASS_FILE_STREAM_HPP
+#define CLASS_FILE_STREAM_HPP
 
-#include "type_defs.hpp"
+#include "utilities/definitions.hpp"
 
 #include <cassert>
 
-// Read from Big-Endian stream on Little-Endian platform like x86
-class BufferStream {
+// Input stream for reading .class file
+//
+// The entire input stream is present in a buffer allocated by the caller.
+// The caller is responsible for deallocating the buffer and for using
+// ResourceMarks appropriately when constructing streams.
+
+class ClassFileStream {
   private:
     const u1 *const _buffer_begin;
     const u1 *const _buffer_end;
     mutable const u1 *_current;
 
   public:
-    BufferStream(const u1 *buffer, int length)
+    ClassFileStream(const u1 *buffer, int length)
         : _buffer_begin(buffer), _buffer_end(buffer + length),
           _current(buffer) {}
-    ~BufferStream() {}
+    ~ClassFileStream() {}
 
     const u1 *current() const { return _current; }
     void set_current() const { _current = _buffer_begin; }

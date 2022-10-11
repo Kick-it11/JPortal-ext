@@ -12,6 +12,7 @@ aux_source_directory(src/runtime/ runtime_srcs)
 aux_source_directory(src/output/ output_srcs)
 aux_source_directory(src/pt/ pt_srcs)
 aux_source_directory(src/task/ task_srcs)
+aux_source_directory(src/utilities/ utilities_srcs)
 
 add_executable(decode src/main.cpp
   ${decoder_srcs}
@@ -20,4 +21,5 @@ add_executable(decode src/main.cpp
   ${output_srcs}
   ${pt_srcs}
   ${task_srcs}
+  ${utilities_srcs}
 )

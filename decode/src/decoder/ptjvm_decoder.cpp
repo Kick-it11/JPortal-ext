@@ -7,14 +7,14 @@
 #include "decoder/jvm_dump_decoder.hpp"
 #include "decoder/ptjvm_decoder.hpp"
 #include "decoder/sideband_decoder.hpp"
-#include "runtime/pt_ild.hpp"
-#include "runtime/pt_insn.hpp"
+#include "decoder/pt_ild.hpp"
+#include "decoder/pt_insn.hpp"
 
 #include "runtime/codelets_entry.hpp"
 #include "decoder/decode_result.hpp"
 #include "runtime/jit_image.hpp"
 #include "runtime/jit_section.hpp"
-#include "runtime/load_file.hpp"
+#include "utilities/load_file.hpp"
 #include "java/analyser.hpp"
 
 #define PERF_RECORD_AUXTRACE 71
@@ -116,10 +116,10 @@ struct ptjvm_decoder {
   long tid;
 
   /* The jit image */
-  struct jit_image *image;
+  JitImage *image;
 
   /* inline cache targets */
-  map<pair<uint64_t, jit_section *>, uint64_t> *ics;
+  map<pair<uint64_t, JitSection *>, uint64_t> *ics;
 
   /* Jvm dump infomation decoder */
   JvmDumpDecoder *jvmdump;
@@ -147,7 +147,7 @@ struct auxtrace_event {
   __u32 reservered__; /* for alignment */
 };
 
-static int ptjvm_init_decoder(struct ptjvm_decoder *decoder, jit_image *image) {
+static int ptjvm_init_decoder(struct ptjvm_decoder *decoder, JitImage *image) {
   if (!decoder)
     return -pte_internal;
 
@@ -193,13 +193,11 @@ static void ptjvm_add_ic(struct ptjvm_decoder *decoder,
   if (!decoder || !decoder->ics || !decoder->image)
     return;
 
-  jit_section *section;
-  if (jit_image_find(decoder->image, &section, src) < 0)
+  JitSection *section = decoder->image->find(src);
+  if (!section)
     return;
 
   (*decoder->ics)[{src, section}] = dest;
-
-  jit_section_put(section);
 
   return;
 }
@@ -208,8 +206,8 @@ static void ptjvm_clear_ic(struct ptjvm_decoder *decoder, uint64_t src) {
   if (!decoder || !decoder->ics || !decoder->image)
     return;
 
-  jit_section *section;
-  if (jit_image_find(decoder->image, &section, src) < 0)
+  JitSection *section = decoder->image->find(src);
+  if (!section)
     return;
 
   auto iter = decoder->ics->find({src, section});
@@ -217,13 +215,11 @@ static void ptjvm_clear_ic(struct ptjvm_decoder *decoder, uint64_t src) {
     return;
   decoder->ics->erase(iter);
 
-  jit_section_put(section);
-
   return;
 }
 
 static bool ptjvm_get_ic(struct ptjvm_decoder *decoder,
-                          uint64_t &ip, struct jit_section *section) {
+                          uint64_t &ip, JitSection *section) {
   if (!decoder || !decoder->ics || !decoder->image)
     return false;
 
@@ -247,15 +243,13 @@ static void ptjvm_dump_event(struct ptjvm_decoder *decoder,
     if (type == JvmDumpDecoder::_codelet_info) {
       continue;
     } else if (type == JvmDumpDecoder::_compiled_method_load) {
-      jit_section *section = (jit_section *)data;
-      int errcode = jit_image_add(decoder->image, section);
-      if (errcode < 0) {
-        fprintf(stderr, "Ptjvm decoder: fail to add section.\n");
-      }
+      JitSection *section = (JitSection *)data;
+      decoder->image->add(section);
       continue;
     } else if (type == JvmDumpDecoder::_compiled_method_unload) {
       auto cmu = (JvmDumpDecoder::CompiledMethodUnloadInfo *)data;
-      jit_image_remove(decoder->image, cmu->code_begin);
+      if (!decoder->image->remove(cmu->code_begin))
+        fprintf(stderr, "fail to remove\n");
     } else if (type == JvmDumpDecoder::_method_entry) {
       record.add_method_info(*((const Method **)data));
     } else if (type == JvmDumpDecoder::_method_exit) {
@@ -1371,21 +1365,19 @@ static int drain_insn_events(struct ptjvm_decoder *decoder, int status) {
 
 static int handle_compiled_code_result(struct ptjvm_decoder *decoder,
                                         TraceDataRecord &record,
-                                        jit_section *section) {
+                                        JitSection *section) {
   if (!decoder || !section)
     return -pte_internal;
 
-  PCStackInfo *pcinfo = nullptr;
-  /* error: errcode < 0, no debug info: errcode = 0, else find debug info i-th*/
-  int idx;
-  int find = jit_section_read_debug_info(section, decoder->ip, pcinfo);
-  if (find <= 0) {
-    return find;
+  int idx = -1;
+  PCStackInfo *pcinfo = section->find(decoder->ip, idx);
+  if (!pcinfo) {
+    return 0;
   } else if (pcinfo != decoder->last_pcinfo) {
-    if (find == 1 || decoder->ip == section->record->pcinfo[find-2].pc)
+    if (idx == 0 || decoder->ip == section->record()->pcinfo[idx-1].pc)
       decoder->pcinfo_tow = 1;
   } else if (decoder->pcinfo_tow) {
-    const CompiledMethodDesc *cmd = jit_section_cmd(section);
+    const CompiledMethodDesc *cmd = section->cmd();
     if (!cmd)
       return 0;
     record.add_jitcode(decoder->time, section, pcinfo, decoder->last_ip);
@@ -1429,7 +1421,7 @@ static int handle_compiled_code(struct ptjvm_decoder *decoder,
   int errcode;
   struct pt_insn insn;
   struct pt_insn_ext iext;
-  jit_section *section = nullptr;
+  JitSection *section = nullptr;
 
   errcode = pt_insn_reset(decoder);
   if (errcode < 0)
@@ -1456,35 +1448,25 @@ static int handle_compiled_code(struct ptjvm_decoder *decoder,
     insn.mode = decoder->mode;
     insn.ip = decoder->ip;
 
-    errcode =
-        jit_section_read(section, insn.raw, sizeof(insn.raw), decoder->ip);
-    if (errcode < 0) {
-      if (section) {
-        jit_section_put(section);
-        section = nullptr;
-      }
-
-      errcode = jit_image_find(decoder->image, &section, decoder->ip);
-      if (errcode < 0) {
-        if (errcode != -pte_nomap)
-          fprintf(stderr, "%s: find image error(%d)\n", prog, errcode);
+    uint16_t insn_size = sizeof(insn.raw);
+    if (!section || !section->read(insn.raw, &insn_size, decoder->ip)) {
+      if (! (section = decoder->image->find(decoder->ip))) {
         break;
       }
 
-      errcode =
-          jit_section_read(section, insn.raw, sizeof(insn.raw), decoder->ip);
-      if (errcode < 0) {
+      insn_size = sizeof(insn.raw);
+      if (!section->read(insn.raw, &insn_size, decoder->ip)) {
         fprintf(stderr, "%s: compiled code's section error(%d) (%ld).\n",
-                            prog, errcode, section->code_begin);
+                            prog, errcode, section->code_begin());
         break;
       }
     }
 
-    insn.size = (uint8_t)errcode;
+    insn.size += insn_size;
     errcode = pt_ild_decode(&insn, &iext);
     if (errcode < 0) {
       fprintf(stderr, "%s: compiled code's ild error(%d) (%ld).\n",
-                        prog, errcode, section->code_begin);
+                        prog, errcode, section->code_begin());
       break;
     }
     uint64_t ip = decoder->ip;
@@ -1492,7 +1474,7 @@ static int handle_compiled_code(struct ptjvm_decoder *decoder,
     errcode = handle_compiled_code_result(decoder, record, section);
     if (errcode < 0) {
       fprintf(stderr, "%s: compiled code's result error(%d) (%ld).\n",
-                        prog, errcode, section->code_begin);
+                        prog, errcode, section->code_begin());
       break;
     }
 
@@ -1532,11 +1514,11 @@ static int handle_compiled_code(struct ptjvm_decoder *decoder,
     if (errcode < 0) {
       if (decoder->process_event && (decoder->event.type == ptev_disabled || decoder->event.type == ptev_tsx)) {
         fprintf(stderr, "disable(%d): %ld %ld (%ld)\n", errcode,
-                  section->code_begin, decoder->ip, decoder->time);
+                  section->code_begin(), decoder->ip, decoder->time);
       } else if (errcode != -pte_eos)
         fprintf(stderr, "%s: compiled code's proceed error(%d, %d, %d) %ld %ld (%ld)\n",
                   prog, errcode, decoder->process_event, decoder->event.type,
-                  section->code_begin, decoder->ip, decoder->time);
+                  section->code_begin(), decoder->ip, decoder->time);
       break;
     } else if (insn.iclass != ptic_cond_jump &&
                 iext.variant.branch.is_direct &&
@@ -1556,8 +1538,6 @@ static int handle_compiled_code(struct ptjvm_decoder *decoder,
     }
   }
 
-  if (section)
-    jit_section_put(section);
   return status;
 }
 
@@ -1932,7 +1912,6 @@ static int get_arg_uint8(uint8_t *value, const char *option, const char *arg,
 
 int ptjvm_decode(TracePart tracepart, TraceDataRecord record,
                  Analyser *analyser) {
-  jit_image *image = nullptr;
   struct ptjvm_decoder decoder;
   struct pt_config config;
   int errcode;
@@ -1942,7 +1921,7 @@ int ptjvm_decode(TracePart tracepart, TraceDataRecord record,
   if (!tracepart.pt_size || !tracepart.sb_size || !analyser)
     return 0;
 
-  image = jit_image_alloc("jitted-code");
+  JitImage* image = new JitImage("jitted-code");
   if (!image) {
     fprintf(stderr, "%s: Fail ti alloc jit image.\n", prog);
     goto err;
@@ -1978,7 +1957,7 @@ int ptjvm_decode(TracePart tracepart, TraceDataRecord record,
   decoder.sideband->set_config(decoder.pevent);
 
   decoder.jvmdump = new JvmDumpDecoder();
-  decoder.ics = new map<pair<uint64_t, struct jit_section *>, uint64_t>();
+  decoder.ics = new map<pair<uint64_t, JitSection *>, uint64_t>();
   decoder.loss = tracepart.loss;
 
   if (config.cpu.vendor) {
@@ -1998,7 +1977,7 @@ int ptjvm_decode(TracePart tracepart, TraceDataRecord record,
 
   decode(&decoder, record, prog);
 
-  jit_image_free(image);
+  delete image;
   free_decoder(&decoder);
   delete decoder.sideband;
   delete decoder.jvmdump;
@@ -2006,7 +1985,7 @@ int ptjvm_decode(TracePart tracepart, TraceDataRecord record,
   return 0;
 
 err:
-  jit_image_free(image);
+  delete image;
   free_decoder(&decoder);
   delete decoder.sideband;
   delete decoder.jvmdump;

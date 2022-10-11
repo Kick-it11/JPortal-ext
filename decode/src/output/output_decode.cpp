@@ -18,12 +18,11 @@ using std::set;
 using std::stack;
 using std::vector;
 
-class ExecInfo {
-public:
-    const jit_section* section; // jit_section, nullptr indicates a segment of inter codes
+struct ExecInfo {
+    const JitSection* section; // jit_section, nullptr indicates a segment of inter codes
     vector<pair<const Method*, Block*>> prev_frame;
     ExecInfo(): section(nullptr) { }
-    ExecInfo(const jit_section* s): section(s) { }
+    ExecInfo(const JitSection* s): section(s) { }
 };
 
 class JitMatchTree {
@@ -236,15 +235,15 @@ static void output_jitcode(FILE* fp, vector<pair<const Method*, Block*>>& blocks
 
 static bool handle_jitcode(ExecInfo* exec, const PCStackInfo **pcs, int size,
                            vector<pair<const Method*, Block*>>& ans) {
-    const jit_section* section = exec->section;
+    const JitSection* section = exec->section;
     set<const PCStackInfo*> pc_execs;
     set<pair<const Method*, Block*>> block_execs;
     bool notRetry = true;
-    JitMatchTree* tree = new JitMatchTree(section->cmd->mainm, nullptr);
+    JitMatchTree* tree = new JitMatchTree(section->cmd()->mainm(), nullptr);
     auto call_match = [&exec, &tree, &block_execs, &pc_execs, &ans, section] (bool newtree) -> void {
         tree->match(exec->prev_frame, 0, block_execs, ans);
         delete tree;
-        tree = newtree? new JitMatchTree(section->cmd->mainm, nullptr) : nullptr;
+        tree = newtree? new JitMatchTree(section->cmd()->mainm(), nullptr) : nullptr;
         block_execs.clear();
         pc_execs.clear();
     };
@@ -256,7 +255,7 @@ static bool handle_jitcode(ExecInfo* exec, const PCStackInfo **pcs, int size,
         for (int j = pc->numstackframes-1; j >= 0; --j) {
             int mi = pc->methods[j];
             int bci = pc->bcis[j];
-            const Method* method = section->cmd->get_method(mi);
+            const Method* method = section->cmd()->method(mi);
             Block* block = (method && method->is_jportal())? method->get_bg()->block(bci) : (Block*)(long long)bci;
             frame.push_back({method, block});
             block_execs.insert({method, block});
@@ -278,7 +277,7 @@ static bool handle_jitcode(ExecInfo* exec, const PCStackInfo **pcs, int size,
     return notRetry;
 }
 
-static void return_exec(stack<ExecInfo*> &exec_st, const jit_section* section,
+static void return_exec(stack<ExecInfo*> &exec_st, const JitSection* section,
                         vector<pair<const Method*, Block*>>& ans) {
     while (!exec_st.empty() && exec_st.top()->section != section) {
         JitMatchTree::return_frame(exec_st.top()->prev_frame, exec_st.top()->prev_frame.size(), ans);
@@ -356,15 +355,15 @@ static void output_trace(TraceData* trace, size_t start, size_t end, FILE* fp) {
             case CodeletsEntry::_jitcode_entry:
             case CodeletsEntry::_jitcode_osr_entry:
             case CodeletsEntry::_jitcode: {
-                const jit_section *section = nullptr;
+                const JitSection *section = nullptr;
                 const PCStackInfo **pcs = nullptr;
                 size_t size;
                 assert(trace->get_jit(loc, pcs, size, section)
-                       && pcs && section && section->cmd);
+                       && pcs && section && section->cmd());
                 vector<pair<const Method*, Block*>> blocks;
                 if (codelet == CodeletsEntry::_jitcode_entry) {
                     ExecInfo* exec = new ExecInfo(section);
-                    const Method* method = section->cmd->mainm;
+                    const Method* method = section->cmd()->mainm();
                     Block* block = method->get_bg()->block(0);
                     blocks.push_back({method, block});
                     exec->prev_frame.push_back({method, block});

@@ -1,7 +1,7 @@
 #ifndef JAVA_KLASS_HPP
 #define JAVA_KLASS_HPP
 
-#include "type_defs.hpp"
+#include "utilities/definitions.hpp"
 
 #include <list>
 #include <map>

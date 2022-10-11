@@ -22,21 +22,10 @@
  *
  */
 
-#ifndef SHARE_VM_CODE_COMPRESSEDSTREAM_HPP
-#define SHARE_VM_CODE_COMPRESSEDSTREAM_HPP
+#ifndef COMPRESSED_STREAM_HPP
+#define COMPRESSED_STREAM_HPP
 
-#include <stdint.h>
-
-typedef unsigned char u_char;
-
-typedef uint32_t juint;
-typedef int jint;
-typedef unsigned char   jboolean;
-typedef unsigned short  jchar;
-typedef short           jshort;
-typedef float           jfloat;
-typedef double          jdouble;
-typedef signed char jbyte;
+#include "utilities/definitions.hpp"
 
 const int LogBitsPerByte     = 3;
 const int BitsPerByte        = 1 << LogBitsPerByte; 

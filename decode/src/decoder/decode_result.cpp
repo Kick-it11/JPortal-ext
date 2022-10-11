@@ -61,7 +61,7 @@ bool TraceData::get_inter(size_t loc, const u1 *&codes, size_t &size) {
     return true;
 }
 
-bool TraceData::get_jit(size_t loc, const PCStackInfo **&codes, size_t &size, const jit_section *&section) {
+bool TraceData::get_jit(size_t loc, const PCStackInfo **&codes, size_t &size, const JitSection *&section) {
     const u1 *pointer = data_begin + loc;
     if (pointer > data_end)
         return false;
@@ -109,20 +109,20 @@ int TraceDataRecord::add_bytecode(u8 time, Bytecodes::Code bytecode) {
     return 0;
 }
 
-int TraceDataRecord::add_jitcode(u8 time, const jit_section *section,
+int TraceDataRecord::add_jitcode(u8 time, const JitSection *section,
                                  PCStackInfo *pc, u8 entry) {
     current_time = time;
     if (codelet_type != CodeletsEntry::_jitcode
         && codelet_type != CodeletsEntry::_jitcode_entry
         && codelet_type != CodeletsEntry::_jitcode_osr_entry
-        || last_section != section || entry == section->cmd->get_entry_point()
-        || entry == section->cmd->get_verified_entry_point()) {
-        if (entry == section->cmd->get_osr_entry_point()
+        || last_section != section || entry == section->cmd()->entry_point()
+        || entry == section->cmd()->verified_entry_point()) {
+        if (entry == section->cmd()->osr_entry_point()
             && codelet_type == CodeletsEntry::_bytecode && (Bytecodes::is_branch(last_bytecode)
             || last_bytecode == Bytecodes::_goto || last_bytecode == Bytecodes::_goto_w))
             codelet_type = CodeletsEntry::_jitcode_osr_entry;
-        else if (entry == section->cmd->get_entry_point()
-                 || entry == section->cmd->get_verified_entry_point())
+        else if (entry == section->cmd()->entry_point()
+                 || entry == section->cmd()->verified_entry_point())
             codelet_type = CodeletsEntry::_jitcode_entry;
         else
             codelet_type = CodeletsEntry::_jitcode;

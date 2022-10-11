@@ -5,9 +5,9 @@
 
 using std::map;
 
-struct jit_section;
 class Analyser;
 class Method;
+class JitSection;
 
 class JvmDumpDecoder {
   public:
@@ -110,7 +110,7 @@ class JvmDumpDecoder {
     /* map between system thread id & java thread id */
     static map<long, long> thread_map;
     static map<int, const Method*> md_map;
-    static map<const uint8_t *, jit_section *> section_map;
+    static map<const uint8_t *, JitSection *> section_map;
 };
 
 #endif

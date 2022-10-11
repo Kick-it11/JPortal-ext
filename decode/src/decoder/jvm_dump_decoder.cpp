@@ -1,7 +1,7 @@
 #include "decoder/jvm_dump_decoder.hpp"
 #include "java/analyser.hpp"
 #include "java/method.hpp"
-#include "runtime/load_file.hpp"
+#include "utilities/load_file.hpp"
 #include "runtime/jit_section.hpp"
 #include "runtime/codelets_entry.hpp"
 #include <stdint.h>
@@ -12,7 +12,7 @@ uint8_t *JvmDumpDecoder::begin = nullptr;
 uint8_t *JvmDumpDecoder::end = nullptr;
 map<long, long> JvmDumpDecoder::thread_map;
 map<int, const Method*> JvmDumpDecoder::md_map;
-map<const uint8_t *, jit_section *> JvmDumpDecoder::section_map;
+map<const uint8_t *, JitSection *> JvmDumpDecoder::section_map;
 
 JvmDumpDecoder::DumpInfoType JvmDumpDecoder::dumper_event(uint64_t time, long tid,
                                                 const void *&data) {
@@ -214,24 +214,11 @@ void JvmDumpDecoder::initialize(char *dump_data, Analyser* analyser) {
                     fprintf(stderr, "JvmDumpDecoder: unknown or un-jportal section.\n");
                     break;
                 }
-                CompiledMethodDesc *cmd = new CompiledMethodDesc(cm->scopes_pc_size,
-                      cm->scopes_data_size, cm->entry_point, cm->verified_entry_point,
+                CompiledMethodDesc *cmd = new CompiledMethodDesc(cm->entry_point, cm->verified_entry_point,
                       cm->osr_entry_point, cm->inline_method_cnt, mainm, methods);
-                jit_section *section;
-                int errcode = jit_mk_section(&section, insts, cm->code_begin, cm->code_size,
-                                                scopes_pc, scopes_data, cmd, nullptr);
-                if (errcode < 0) {
-                    fprintf(stderr, "JvmDumpDecoder: fail to make section.\n");
-                    delete cmd;
-                    break;
-                }
-                errcode = jit_section_get(section);
-                if (errcode < 0) {
-                    fprintf(stderr, "JvmDumpDecoder: fail to get section.\n");
-                    delete cmd;
-                    jit_section_free(section);
-                    break;
-                }
+                JitSection *section = new JitSection(insts, cm->code_begin, cm->code_size,
+                                                     scopes_pc, cm->scopes_pc_size,
+                                                     scopes_data, cm->scopes_data_size, cmd, nullptr);
                 section_map[buffer] = section;
                 break;
             }
@@ -270,7 +257,7 @@ void JvmDumpDecoder::initialize(char *dump_data, Analyser* analyser) {
 
 void JvmDumpDecoder::destroy() {
     for (auto section : section_map)
-        jit_section_put(section.second);
+        delete section.second;
     section_map.clear();
 
     for (auto md : md_map)

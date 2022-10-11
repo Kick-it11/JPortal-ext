@@ -1,7 +1,8 @@
 #ifndef JAVA_CONSTANTPOOL_HPP
 #define JAVA_CONSTANTPOOL_HPP
 
-#include "type_defs.hpp"
+#include "utilities/definitions.hpp"
+
 #include <cassert>
 #include <string>
 #include <vector>

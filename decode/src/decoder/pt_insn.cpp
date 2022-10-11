@@ -1,5 +1,5 @@
-#include "runtime/pt_insn.hpp"
-#include "runtime/pt_ild.hpp"
+#include "decoder/pt_insn.hpp"
+#include "decoder/pt_ild.hpp"
 #include "runtime/jit_section.hpp"
 #include "runtime/jit_image.hpp"
 
@@ -177,13 +177,12 @@ int pt_insn_next_ip(uint64_t *pip, const struct pt_insn *insn,
     return 0;
 }
 
-static int pt_insn_decode_retry(struct pt_insn *insn, struct pt_insn_ext *iext,
-                struct jit_image *image)
+static int pt_insn_decode_retry(struct pt_insn *insn, struct pt_insn_ext *iext, JitImage *image)
 {
     int errcode, isid;
     uint8_t isize, remaining;
 
-    if (!insn)
+    if (!image || !insn)
         return -pte_internal;
 
     isize = insn->size;
@@ -196,28 +195,16 @@ static int pt_insn_decode_retry(struct pt_insn *insn, struct pt_insn_ext *iext,
         return -pte_bad_insn;
 
     /* Read the remaining bytes from the image. */
-    jit_section *section = nullptr;
-    errcode = jit_image_find(image, &section, insn->ip + isize);
-    if (errcode < 0)
-        return errcode;
+    JitSection *section = image->find(insn->ip + isize);
+    if (!section)
+        return -pte_nomap;
 
-    errcode = jit_section_read(section, insn->raw, sizeof(insn->raw), insn->ip);
-    if (errcode <= 0) {
-        /* We should have gotten an error if we were not able to read at
-         * least one byte.  Check this to guarantee termination.
-         */
-        if (!errcode)
-            return -pte_internal;
-
-        /* Preserve the original error if there are no more bytes. */
-        if (errcode == -pte_nomap)
-            errcode = -pte_bad_insn;
-
-        return errcode;
-    }
+    uint16_t size = sizeof(insn->raw);
+    if (!section->read(insn->raw, &size, insn->ip) || size == 0)
+        return -pte_nomap;
 
     /* Add the newly read bytes to the instruction's size. */
-    insn->size += (uint8_t) errcode;
+    insn->size += (uint8_t) size;
 
     /* Store the new size to avoid infinite recursion in case instruction
      * decode fails after length decode, which would set @insn->size to the
@@ -262,27 +249,24 @@ static int pt_insn_decode_retry(struct pt_insn *insn, struct pt_insn_ext *iext,
     return errcode;
 }
 
-int pt_insn_decode(struct pt_insn *insn, struct pt_insn_ext *iext,
-           struct jit_image *image)
+int pt_insn_decode(struct pt_insn *insn, struct pt_insn_ext *iext, JitImage* image)
 {
     int errcode;
 
-    if (!insn)
+    if (!insn || !image)
         return -pte_internal;
 
-    /* Read the memory at the current IP in the current address space. */
-    jit_section *section = nullptr;
-    errcode = jit_image_find(image, &section, insn->ip);
-    if (errcode < 0)
-        return errcode;
+     /* Read the remaining bytes from the image. */
+    JitSection *section = image->find(insn->ip);
+    if (!section)
+        return -pte_nomap;
 
-    errcode = jit_section_read(section, insn->raw, sizeof(insn->raw), insn->ip);
-    if (errcode < 0)
-        return errcode;
-    /* We initialize @insn->size to the maximal possible size.  It will be
-     * set to the actual size during instruction decode.
-     */
-    insn->size = (uint8_t) errcode;
+    uint16_t size = sizeof(insn->raw);
+    if (!section->read(insn->raw, &size, insn->ip) || size == 0)
+        return -pte_nomap;
+
+    /* Add the newly read bytes to the instruction's size. */
+    insn->size += (uint8_t) size;
 
     errcode = pt_ild_decode(insn, iext);
     if (errcode < 0) {
@@ -302,7 +286,7 @@ int pt_insn_decode(struct pt_insn *insn, struct pt_insn_ext *iext,
 }
 
 int pt_insn_range_is_contiguous(uint64_t begin, uint64_t end,
-                enum pt_exec_mode mode, struct jit_image *image,
+                enum pt_exec_mode mode, JitImage *image,
                 size_t steps)
 {
     struct pt_insn_ext iext;

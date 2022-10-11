@@ -1,13 +1,13 @@
 #ifndef JAVA_CLASSFILEPARSER_HPP
 #define JAVA_CLASSFILEPARSER_HPP
 
-#include "type_defs.hpp"
+#include "utilities/definitions.hpp"
 
 #include <string>
 
 using std::string;
 
-class BufferStream;
+class ClassFileStream;
 class Klass;
 class Method;
 class ConstantPool;
@@ -17,7 +17,7 @@ class ClassFileParser {
   private:
     Analyser *_analyser = nullptr;
     Klass *_klass = nullptr;
-    BufferStream *_stream = nullptr;
+    ClassFileStream *_stream = nullptr;
     // string _class_name;
     // int _num_patched_klasses;
     // int _max_num_patched_klasses;
@@ -40,21 +40,21 @@ class ClassFileParser {
     // bool _has_final_method;
 
     // Constant pool parsing
-    void parse_constant_pool(const BufferStream *const stream,
+    void parse_constant_pool(const ClassFileStream *const stream,
                              ConstantPool *const cp, const int length);
 
     // Field parsing
-    void parse_fields(const BufferStream *const stream, ConstantPool *cp);
+    void parse_fields(const ClassFileStream *const stream, ConstantPool *cp);
 
     // Method parsing
-    void parse_methods(const BufferStream *const stream, ConstantPool *cp);
+    void parse_methods(const ClassFileStream *const stream, ConstantPool *cp);
 
-    Method *parse_method(const BufferStream *const stream, ConstantPool *cp);
+    Method *parse_method(const ClassFileStream *const stream, ConstantPool *cp);
 
     // Classfile attribute parsing
-    void parse_classfile_attributes(const BufferStream *const stream);
+    void parse_classfile_attributes(const ClassFileStream *const stream);
 
-    void parse_class(const BufferStream *const stream);
+    void parse_class(const ClassFileStream *const stream);
 
   public:
     ClassFileParser(string &file_path, Analyser* analyser, Klass* klass);

@@ -4,17 +4,18 @@
  */
 #include <limits.h>
 
-#include "decoder/jvm_dump_decoder.hpp"
 #include "decoder/ptjvm_decoder.hpp"
 #include "decoder/sideband_decoder.hpp"
 #include "decoder/pt_ild.hpp"
 #include "decoder/pt_insn.hpp"
 
+#include "runtime/jvm_runtime.hpp"
 #include "runtime/codelets_entry.hpp"
 #include "decoder/decode_result.hpp"
 #include "runtime/jit_image.hpp"
 #include "runtime/jit_section.hpp"
 #include "utilities/load_file.hpp"
+#include "utilities/definitions.hpp"
 #include "java/analyser.hpp"
 
 #define PERF_RECORD_AUXTRACE 71
@@ -122,7 +123,7 @@ struct ptjvm_decoder {
   map<pair<uint64_t, JitSection *>, uint64_t> *ics;
 
   /* Jvm dump infomation decoder */
-  JvmDumpDecoder *jvmdump;
+  JVMRuntime *jvm;
 
   /* The perf event sideband decoder configuration. */
   SidebandDecoder *sideband;
@@ -179,7 +180,7 @@ static void ptjvm_sb_event(ptjvm_decoder *decoder, TraceDataRecord &record) {
       break;
     }
     long sys_tid = pevent.sample.tid ? (*(pevent.sample.tid)) : -1;
-    decoder->tid = decoder->jvmdump->get_java_tid(sys_tid);
+    decoder->tid = decoder->jvm->get_java_tid(sys_tid);
     record.switch_out(decoder->loss);
     record.switch_in(decoder->tid, decoder->time, decoder->loss);
   }
@@ -230,48 +231,48 @@ static bool ptjvm_get_ic(struct ptjvm_decoder *decoder,
   return true;
 }
 
-static void ptjvm_dump_event(struct ptjvm_decoder *decoder,
-                             TraceDataRecord &record) {
-  if (!decoder || !decoder->jvmdump)
-    return;
+// static void ptjvm_dump_event(struct ptjvm_decoder *decoder,
+//                              TraceDataRecord &record) {
+//   if (!decoder || !decoder->jvmdump)
+//     return;
 
-  while (true) {
-    JvmDumpDecoder::DumpInfoType type;
-    JvmDumpDecoder *dumper = decoder->jvmdump;
-    const void *data = nullptr;
-    type = dumper->dumper_event(decoder->time, decoder->tid, data);
-    if (type == JvmDumpDecoder::_codelet_info) {
-      continue;
-    } else if (type == JvmDumpDecoder::_compiled_method_load) {
-      JitSection *section = (JitSection *)data;
-      decoder->image->add(section);
-      continue;
-    } else if (type == JvmDumpDecoder::_compiled_method_unload) {
-      auto cmu = (JvmDumpDecoder::CompiledMethodUnloadInfo *)data;
-      if (!decoder->image->remove(cmu->code_begin))
-        fprintf(stderr, "fail to remove\n");
-    } else if (type == JvmDumpDecoder::_method_entry) {
-      record.add_method_info(*((const Method **)data));
-    } else if (type == JvmDumpDecoder::_method_exit) {
-      continue;
-    } else if (type == JvmDumpDecoder::_illegal) {
-      break;
-    } else if (type == JvmDumpDecoder::_thread_start) {
-      continue;
-    } else if (type == JvmDumpDecoder::_no_thing) {
-      continue;
-    } else if (type == JvmDumpDecoder::_inline_cache_add) {
-      auto ic = (JvmDumpDecoder::InlineCacheAdd *)data;
-      ptjvm_add_ic(decoder, ic->src, ic->dest);
-    } else if (type == JvmDumpDecoder::_inline_cache_clear) {
-      auto ic = (JvmDumpDecoder::InlineCacheClear *)data;
-      ptjvm_clear_ic(decoder, ic->src);
-    } else {
-      continue;
-    }
-  }
-  return;
-}
+//   while (true) {
+//     JvmDumpDecoder::DumpInfoType type;
+//     JvmDumpDecoder *dumper = decoder->jvmdump;
+//     const void *data = nullptr;
+//     type = dumper->dumper_event(decoder->time, decoder->tid, data);
+//     if (type == JvmDumpDecoder::_codelet_info) {
+//       continue;
+//     } else if (type == JvmDumpDecoder::_compiled_method_load) {
+//       JitSection *section = (JitSection *)data;
+//       decoder->image->add(section);
+//       continue;
+//     } else if (type == JvmDumpDecoder::_compiled_method_unload) {
+//       auto cmu = (JvmDumpDecoder::CompiledMethodUnloadInfo *)data;
+//       if (!decoder->image->remove(cmu->code_begin))
+//         fprintf(stderr, "fail to remove\n");
+//     } else if (type == JvmDumpDecoder::_method_entry) {
+//       record.add_method_info(*((const Method **)data));
+//     } else if (type == JvmDumpDecoder::_method_exit) {
+//       continue;
+//     } else if (type == JvmDumpDecoder::_illegal) {
+//       break;
+//     } else if (type == JvmDumpDecoder::_thread_start) {
+//       continue;
+//     } else if (type == JvmDumpDecoder::_no_thing) {
+//       continue;
+//     } else if (type == JvmDumpDecoder::_inline_cache_add) {
+//       auto ic = (JvmDumpDecoder::InlineCacheAdd *)data;
+//       ptjvm_add_ic(decoder, ic->src, ic->dest);
+//     } else if (type == JvmDumpDecoder::_inline_cache_clear) {
+//       auto ic = (JvmDumpDecoder::InlineCacheClear *)data;
+//       ptjvm_clear_ic(decoder, ic->src);
+//     } else {
+//       continue;
+//     }
+//   }
+//   return;
+// }
 
 static int check_erratum_skd022(struct ptjvm_decoder *decoder) {
   struct pt_insn_ext iext;
@@ -1492,7 +1493,7 @@ static int handle_compiled_code(struct ptjvm_decoder *decoder,
 
     pt_qry_time(decoder->qry, &decoder->time, NULL, NULL);
     ptjvm_sb_event(decoder, record);
-    ptjvm_dump_event(decoder, record);
+    decoder->jvm->event(decoder->time, decoder->tid);
 
     if (ptjvm_get_ic(decoder, ip, section) && ip != decoder->ip) {
       decoder->ip = ip;
@@ -1701,7 +1702,7 @@ static int ptjvm_result_decode(struct ptjvm_decoder *decoder,
 
     pt_qry_time(decoder->qry, &decoder->time, NULL, NULL);
     ptjvm_sb_event(decoder, record);
-    ptjvm_dump_event(decoder, record);
+    decoder->jvm->event(decoder->time, decoder->tid);
 
     if (decoder->unresolved) {
       decoder->unresolved = false;
@@ -1765,7 +1766,7 @@ static int decode(ptjvm_decoder *decoder, TraceDataRecord &record,
 
       pt_qry_time(decoder->qry, &decoder->time, NULL, NULL);
       ptjvm_sb_event(decoder, record);
-      ptjvm_dump_event(decoder, record);
+      decoder->jvm->event(decoder->time, decoder->tid);
 
       if (decoder->unresolved) {
         decoder->unresolved = false;
@@ -1956,7 +1957,7 @@ int ptjvm_decode(TracePart tracepart, TraceDataRecord record,
       new SidebandDecoder(tracepart.sb_buffer, tracepart.sb_size);
   decoder.sideband->set_config(decoder.pevent);
 
-  decoder.jvmdump = new JvmDumpDecoder();
+  decoder.jvm = new JVMRuntime();
   decoder.ics = new map<pair<uint64_t, JitSection *>, uint64_t>();
   decoder.loss = tracepart.loss;
 
@@ -1980,7 +1981,7 @@ int ptjvm_decode(TracePart tracepart, TraceDataRecord record,
   delete image;
   free_decoder(&decoder);
   delete decoder.sideband;
-  delete decoder.jvmdump;
+  delete decoder.jvm;
   delete decoder.ics;
   return 0;
 
@@ -1988,7 +1989,7 @@ err:
   delete image;
   free_decoder(&decoder);
   delete decoder.sideband;
-  delete decoder.jvmdump;
+  delete decoder.jvm;
   delete decoder.ics;
   return -1;
 }

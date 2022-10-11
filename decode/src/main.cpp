@@ -8,7 +8,7 @@
 #include "java/analyser.hpp"
 #include "decoder/decode_result.hpp"
 #include "decoder/ptjvm_decoder.hpp"
-#include "decoder/jvm_dump_decoder.hpp"
+#include "runtime/jvm_runtime.hpp"
 #include "output/output_decode.hpp"
 
 using std::thread;
@@ -140,7 +140,7 @@ int main(int argc, char **argv) {
     Bytecodes::initialize();
     Analyser* analyser = new Analyser(class_paths);
 
-    JvmDumpDecoder::initialize(dump_data, analyser);
+    JVMRuntime::initialize(dump_data, analyser);
     cout<<"Initializing completed."<<endl;
 
     ///* Decoding *///
@@ -155,7 +155,8 @@ int main(int argc, char **argv) {
     for (auto trace : traces) {
         delete trace;
     }
-    JvmDumpDecoder::destroy();
+
+    JVMRuntime::destroy();
     delete analyser;
 
     return 0;

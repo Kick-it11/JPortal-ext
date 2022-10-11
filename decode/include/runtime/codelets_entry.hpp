@@ -2,57 +2,7 @@
 #define TEMPLATES_HPP
 
 #include "java/bytecodes.hpp"
-
-const static int number_of_states = 10;
-const static int number_of_return_entries = 6;
-const static int number_of_return_addrs = 10;
-const static int number_of_method_entries = 34;
-const static int number_of_result_handlers = 10;
-const static int number_of_deopt_entries = 7;
-const static int dispatch_length = 256;
-const static int number_of_codes = 239;
-
-struct CodeletsInfo {
-    // [low, high]
-    address _low_bound;
-    address _high_bound;
-
-    // [error]
-    address _unimplemented_bytecode_entry;
-    address _illegal_bytecode_sequence_entry;
-
-    // return
-    address _return_entry[number_of_return_entries][number_of_states];
-    address _invoke_return_entry[number_of_return_addrs];
-    address _invokeinterface_return_entry[number_of_return_addrs];
-    address _invokedynamic_return_entry[number_of_return_addrs];
-
-    address _native_abi_to_tosca[number_of_result_handlers];
-
-    // exception
-    address _rethrow_exception_entry;
-    address _throw_exception_entry;
-    address _remove_activation_preserving_args_entry;
-    address _remove_activation_entry;
-    address _throw_ArrayIndexOutOfBoundsException_entry;
-    address _throw_ArrayStoreException_entry;
-    address _throw_ArithmeticException_entry;
-    address _throw_ClassCastException_entry;
-    address _throw_NullPointerException_entry;
-    address _throw_StackOverflowError_entry;
-
-    // method entry
-    address _entry_table[number_of_method_entries];
-
-    // bytecode template
-    address _normal_table[dispatch_length][number_of_states];
-    address _wentry_point[dispatch_length];
-
-    // deoptimization
-    address _deopt_entry[number_of_deopt_entries][number_of_states];
-    address _deopt_reexecute_return_entry;
-
-};
+#include "runtime/jvm_runtime.hpp"
 
 class CodeletsEntry {
     public:
@@ -92,12 +42,12 @@ class CodeletsEntry {
         };
 
     private:
-        static CodeletsInfo _entries;
+        static JVMRuntime::CodeletsInfo _entries;
 
         static int single_match(address *table, int size, address ip);
     public:
-        static void initialize(CodeletsInfo *entries);
-        
+        static void initialize(JVMRuntime::CodeletsInfo *entries);
+
         static Codelet entry_match(address ip, Bytecodes::Code &code);
 };
 

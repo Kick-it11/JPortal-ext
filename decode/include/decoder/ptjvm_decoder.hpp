@@ -1,8 +1,13 @@
 #ifndef PT_JVM_DECODER_HPP
 #define PT_JVM_DECODER_HPP
 
+#include "utilities/definitions.hpp"
+
 #include <list>
+#include <map>
+
 using std::list;
+using std::map;
 
 class Analyser;
 class TraceDataRecord;

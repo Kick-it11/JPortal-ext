@@ -2,9 +2,9 @@
 
 #include <cassert>
 
-CodeletsInfo CodeletsEntry::_entries;
+JVMRuntime::CodeletsInfo CodeletsEntry::_entries;
 
-void CodeletsEntry::initialize(CodeletsInfo *entries) {
+void CodeletsEntry::initialize(JVMRuntime::CodeletsInfo *entries) {
     _entries = *entries;
 }
 
@@ -13,12 +13,12 @@ CodeletsEntry::Codelet CodeletsEntry::entry_match(address ip, Bytecodes::Code &c
         return _illegal;
 
     if (ip >= _entries._normal_table[0][0] && ip < _entries._wentry_point[0]) {
-        int low = 0, high = dispatch_length*number_of_states-1;
+        int low = 0, high = JVMRuntime::dispatch_length*JVMRuntime::number_of_states-1;
         while (low <= high) {
             int mid = (low+high)/2;
-            address addr = _entries._normal_table[mid/number_of_states][mid%number_of_states];
+            address addr = _entries._normal_table[mid/JVMRuntime::number_of_states][mid%JVMRuntime::number_of_states];
             if (addr == ip) {
-                code = Bytecodes::cast(mid/number_of_states);
+                code = Bytecodes::cast(mid/JVMRuntime::number_of_states);
                 return _bytecode;
             } else if (addr > ip) {
                 high = mid-1;
@@ -30,7 +30,7 @@ CodeletsEntry::Codelet CodeletsEntry::entry_match(address ip, Bytecodes::Code &c
     }
 
     if (ip >= _entries._wentry_point[0] && ip < _entries._deopt_entry[0][0]) {
-        int low = 0, high = dispatch_length-1;
+        int low = 0, high = JVMRuntime::dispatch_length-1;
         while (low <= high) {
             int mid = (low+high)/2;
             address addr = _entries._wentry_point[mid];

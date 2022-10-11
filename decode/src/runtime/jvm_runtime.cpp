@@ -1,33 +1,32 @@
-#include "decoder/jvm_dump_decoder.hpp"
-#include "java/analyser.hpp"
-#include "java/method.hpp"
-#include "utilities/load_file.hpp"
+#include "runtime/jvm_runtime.hpp"
+#include "runtime/jit_image.hpp"
 #include "runtime/jit_section.hpp"
 #include "runtime/codelets_entry.hpp"
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
+#include "java/analyser.hpp"
+#include "utilities/load_file.hpp"
 
-uint8_t *JvmDumpDecoder::begin = nullptr;
-uint8_t *JvmDumpDecoder::end = nullptr;
-map<long, long> JvmDumpDecoder::thread_map;
-map<int, const Method*> JvmDumpDecoder::md_map;
-map<const uint8_t *, JitSection *> JvmDumpDecoder::section_map;
+uint8_t *JVMRuntime::begin = nullptr;
+uint8_t *JVMRuntime::end = nullptr;
+map<long, long> JVMRuntime::thread_map;
+map<int, const Method*> JVMRuntime::md_map;
+map<const uint8_t *, JitSection *> JVMRuntime::section_map;
 
-JvmDumpDecoder::DumpInfoType JvmDumpDecoder::dumper_event(uint64_t time, long tid,
-                                                const void *&data) {
+JVMRuntime::JVMRuntime() {
+    image = new JitImage("jitted-code");
+    current = begin;
+}
+
+void JVMRuntime::event(uint64_t time, long tid) {
     const DumpInfo *info;
-    data = nullptr;
-    if (current < end) {
+    while (current < end) {
         info = (const struct DumpInfo *)current;
         if (current + info->size > end || info->time > time)
-           return _illegal;
+           return;
         current += sizeof(DumpInfo);
         switch(info->type) {
             case _codelet_info: {
-                data = current;
                 current += sizeof(CodeletsInfo);
-                return _codelet_info;
+                break;
             }
             case _method_entry_initial: {
                 const MethodEntryInitial* me;
@@ -39,88 +38,70 @@ JvmDumpDecoder::DumpInfoType JvmDumpDecoder::dumper_event(uint64_t time, long ti
                 current += me->method_name_length;
                 const char *signature = (const char *)current;
                 current += me->method_signature_length;
-                auto iter1 = thread_map.find(tid);
-                if (iter1 == thread_map.end() || iter1->second != me->tid)
-                    return _no_thing;
-                auto iter = md_map.find(me->idx);
-                if (iter == md_map.end())
-                    return _no_thing;
-                data = iter->second;
-                return _method_entry;
+                break;
             }
             case _method_entry: {
                 const MethodEntryInfo* me;
                 me = (const MethodEntryInfo*)current;
                 current += sizeof(MethodEntryInfo);
-                auto iter1 = thread_map.find(tid);
-                if (iter1 == thread_map.end() || iter1->second != me->tid)
-                    return _no_thing;
-                auto iter = md_map.find(me->idx);
-                if (iter == md_map.end())
-                    return _no_thing;
-                data = iter->second;
-                return _method_entry;
+                break;
             }
             case _method_exit: {
                 const MethodExitInfo* me;
                 me = (const MethodExitInfo*)current;
                 current += sizeof(MethodExitInfo);
-                auto iter1 = thread_map.find(tid);
-                if (iter1 == thread_map.end() || iter1->second != me->tid)
-                    return _no_thing;
-                auto iter = md_map.find(me->idx);
-                if (iter == md_map.end())
-                    return _no_thing;
-                data = iter->second;
-                return _method_exit;
+                break;
             }
             case _compiled_method_load: {
                 current += (info->size - sizeof(DumpInfo));
-                auto iter = section_map.find(current);
-                if (iter == section_map.end())
-                    return _no_thing;
-                data = iter->second;
-                return _compiled_method_load;
+                if (section_map.count(current))
+                    image->add(section_map[current]);
+                break;
             }
             case _compiled_method_unload: {
-                data = current;
+                const CompiledMethodUnloadInfo *cmu = (const CompiledMethodUnloadInfo*)current;
                 current += sizeof(CompiledMethodUnloadInfo);
-                return _compiled_method_unload;
+                image->remove(cmu->code_begin);
+                break;
             }
             case _thread_start: {
-                data = current;
-                const ThreadStartInfo *th;
-                th = (const ThreadStartInfo*)current;
                 current += sizeof(ThreadStartInfo);
-                return _thread_start;
+                break;
             }
             case _inline_cache_add: {
-                data = current;
+                const InlineCacheAdd* ica = (const InlineCacheAdd*)current;
+                JitSection* section = image->find(ica->src);
+                if (section)
+                    ics[{ica->src, section}] = ica->dest;
                 current += sizeof(InlineCacheAdd);
-                return _inline_cache_add;
+                break;
             }
             case _inline_cache_clear: {
-                data = current;
+                const InlineCacheClear* icc = (const InlineCacheClear*)current;
+                JitSection* section = image->find(icc->src);
+                if (section)
+                    ics.erase({icc->src, section});
                 current += sizeof(InlineCacheClear);
-                return _inline_cache_clear;
+                break;
             }
-            default: {
+            default: {                
+                /* error */
+
                 current = end;
-                return _illegal;
+                return;
             }
         }
     }
-    return _illegal;
 }
 
-long JvmDumpDecoder::get_java_tid(long tid) {
+long JVMRuntime::get_java_tid(long tid) {
     auto iter = thread_map.find(tid);
     if (iter == thread_map.end())
         return -1;
     return iter->second;
 }
 
-void JvmDumpDecoder::initialize(char *dump_data, Analyser* analyser) {
+void JVMRuntime::initialize(char *dump_data, Analyser* analyser) {
     uint8_t *buffer;
     size_t size;
     uint64_t foffset, fsize;
@@ -255,7 +236,7 @@ void JvmDumpDecoder::initialize(char *dump_data, Analyser* analyser) {
     return;
 }
 
-void JvmDumpDecoder::destroy() {
+void JVMRuntime::destroy() {
     for (auto section : section_map)
         delete section.second;
     section_map.clear();

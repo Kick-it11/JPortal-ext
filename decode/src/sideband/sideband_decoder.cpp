@@ -1,4 +1,4 @@
-#include "decoder/sideband_decoder.hpp"
+#include "sideband/sideband_decoder.hpp"
 #include <stdio.h>
 int SidebandDecoder::sideband_event(uint64_t time, struct pev_event &event) {
     int size;

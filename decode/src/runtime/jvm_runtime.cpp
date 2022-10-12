@@ -12,82 +12,82 @@ map<int, const Method*> JVMRuntime::md_map;
 map<const uint8_t *, JitSection *> JVMRuntime::section_map;
 
 JVMRuntime::JVMRuntime() {
-    image = new JitImage("jitted-code");
-    current = begin;
+    _image = new JitImage("jitted-code");
+    _current = begin;
 }
 
 void JVMRuntime::event(uint64_t time, long tid) {
     const DumpInfo *info;
-    while (current < end) {
-        info = (const struct DumpInfo *)current;
-        if (current + info->size > end || info->time > time)
+    while (_current < end) {
+        info = (const struct DumpInfo *)_current;
+        if (_current + info->size > end || info->time > time)
            return;
-        current += sizeof(DumpInfo);
+        _current += sizeof(DumpInfo);
         switch(info->type) {
             case _codelet_info: {
-                current += sizeof(CodeletsInfo);
+                _current += sizeof(CodeletsInfo);
                 break;
             }
             case _method_entry_initial: {
                 const MethodEntryInitial* me;
-                me = (const MethodEntryInitial*)current;
-                current += sizeof(MethodEntryInitial);
-                const char *klass_name = (const char *)current;
-                current += me->klass_name_length;
-                const char *name = (const char *)current;
-                current += me->method_name_length;
-                const char *signature = (const char *)current;
-                current += me->method_signature_length;
+                me = (const MethodEntryInitial*)_current;
+                _current += sizeof(MethodEntryInitial);
+                const char *klass_name = (const char *)_current;
+                _current += me->klass_name_length;
+                const char *name = (const char *)_current;
+                _current += me->method_name_length;
+                const char *signature = (const char *)_current;
+                _current += me->method_signature_length;
                 break;
             }
             case _method_entry: {
                 const MethodEntryInfo* me;
-                me = (const MethodEntryInfo*)current;
-                current += sizeof(MethodEntryInfo);
+                me = (const MethodEntryInfo*)_current;
+                _current += sizeof(MethodEntryInfo);
                 break;
             }
             case _method_exit: {
                 const MethodExitInfo* me;
-                me = (const MethodExitInfo*)current;
-                current += sizeof(MethodExitInfo);
+                me = (const MethodExitInfo*)_current;
+                _current += sizeof(MethodExitInfo);
                 break;
             }
             case _compiled_method_load: {
-                current += (info->size - sizeof(DumpInfo));
-                if (section_map.count(current))
-                    image->add(section_map[current]);
+                _current += (info->size - sizeof(DumpInfo));
+                if (section_map.count(_current))
+                    _image->add(section_map[_current]);
                 break;
             }
             case _compiled_method_unload: {
-                const CompiledMethodUnloadInfo *cmu = (const CompiledMethodUnloadInfo*)current;
-                current += sizeof(CompiledMethodUnloadInfo);
-                image->remove(cmu->code_begin);
+                const CompiledMethodUnloadInfo *cmu = (const CompiledMethodUnloadInfo*)_current;
+                _current += sizeof(CompiledMethodUnloadInfo);
+                _image->remove(cmu->code_begin);
                 break;
             }
             case _thread_start: {
-                current += sizeof(ThreadStartInfo);
+                _current += sizeof(ThreadStartInfo);
                 break;
             }
             case _inline_cache_add: {
-                const InlineCacheAdd* ica = (const InlineCacheAdd*)current;
-                JitSection* section = image->find(ica->src);
+                const InlineCacheAdd* ica = (const InlineCacheAdd*)_current;
+                JitSection* section = _image->find(ica->src);
                 if (section)
-                    ics[{ica->src, section}] = ica->dest;
-                current += sizeof(InlineCacheAdd);
+                    _ics[{ica->src, section}] = ica->dest;
+                _current += sizeof(InlineCacheAdd);
                 break;
             }
             case _inline_cache_clear: {
-                const InlineCacheClear* icc = (const InlineCacheClear*)current;
-                JitSection* section = image->find(icc->src);
+                const InlineCacheClear* icc = (const InlineCacheClear*)_current;
+                JitSection* section = _image->find(icc->src);
                 if (section)
-                    ics.erase({icc->src, section});
-                current += sizeof(InlineCacheClear);
+                    _ics.erase({icc->src, section});
+                _current += sizeof(InlineCacheClear);
                 break;
             }
             default: {                
                 /* error */
 
-                current = end;
+                _current = end;
                 return;
             }
         }

@@ -3,7 +3,7 @@
 #include "java/klass.hpp"
 #include "java/analyser.hpp"
 #include "java/block.hpp"
-#include "output/output_decode.hpp"
+#include "decoder/output_decode.hpp"
 
 #include <queue>
 #include <stack>

@@ -1,4 +1,4 @@
-#include "decoder/pevent.hpp"
+#include "sideband/pevent.hpp"
 
 #define pev_config_has(config, field) \
     (config->size >= (offsetof(struct pev_config, field) + \

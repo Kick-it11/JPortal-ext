@@ -174,14 +174,22 @@ public:
 
     void event(uint64_t time, long tid);
     long get_java_tid(long tid);
+    JitImage* image() { return _image; }
+    bool get_ic(uint64_t &ip, JitSection* section) {
+      if (_ics.count({ip, section})) {
+        ip = _ics[{ip, section}];
+        return true;
+      }
+      return false;
+    }
 
     static void initialize(char *dump_data, Analyser* analyser);
     static void destroy();
 
   private:
-    const uint8_t *current;
-    JitImage *image;
-    map<pair<uint64_t, JitSection *>, uint64_t> ics;
+    const uint8_t *_current;
+    JitImage *_image;
+    map<pair<uint64_t, JitSection *>, uint64_t> _ics;
 
     static uint8_t *begin;
     static uint8_t *end;

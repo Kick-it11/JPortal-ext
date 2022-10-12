@@ -7,9 +7,10 @@
 #include "task/task_manager.hpp"
 #include "java/analyser.hpp"
 #include "decoder/decode_result.hpp"
-#include "decoder/ptjvm_decoder.hpp"
+#include "decoder/pt_jvm_decoder.hpp"
 #include "runtime/jvm_runtime.hpp"
-#include "output/output_decode.hpp"
+#include "decoder/output_decode.hpp"
+#include "decoder/trace_splitter.hpp"
 
 using std::thread;
 using std::cout;
@@ -31,7 +32,7 @@ public:
                     analyser(_analyser) {}
 protected:
     Task* doTask() {
-        ptjvm_decode(tracepart, TraceDataRecord(trace), analyser);
+        PTJVMDecoder decode(tracepart, TraceDataRecord(trace), analyser);
         free(tracepart.pt_buffer);
         free(tracepart.sb_buffer);
         return nullptr;

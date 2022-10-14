@@ -1668,4 +1668,11 @@ static inline void pt_asid_init(struct pt_asid *asid)
 	asid->vmcs = pt_asid_no_vmcs;
 }
 
+/* Supported address range configurations. */
+enum pt_addr_cfg {
+	pt_addr_cfg_disabled	= 0,
+	pt_addr_cfg_filter	= 1,
+	pt_addr_cfg_stop	= 2
+};
+
 #endif /* PT_HPP */

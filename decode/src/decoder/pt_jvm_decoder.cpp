@@ -1,28 +1,17 @@
 #include "decoder/pt_jvm_decoder.hpp"
-#include "pt/pt.hpp"
 #include "decoder/decode_result.hpp"
-
-/* This is a Intel PT decoder for Java Virtual Machine
- * It outputs the bytecode-level execution
- * both in Interpretation mode and in JIT mode
- */
-#include <limits.h>
-#include "sideband/sideband_decoder.hpp"
-#include "decoder/pt_jvm_decoder.hpp"
-#include "pt/pt_opcodes.hpp"
-
 #include "runtime/jvm_runtime.hpp"
-#include "runtime/codelets_entry.hpp"
-#include "decoder/decode_result.hpp"
 #include "runtime/jit_image.hpp"
 #include "runtime/jit_section.hpp"
-#include "utilities/load_file.hpp"
-#include "utilities/definitions.hpp"
-#include "java/analyser.hpp"
 #include "insn/pt_insn.hpp"
 #include "insn/pt_ild.hpp"
+#include "decoder/trace_splitter.hpp"
+#include "pt/pt.hpp"
 
-attr_config attr;
+#include <iostream>
+
+using std::cerr;
+using std::endl;
 
 void PTJVMDecoder::reset_decoder()
 {
@@ -203,35 +192,28 @@ int PTJVMDecoder::pt_insn_range_is_contiguous(uint64_t begin, uint64_t end,
 }
 
 
-void PTJVMDecoder::ptjvm_sb_event(TraceDataRecord &record)
+void PTJVMDecoder::time_change(TraceDataRecord &record)
 {
-    int errcode;
-    if (!_sideband)
-        return;
+    _jvm->move_on(_time);
 
-    struct pev_event pevent;
-    while (_sideband->sideband_event(_time, pevent))
-    {
-        switch (pevent.type)
-        {
-        case PERF_RECORD_AUX:
-            if (pevent.record.aux->flags && PERF_AUX_FLAG_TRUNCATED)
-            {
-                _loss = true;
-            }
-            break;
-        case PERF_RECORD_ITRACE_START:
-        default:
-            break;
+    bool loss = false;
+    while (_sideband->event(_time)) {
+        long sideband_tid = _sideband->tid();
+        if (_sideband->loss()) {
+            /** if a loss flag set, do not try to change it.
+             *  All threads after this before time might loss
+             */
+            loss = true;
         }
-        long sys_tid = pevent.sample.tid ? (*(pevent.sample.tid)) : -1;
-        _tid = _jvm->get_java_tid(sys_tid);
-        record.switch_out(_loss);
-        record.switch_in(_tid, _time, _loss);
+
+        long java_tid = _jvm->get_java_tid(sideband_tid);
+
+        if (loss || _tid != java_tid) {
+            _tid = java_tid;
+            record.switch_out(loss);
+            record.switch_in(_tid, _time, loss);
+        }
     }
-    record.switch_in(_tid, _time, _loss);
-    _loss = false;
-    return;
 }
 
 int PTJVMDecoder::check_erratum_skd022()
@@ -833,9 +815,6 @@ int PTJVMDecoder::pt_insn_indirect_branch(uint64_t *ip)
     uint64_t evip;
     int status, errcode;
 
-    if (!_qry)
-        return -pte_internal;
-
     evip = _ip;
 
     status = pt_qry_indirect_branch(_qry, ip);
@@ -852,9 +831,6 @@ int PTJVMDecoder::pt_insn_indirect_branch(uint64_t *ip)
 int PTJVMDecoder::pt_insn_cond_branch(int *taken)
 {
     int status, errcode;
-
-    if (!_qry)
-        return -pte_internal;
 
     status = pt_qry_cond_branch(_qry, taken);
     if (status < 0)
@@ -1359,7 +1335,7 @@ int PTJVMDecoder::pt_insn_start()
     return pt_insn_check_ip_event(NULL, NULL);
 }
 
-int PTJVMDecoder::handle_compiled_code(TraceDataRecord &record, const char *prog)
+int PTJVMDecoder::handle_compiled_code(TraceDataRecord &record)
 {
     int status;
     int errcode;
@@ -1406,8 +1382,7 @@ int PTJVMDecoder::handle_compiled_code(TraceDataRecord &record, const char *prog
             insn_size = sizeof(insn.raw);
             if (!section->read(insn.raw, &insn_size, _ip))
             {
-                fprintf(stderr, "%s: compiled code's section error(%d) (%ld).\n",
-                        prog, errcode, section->code_begin());
+                cerr << "PTJVMDecoder error: compiled code's section" << endl;
                 break;
             }
         }
@@ -1416,8 +1391,7 @@ int PTJVMDecoder::handle_compiled_code(TraceDataRecord &record, const char *prog
         errcode = pt_ild_decode(&insn, &iext);
         if (errcode < 0)
         {
-            fprintf(stderr, "%s: compiled code's ild error(%d) (%ld).\n",
-                    prog, errcode, section->code_begin());
+            cerr << "PTJVMDecoder error: compiled code's ild" << endl; 
             break;
         }
         uint64_t ip = _ip;
@@ -1425,8 +1399,7 @@ int PTJVMDecoder::handle_compiled_code(TraceDataRecord &record, const char *prog
         errcode = handle_compiled_code_result(record, section);
         if (errcode < 0)
         {
-            fprintf(stderr, "%s: compiled code's result error(%d) (%ld).\n",
-                    prog, errcode, section->code_begin());
+            cerr << "PTJVMDecoder error: compiled code's result" << endl;
             break;
         }
 
@@ -1445,8 +1418,7 @@ int PTJVMDecoder::handle_compiled_code(TraceDataRecord &record, const char *prog
         }
 
         pt_qry_time(_qry, &_time, NULL, NULL);
-        ptjvm_sb_event(record);
-        _jvm->event(_time, _tid);
+        time_change(record);
 
         if (_jvm->get_ic(ip, section) && ip != _ip) {
           _ip = ip;
@@ -1469,13 +1441,12 @@ int PTJVMDecoder::handle_compiled_code(TraceDataRecord &record, const char *prog
         {
             if (_process_event && (_event.type == ptev_disabled || _event.type == ptev_tsx))
             {
-                fprintf(stderr, "disable(%d): %ld %ld (%ld)\n", errcode,
-                        section->code_begin(), _ip, _time);
+                cerr << "PTJVMDecoder error: disable" << endl;
             }
             else if (errcode != -pte_eos)
-                fprintf(stderr, "%s: compiled code's proceed error(%d, %d, %d) %ld %ld (%ld)\n",
-                        prog, errcode, _process_event, _event.type,
-                        section->code_begin(), _ip, _time);
+            {
+                cerr << "PTJVMDecoder error: proceed" << endl;
+            }
             break;
         }
         else if (insn.iclass != ptic_cond_jump &&
@@ -1502,8 +1473,7 @@ int PTJVMDecoder::handle_compiled_code(TraceDataRecord &record, const char *prog
     return status;
 }
 
-int PTJVMDecoder::handle_bytecode(TraceDataRecord &record, Bytecodes::Code bytecode,
-                                  const char *prog)
+int PTJVMDecoder::handle_bytecode(TraceDataRecord &record, Bytecodes::Code bytecode)
 {
 
     int status = _status;
@@ -1519,7 +1489,7 @@ int PTJVMDecoder::handle_bytecode(TraceDataRecord &record, Bytecodes::Code bytec
     return status;
 }
 
-int PTJVMDecoder::ptjvm_result_decode(TraceDataRecord &record, const char *prog)
+int PTJVMDecoder::ptjvm_result_decode(TraceDataRecord &record)
 {
     int status = 0;
     Bytecodes::Code bytecode;
@@ -1529,43 +1499,42 @@ int PTJVMDecoder::ptjvm_result_decode(TraceDataRecord &record, const char *prog)
     {
     case (CodeletsEntry::_illegal):
     {
-        status = handle_compiled_code(record, prog);
+        status = handle_compiled_code(record);
         if (status < 0)
         {
             if (status != -pte_eos)
             {
                 record.switch_out(true);
-                fprintf(stderr, "%s: compiled code decode error(%d).\n", prog, status);
+                cerr << "PTJVMDecoder error: compiled code decode" << status << endl;
             }
             return 0;
         }
         /* might query a non-compiled-code ip */
         codelet = CodeletsEntry::entry_match(_ip, bytecode);
         if (codelet != CodeletsEntry::_illegal)
-            return ptjvm_result_decode(record, prog);
+            return ptjvm_result_decode(record);
         return status;
     }
     case (CodeletsEntry::_bytecode):
     {
-        status = handle_bytecode(record, bytecode, prog);
+        status = handle_bytecode(record, bytecode);
         if (status < 0)
         {
             if (status != -pte_eos)
             {
                 record.switch_out(true);
-                fprintf(stderr, "%s: bytecode decode error(%d).\n", prog, status);
+                cerr << "PTJVMDecoder error: bytecode " << status << endl;
             }
             return 0;
         }
 
         pt_qry_time(_qry, &_time, NULL, NULL);
-        ptjvm_sb_event(record);
-        _jvm->event(_time, _tid);
+        time_change(record);
 
         if (_unresolved)
         {
             _unresolved = false;
-            status = ptjvm_result_decode(record, prog);
+            status = ptjvm_result_decode(record);
             if (status < 0)
                 return status;
         }
@@ -1683,23 +1652,21 @@ int PTJVMDecoder::drain_qry_events()
     return status;
 }
 
-void PTJVMDecoder::decode(TraceDataRecord record, const char *prog)
+void PTJVMDecoder::decode(TraceDataRecord &record)
 {
-    struct pt_query_decoder *qry = _qry;
     int status, taken, errcode;
-
     for (;;)
     {
         reset_decoder();
-        status = pt_qry_sync_forward(qry, &_ip);
+        status = pt_qry_sync_forward(_qry, &_ip);
         if (status < 0)
         {
             if (status == -pte_eos)
             {
                 break;
             }
-            fprintf(stderr, "%s: decode sync error %s.\n", prog,
-                    pt_errstr(pt_errcode(status)));
+            cerr << "PTJVMDecoder error: " << pt_errstr(pt_errcode(status)) << endl;
+            record.switch_out(true);
             return;
         }
 
@@ -1712,13 +1679,12 @@ void PTJVMDecoder::decode(TraceDataRecord record, const char *prog)
                 break;
 
             pt_qry_time(_qry, &_time, NULL, NULL);
-            ptjvm_sb_event(record);
-            _jvm->event(_time, _tid);
+            time_change(record);
 
             if (_unresolved)
             {
                 _unresolved = false;
-                status = ptjvm_result_decode(record, prog);
+                status = ptjvm_result_decode(record);
                 if (status < 0)
                     break;
                 continue;
@@ -1731,7 +1697,7 @@ void PTJVMDecoder::decode(TraceDataRecord record, const char *prog)
                 if (status < 0)
                     break;
                 _status = status;
-                status = ptjvm_result_decode(record, prog);
+                status = ptjvm_result_decode(record);
                 if (status < 0)
                     break;
             }
@@ -1750,178 +1716,52 @@ void PTJVMDecoder::decode(TraceDataRecord record, const char *prog)
             break;
         else
         {
-            fprintf(stderr, "%s: decode error %d time: %lx.\n", prog, status,
-                    _time);
-            record.switch_out(_loss);
+            cerr << "PTJVMDecoder error: " << status << " " << _time << endl;
+            record.switch_out(true);
         }
     }
-    record.switch_out(_loss);
 }
 
-int PTJVMDecoder::alloc_decoder(const struct pt_config *conf, const char *prog)
+PTJVMDecoder::PTJVMDecoder(TracePart tracepart, Analyser *analyser)
 {
-    struct pt_config config;
-
-    config = *conf;
-    config.flags = _flags;
-    _config = *conf;
-
-    _qry = pt_qry_alloc_decoder(&config);
-    if (!_qry)
-    {
-        fprintf(stderr, "%s: failed to create query decoder.\n", prog);
-        return -pte_nomem;
-    }
-
-    return 0;
-}
-
-static int get_arg_uint64(uint64_t *value, const char *option, const char *arg,
-                          const char *prog)
-{
-    char *rest;
-
-    if (!value || !option || !prog)
-    {
-        fprintf(stderr, "%s: internal error.\n", prog ? prog : "?");
-        return 0;
-    }
-
-    if (!arg || arg[0] == 0 || (arg[0] == '-' && arg[1] == '-'))
-    {
-        fprintf(stderr, "%s: %s: missing argument.\n", prog, option);
-        return 0;
-    }
-
-    errno = 0;
-    *value = strtoull(arg, &rest, 0);
-    if (errno || *rest)
-    {
-        fprintf(stderr, "%s: %s: bad argument: %s.\n", prog, option, arg);
-        return 0;
-    }
-
-    return 1;
-}
-
-static int get_arg_uint32(uint32_t *value, const char *option, const char *arg,
-                          const char *prog)
-{
-    uint64_t val;
-
-    if (!get_arg_uint64(&val, option, arg, prog))
-        return 0;
-
-    if (val > UINT32_MAX)
-    {
-        fprintf(stderr, "%s: %s: value too big: %s.\n", prog, option, arg);
-        return 0;
-    }
-
-    *value = (uint32_t)val;
-
-    return 1;
-}
-
-static int get_arg_uint16(uint16_t *value, const char *option, const char *arg,
-                          const char *prog)
-{
-    uint64_t val;
-
-    if (!get_arg_uint64(&val, option, arg, prog))
-        return 0;
-
-    if (val > UINT16_MAX)
-    {
-        fprintf(stderr, "%s: %s: value too big: %s.\n", prog, option, arg);
-        return 0;
-    }
-
-    *value = (uint16_t)val;
-
-    return 1;
-}
-
-static int get_arg_uint8(uint8_t *value, const char *option, const char *arg,
-                         const char *prog)
-{
-    uint64_t val;
-
-    if (!get_arg_uint64(&val, option, arg, prog))
-        return 0;
-
-    if (val > UINT8_MAX)
-    {
-        fprintf(stderr, "%s: %s: value too big: %s.\n", prog, option, arg);
-        return 0;
-    }
-
-    *value = (uint8_t)val;
-
-    return 1;
-}
-
-PTJVMDecoder::PTJVMDecoder(TracePart tracepart, TraceDataRecord record,
-                           Analyser *analyser)
-{
-    struct pt_config config;
     int errcode;
-    size_t off;
-    const char *prog = "Ptjvm decoder";
-
-    pt_config_init(&config);
-    pev_config_init(&_pevent);
+    pt_config_init(&_config);
 
     _tid = -1;
 
     _analyser = analyser;
-    _pevent.sample_type = attr.sample_type;
-    _pevent.time_zero = attr.time_zero;
-    _pevent.time_shift = attr.time_shift;
-    _pevent.time_mult = attr.time_mult;
 
-    config.cpu = attr.cpu;
-    config.mtc_freq = attr.mtc_freq;
-    config.nom_freq = attr.nom_freq;
-    config.cpuid_0x15_eax = attr.cpuid_0x15_eax;
-    config.cpuid_0x15_ebx = attr.cpuid_0x15_ebx;
-    config.addr_filter.config.addr_cfg = pt_addr_cfg_filter;
-    config.addr_filter.addr0_a = attr.addr0_a;
-    config.addr_filter.addr0_b = attr.addr0_b;
-    config.flags.variant.query.keep_tcal_on_ovf = 1;
-    config.begin = tracepart.pt_buffer;
-    config.end = tracepart.pt_buffer + tracepart.pt_size;
+    _config.cpu.vendor = (pt_cpu_vendor)trace_header.vendor;
+    _config.cpu.family = trace_header.family;
+    _config.cpu.model = trace_header.model;
+    _config.cpu.stepping = trace_header.stepping;
+    _config.mtc_freq = trace_header.mtc_freq;
+    _config.nom_freq = trace_header.nom_freq;
+    _config.cpuid_0x15_eax = trace_header.cpuid_0x15_eax;
+    _config.cpuid_0x15_ebx = trace_header.cpuid_0x15_ebx;
+    _config.addr_filter.config.addr_cfg = pt_addr_cfg_filter;
+    _config.addr_filter.addr0_a = trace_header.addr0_a;
+    _config.addr_filter.addr0_b = trace_header.addr0_b;
+    _config.flags.variant.query.keep_tcal_on_ovf = 1;
+    // to do
+    errcode = pt_cpu_errata(&_config.errata, &_config.cpu);
 
-    _sideband = new SidebandDecoder(tracepart.sb_buffer, tracepart.sb_size);
-    _sideband->set_config(_pevent);
+    _config.begin = tracepart.pt;
+    _config.end = tracepart.pt + tracepart.pt_size;
+
+    _sideband = new Sideband(tracepart.sideband, tracepart.sideband_size,
+                             trace_header.sample_type, trace_header.time_mult,
+                             trace_header.time_shift, trace_header.time_zero);
 
     _jvm = new JVMRuntime();
-    _loss = tracepart.loss;
 
-    if (config.cpu.vendor)
+    if ((_qry = pt_qry_alloc_decoder(&_config)) == nullptr)
     {
-        errcode = pt_cpu_errata(&config.errata, &config.cpu);
-        if (errcode < 0)
-        {
-            fprintf(stderr, "%s: [0, 0: config error: %s]\n", prog,
-                    pt_errstr(pt_errcode(errcode)));
-            goto err;
-        }
+        cerr << "PTJVMDecoder: fail to allocate query decoder." << endl;
+        exit(-1);
     }
-
-    errcode = alloc_decoder(&config, prog);
-    if (errcode < 0)
-    {
-        fprintf(stderr, "%s: fail to allocate decoder.\n", prog);
-        goto err;
-    }
-
-    decode(record, prog);
-
-err:
-    return;
 }
 
-PTJVMDecoder::~PTJVMDecoder()
-{
+PTJVMDecoder::~PTJVMDecoder() {
+
 }

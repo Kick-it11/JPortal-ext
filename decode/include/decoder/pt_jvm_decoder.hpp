@@ -4,60 +4,29 @@
 #include <stdint.h>
 #include "pt/pt.hpp"
 #include "insn/pt_insn.hpp"
-#include "sideband/pevent.hpp"
+#include "sideband/sideband.hpp"
+#include "decoder/trace_splitter.hpp"
 #include "java/bytecodes.hpp"
 
 class JVMRuntime;
 class Analyser;
 class TraceDataRecord;
-class SidebandDecoder;
 struct PCStackInfo;
 class JitSection;
 
-struct pt_config;
-
-struct TracePart
-{
-    bool loss = false;
-    uint8_t *pt_buffer = 0;
-    size_t pt_size = 0;
-    uint8_t *sb_buffer = 0;
-    size_t sb_size = 0;
-};
-
-struct attr_config
-{
-    struct pt_cpu cpu;
-    int nr_cpus;
-    uint8_t mtc_freq;
-    uint8_t nom_freq;
-    uint32_t cpuid_0x15_eax;
-    uint32_t cpuid_0x15_ebx;
-    uint64_t sample_type;
-    uint16_t time_shift;
-    uint32_t time_mult;
-    uint64_t time_zero;
-    uint64_t addr0_a;
-    uint64_t addr0_b;
-};
-
-extern attr_config attr;
-
-
-/* PTJVMParser parses Trace Data and
+/* PTJVMDEcoder decode JPortal data form Trace data and Dump data
  *   JPortalTrace.data records pt and sideband related data
+ *                     and splitted to TraceParts by TraceSplitter
+ *                     for parallel decoding
  *   JPortalDump.data records JVM runtime related data
- * PTJVMParser translates them into parse_result
- *   which includes
+ *                     analysed by JVMRuntime
+ * PTJVMDecoder translates them into parse_result
  */
 class PTJVMDecoder
 {
 private:
     /* The actual decoder. qry helps insn to decode bytecode*/
     struct pt_query_decoder *_qry;
-
-    /* A collection of decoder-specific flags. */
-    struct pt_conf_flags _flags;
 
     /* The current time */
     uint64_t _time;
@@ -73,9 +42,6 @@ private:
      * pt_status_flag bit-vector.
      */
     int _status;
-
-    /* to indicate data loss */
-    bool _loss;
 
     /* to indicate there is an unresolved ip for query decoder */
     bool _unresolved;
@@ -128,22 +94,31 @@ private:
     JVMRuntime *_jvm;
 
     /* The perf event sideband decoder configuration. */
-    SidebandDecoder *_sideband;
+    Sideband *_sideband;
 
-    /* for decoding sideband infomation */
-    struct pev_config _pevent;
-
+    /* Java class files static analyser */
     Analyser *_analyser;
 
     PCStackInfo *_last_pcinfo = nullptr;
     int _pcinfo_tow = 0;
     uint64_t _last_ip = 0;
 
+
+private:
+    /* private functions from libipt/pt_insn_decoder
+     * Complete insn decoding for jitted codes
+     * 
+     * For a instruction pointer, decoder will first do a codelet match.
+     * If it does not match any codelet,
+     * decoder will try to find it in a jit_section
+     * And will continue until it jumps out of jitted code.
+     */
+
     int pt_insn_decode(struct pt_insn *insn, struct pt_insn_ext *iext);
     int pt_insn_decode_retry(struct pt_insn *insn, struct pt_insn_ext *iext);
     int pt_insn_range_is_contiguous(uint64_t begin, uint64_t end,
 				                    enum pt_exec_mode mode, size_t steps);
-    void ptjvm_sb_event(TraceDataRecord &record);
+
     int check_erratum_skd022();
     int handle_erratum_skd022();
     int pt_insn_at_skl014(const struct pt_event *ev,
@@ -154,7 +129,6 @@ private:
                                   const struct pt_insn *insn,
                                   const struct pt_insn_ext *iext,
                                   const struct pt_config *config);
-    int event_pending();
     int pt_insn_status(int flags);
     int handle_erratum_bdm64(const struct pt_event *ev,
                              const struct pt_insn *insn,
@@ -184,26 +158,27 @@ private:
     int pt_insn_process_stop();
     int pt_insn_process_vmcs();
     int pt_insn_event();
-    int drain_insn_events(int status);
-    int handle_compiled_code_result(TraceDataRecord &record,
-                                    JitSection *section);
     int pt_insn_reset();
     int pt_insn_start();
-    int handle_compiled_code(TraceDataRecord &record, const char *prog);
-    int handle_bytecode(TraceDataRecord &record, Bytecodes::Code bytecode,
-                        const char *prog);
-    int ptjvm_result_decode(TraceDataRecord &record, const char *prog);
+
+private:
+    int event_pending();
+    int drain_insn_events(int status);
+    int handle_compiled_code_result(TraceDataRecord &record, JitSection *section);
+    int handle_compiled_code(TraceDataRecord &record);
+    int handle_bytecode(TraceDataRecord &record, Bytecodes::Code bytecode);
+    int ptjvm_result_decode(TraceDataRecord &record);
     int drain_qry_events();
 
     void reset_decoder();
 
-    void decode(TraceDataRecord record, const char *prog);
 
-    int alloc_decoder(const struct pt_config *conf, const char *prog);
+    void time_change(TraceDataRecord &record);
 
 public:
-    PTJVMDecoder(TracePart tracepart, TraceDataRecord record,
-                 Analyser *analyser);
+    void decode(TraceDataRecord &record);
+
+    PTJVMDecoder(TracePart tracepart, Analyser *analyser);
     ~PTJVMDecoder();
 };
 

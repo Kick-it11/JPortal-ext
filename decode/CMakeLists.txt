@@ -10,9 +10,8 @@ aux_source_directory(src/decoder/ decoder_srcs)
 aux_source_directory(src/insn/ insn_srcs)
 aux_source_directory(src/java/ java_srcs)
 aux_source_directory(src/runtime/ runtime_srcs)
-aux_source_directory(src/output/ output_srcs)
 aux_source_directory(src/pt/ pt_srcs)
-aux_source_directory(src/task/ task_srcs)
+aux_source_directory(src/thread/ thread_srcs)
 aux_source_directory(src/utilities/ utilities_srcs)
 aux_source_directory(src/sideband/ sideband_srcs)
 
@@ -21,9 +20,8 @@ add_executable(decode src/decode.cpp
   ${insn_srcs}
   ${java_srcs}
   ${runtime_srcs}
-  ${output_srcs}
   ${pt_srcs}
-  ${task_srcs}
+  ${thread_srcs}
   ${utilities_srcs}
   ${sideband_srcs}
 )

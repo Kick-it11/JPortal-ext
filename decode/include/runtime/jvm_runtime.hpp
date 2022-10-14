@@ -172,7 +172,7 @@ public:
 
     JVMRuntime();
 
-    void event(uint64_t time, long tid);
+    void move_on(uint64_t time);
     long get_java_tid(long tid);
     JitImage* image() { return _image; }
     bool get_ic(uint64_t &ip, JitSection* section) {

@@ -3,8 +3,6 @@
 
 #include <linux/perf_event.h>
 
-#include "pt/pt.hpp"
-
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>

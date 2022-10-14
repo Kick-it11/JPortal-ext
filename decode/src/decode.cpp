@@ -2,9 +2,7 @@
 #include <iostream>
 #include <cstring>
 
-#include "task/task.hpp"
-#include "task/worker.hpp"
-#include "task/task_manager.hpp"
+#include "thread/thread_pool.hpp"
 #include "java/analyser.hpp"
 #include "decoder/decode_result.hpp"
 #include "decoder/pt_jvm_decoder.hpp"
@@ -12,75 +10,24 @@
 #include "decoder/output_decode.hpp"
 #include "decoder/trace_splitter.hpp"
 
-using std::thread;
 using std::cout;
 using std::endl;
 
-class DecodeTask: public Task {
-private:
-    const char *trace_data;
-    TracePart tracepart;
-    TraceData &trace;
-    Analyser *analyser;
+static void decode_part(TracePart part, Analyser* analyser, TraceData &trace) {
+    PTJVMDecoder decoder(part, analyser);
+    TraceDataRecord record(trace);
+    decoder.decode(record);
+}
 
-public:
-    DecodeTask(TracePart _tracepart, TraceData &_trace,
-                Analyser *_analyser) :
-                    Task(TaskKind::DECODETASK),
-                    tracepart(_tracepart),
-                    trace(_trace),
-                    analyser(_analyser) {}
-protected:
-    Task* doTask() {
-        PTJVMDecoder decode(tracepart, TraceDataRecord(trace), analyser);
-        free(tracepart.pt_buffer);
-        free(tracepart.sb_buffer);
-        return nullptr;
-    };
-};
+static void decode(const char *trace_data, Analyser* analyser, list<TraceData*> &traces) {
+    TraceSplitter splitter(trace_data);
+    TracePart part;
+    ThreadPool pool(16, 32);
 
-void decode(const char *trace_data, Analyser* analyser, list<TraceData*> &traces) {
-    if (!trace_data || !analyser)
-        return;
-
-    map<int, list<TracePart>> traceparts;
-    int errcode;
-    errcode = ptjvm_split(trace_data, traceparts);
-    if (errcode < 0)
-        return;
-
-    const int MaxThreadCount = 8;
-    bool ThreadState[MaxThreadCount]{false};
-    ///* Create TaskManager *///
-    TaskManager* tm = new TaskManager();
-
-    for (auto part1 : traceparts) {
-        for (auto part2 : part1.second) {
-            TraceData *trace = new TraceData();
-            TraceDataRecord record(*trace);
-            traces.push_back(trace);
-            
-            DecodeTask *task = new DecodeTask(part2, *trace, analyser);
-            tm->commitTask(task);
-        }
-    }
-    ///* Create Workers *///
-    Worker w(&(ThreadState[0]), tm);
-    new thread(w);
-
-    while (true) {
-        int worker_count = 0;
-        for (int i = 0; i < MaxThreadCount; ++i) {
-            if (ThreadState[i]) {
-                ++worker_count;
-            } else if (tm->isNeedMoreWorker()) {
-                Worker w(&(ThreadState[i]), tm);
-                new thread(w);
-                ++worker_count;
-            }
-        }
-        if (worker_count==0)
-            break;
+    while (splitter.next(part)) {
+        TraceData* trace = new TraceData();
+        traces.push_back(trace);
+        pool.submit(decode_part, part, analyser, *trace);
     }
 }
 

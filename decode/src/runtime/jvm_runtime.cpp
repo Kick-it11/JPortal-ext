@@ -16,7 +16,7 @@ JVMRuntime::JVMRuntime() {
     _current = begin;
 }
 
-void JVMRuntime::event(uint64_t time, long tid) {
+void JVMRuntime::move_on(uint64_t time) {
     const DumpInfo *info;
     while (_current < end) {
         info = (const struct DumpInfo *)_current;

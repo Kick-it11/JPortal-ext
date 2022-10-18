@@ -1,7 +1,7 @@
-#ifndef SIDEBAND_DECODER
-#define SIDEBAND_DECODER 
+#ifndef SIDEBAND_HPP
+#define SIDEBAND_HPP
 
-#include "pevent.hpp"
+#include "sideband/pevent.hpp"
 
 #include <map>
 
@@ -56,4 +56,4 @@ public:
     static void destroy();
 };
 
-#endif
+#endif // SIDEBAND_HPP

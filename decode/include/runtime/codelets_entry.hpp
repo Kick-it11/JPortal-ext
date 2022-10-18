@@ -1,5 +1,5 @@
-#ifndef TEMPLATES_HPP
-#define TEMPLATES_HPP
+#ifndef CODELETS_ENTRY_HPP
+#define CODELETS_ENTRY_HPP
 
 #include "java/bytecodes.hpp"
 #include "runtime/jvm_runtime.hpp"
@@ -55,4 +55,4 @@ class CodeletsEntry {
         static Codelet entry_match(address ip, Bytecodes::Code &code);
 };
 
-#endif
+#endif // CODELETS_ENTRY_HPP

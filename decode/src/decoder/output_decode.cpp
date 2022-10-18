@@ -1,26 +1,19 @@
+#include "decoder/output_decode.hpp"
 #include "decoder/decode_result.hpp"
-#include "java/method.hpp"
-#include "java/klass.hpp"
 #include "java/analyser.hpp"
 #include "java/block.hpp"
-#include "decoder/output_decode.hpp"
 
-#include <queue>
-#include <stack>
-#include <set>
-#include <vector>
-#include <iostream>
 #include <algorithm>
 #include <cassert>
-
-using std::queue;
-using std::set;
-using std::stack;
-using std::vector;
+#include <iostream>
+#include <queue>
+#include <set>
+#include <stack>
+#include <vector>
 
 struct ExecInfo {
     const JitSection* section; // jit_section, nullptr indicates a segment of inter codes
-    vector<pair<const Method*, Block*>> prev_frame;
+    std::vector<std::pair<const Method*, Block*>> prev_frame;
     ExecInfo(): section(nullptr) { }
     ExecInfo(const JitSection* s): section(s) { }
 };
@@ -28,15 +21,15 @@ struct ExecInfo {
 class JitMatchTree {
 private:
     const Method* method;
-    map<Block*, int> seqs;
+    std::map<Block*, int> seqs;
     JitMatchTree* father;
-    map<Block*, JitMatchTree*> children;
+    std::map<Block*, JitMatchTree*> children;
 
-    bool match_next(Block* cur, vector<pair<const Method*, Block*>>& ans) {
-        vector<pair<int, Block*>> vv;
-        unordered_set<Block*> ss;
-        queue<pair<int, Block*>> q;
-        vector<pair<int, int>> find_next;
+    bool match_next(Block* cur, std::vector<std::pair<const Method*, Block*>>& ans) {
+        std::vector<std::pair<int, Block*>> vv;
+        std::unordered_set<Block*> ss;
+        std::queue<std::pair<int, Block*>> q;
+        std::vector<std::pair<int, int>> find_next;
         int find_end = -1;
         q.push({-1, cur});
         ss.insert(cur);
@@ -60,7 +53,7 @@ private:
                 }
             }
         }
-        list<pair<const Method*, Block*>> blocks;
+        std::list<std::pair<const Method*, Block*>> blocks;
         int idx = find_end;
         if (!find_next.empty()) {
             idx = min_element(find_next.begin(), find_next.end())->second;
@@ -74,9 +67,9 @@ private:
         return !blocks.empty();
     }
 
-    void skip_match(vector<pair<const Method*, Block*>>& frame, int idx,
-                    set<pair<const Method*, Block*>>& notVisited,
-                    vector<pair<const Method*, Block*>>& ans) {
+    void skip_match(std::vector<std::pair<const Method*, Block*>>& frame, int idx,
+                    std::set<std::pair<const Method*, Block*>>& notVisited,
+                    std::vector<std::pair<const Method*, Block*>>& ans) {
         Block* cur = nullptr;
         if (idx >= frame.size()) {
             frame.push_back({method, cur});
@@ -91,7 +84,7 @@ private:
         }
 
         while (!seqs.empty()) {
-            auto iter = min_element(seqs.begin(), seqs.end(), [](pair<Block*, int>&& l, pair<Block*, int>&& r)
+            auto iter = min_element(seqs.begin(), seqs.end(), [](std::pair<Block*, int>&& l, std::pair<Block*, int>&& r)
                                     ->bool { return l.second < r.second; });
             cur = iter->first;
             notVisited.erase({method, cur});
@@ -111,7 +104,7 @@ public:
             delete child.second;
     }
 
-    bool insert(vector<pair<const Method*, Block*>>& execs, int seq, int idx) {
+    bool insert(std::vector<std::pair<const Method*, Block*>>& execs, int seq, int idx) {
         if (idx >= execs.size())
             return true;
         const Method* m = execs[idx].first;
@@ -129,8 +122,9 @@ public:
         return true;
     }
 
-    void match(vector<pair<const Method*, Block*>>& frame, int idx,
-               set<pair<const Method*, Block*>>& notVisited, vector<pair<const Method*, Block*>>& ans) {
+    void match(std::vector<std::pair<const Method*, Block*>>& frame, int idx,
+               std::set<std::pair<const Method*, Block*>>& notVisited,
+               std::vector<std::pair<const Method*, Block*>>& ans) {
         notVisited.erase({method, nullptr});
         if (!method || !method->is_jportal())
             return skip_match(frame, idx, notVisited, ans);
@@ -169,11 +163,12 @@ public:
 
     }
 
-    static void return_method(const Method* method, Block* cur, vector<pair<const Method*, Block*>>& ans) {
-        vector<pair<int, Block*>> vv;
-        unordered_set<Block*> ss;
-        queue<pair<int, Block*>> q;
-        vector<pair<int, int>> find_next;
+    static void return_method(const Method* method, Block* cur,
+                              std::vector<std::pair<const Method*, Block*>>& ans) {
+        std::vector<std::pair<int, Block*>> vv;
+        std::unordered_set<Block*> ss;
+        std::queue<std::pair<int, Block*>> q;
+        std::vector<std::pair<int, int>> find_next;
         int find_end = -1;
         q.push({0, cur});
         ss.insert(cur);
@@ -190,7 +185,7 @@ public:
                 q.push({idx, *iter});
             }
         }
-        list<pair<const Method*, Block*>> blocks;
+        std::list<std::pair<const Method*, Block*>> blocks;
         int idx = vv.size()-1;
         while (idx > 0) {
             blocks.push_front({method, vv[idx].second});
@@ -200,7 +195,8 @@ public:
         return;
     }
 
-    static void return_frame(vector<pair<const Method*, Block*>>& frame, int count, vector<pair<const Method*, Block*>>& blocks) {
+    static void return_frame(std::vector<std::pair<const Method*, Block*>>& frame, int count,
+                             std::vector<std::pair<const Method*, Block*>>& blocks) {
         assert(count <= frame.size());
         for (int i = 0; i < count; ++i) {
             return_method(frame.back().first, frame.back().second, blocks);
@@ -219,7 +215,7 @@ static bool output_bytecode(FILE* fp, const uint8_t* codes, size_t size) {
     return true;
 }
 
-static void output_jitcode(FILE* fp, vector<pair<const Method*, Block*>>& blocks) {
+static void output_jitcode(FILE* fp, std::vector<std::pair<const Method*, Block*>>& blocks) {
     for (auto block : blocks) {
         const Method* method = block.first;
         Block* blc = block.second;
@@ -234,10 +230,10 @@ static void output_jitcode(FILE* fp, vector<pair<const Method*, Block*>>& blocks
 }
 
 static bool handle_jitcode(ExecInfo* exec, const PCStackInfo **pcs, int size,
-                           vector<pair<const Method*, Block*>>& ans) {
+                           std::vector<std::pair<const Method*, Block*>>& ans) {
     const JitSection* section = exec->section;
-    set<const PCStackInfo*> pc_execs;
-    set<pair<const Method*, Block*>> block_execs;
+    std::set<const PCStackInfo*> pc_execs;
+    std::set<std::pair<const Method*, Block*>> block_execs;
     bool notRetry = true;
     JitMatchTree* tree = new JitMatchTree(section->cmd()->mainm(), nullptr);
     auto call_match = [&exec, &tree, &block_execs, &pc_execs, &ans, section] (bool newtree) -> void {
@@ -251,7 +247,7 @@ static bool handle_jitcode(ExecInfo* exec, const PCStackInfo **pcs, int size,
         const PCStackInfo* pc = pcs[i];
         if (pc_execs.count(pc))
             call_match(true);
-        vector<pair<const Method*, Block*>> frame;
+        std::vector<std::pair<const Method*, Block*>> frame;
         for (int j = pc->numstackframes-1; j >= 0; --j) {
             int mi = pc->methods[j];
             int bci = pc->bcis[j];
@@ -277,8 +273,8 @@ static bool handle_jitcode(ExecInfo* exec, const PCStackInfo **pcs, int size,
     return notRetry;
 }
 
-static void return_exec(stack<ExecInfo*> &exec_st, const JitSection* section,
-                        vector<pair<const Method*, Block*>>& ans) {
+static void return_exec(std::stack<ExecInfo*> &exec_st, const JitSection* section,
+                        std::vector<std::pair<const Method*, Block*>>& ans) {
     while (!exec_st.empty() && exec_st.top()->section != section) {
         JitMatchTree::return_frame(exec_st.top()->prev_frame, exec_st.top()->prev_frame.size(), ans);
         delete exec_st.top();
@@ -293,12 +289,12 @@ static void output_trace(TraceData* trace, size_t start, size_t end, FILE* fp) {
     TraceDataAccess access(*trace, start, end);
     CodeletsEntry::Codelet codelet, prev_codelet = CodeletsEntry::_illegal;
     size_t loc;
-    stack<ExecInfo*> exec_st;
+    std::stack<ExecInfo*> exec_st;
     while (access.next_trace(codelet, loc)) {
         switch(codelet) {
             default: {
                 fprintf(stderr, "output_trace: unknown codelet(%d)\n", codelet);
-                exec_st = stack<ExecInfo*>();
+                exec_st = std::stack<ExecInfo*>();
                 break;
             }
             case CodeletsEntry::_method_entry: {
@@ -346,7 +342,7 @@ static void output_trace(TraceData* trace, size_t start, size_t end, FILE* fp) {
                 const uint8_t* codes;
                 size_t size;
                 assert(trace->get_inter(loc, codes, size) && codes);
-                vector<pair<const Method*, Block*>> blocks;
+                std::vector<std::pair<const Method*, Block*>> blocks;
                 return_exec(exec_st, nullptr, blocks);
                 output_jitcode(fp, blocks);
                 output_bytecode(fp, codes, size);
@@ -360,7 +356,7 @@ static void output_trace(TraceData* trace, size_t start, size_t end, FILE* fp) {
                 size_t size;
                 assert(trace->get_jit(loc, pcs, size, section)
                        && pcs && section && section->cmd());
-                vector<pair<const Method*, Block*>> blocks;
+                std::vector<std::pair<const Method*, Block*>> blocks;
                 if (codelet == CodeletsEntry::_jitcode_entry) {
                     ExecInfo* exec = new ExecInfo(section);
                     const Method* method = section->cmd()->mainm();
@@ -381,7 +377,7 @@ static void output_trace(TraceData* trace, size_t start, size_t end, FILE* fp) {
         }
     }
     while (!exec_st.empty()) {
-        vector<pair<const Method*, Block*>> blocks;
+        std::vector<std::pair<const Method*, Block*>> blocks;
         JitMatchTree::return_frame(exec_st.top()->prev_frame, exec_st.top()->prev_frame.size(), blocks);
         output_jitcode(fp, blocks);
         delete exec_st.top();
@@ -390,8 +386,8 @@ static void output_trace(TraceData* trace, size_t start, size_t end, FILE* fp) {
 }
 
 // per thread output
-void output_decode(list<TraceData*> &traces) {
-    map<long, vector<pair<ThreadSplit, TraceData*>>> threads_data;
+void output_decode(std::list<TraceData*> &traces) {
+    std::map<long, std::vector<std::pair<ThreadSplit, TraceData*>>> threads_data;
     for (auto && trace : traces)
         for (auto && threads: trace->get_thread_map())
             for (auto && thread : threads.second)
@@ -400,7 +396,8 @@ void output_decode(list<TraceData*> &traces) {
     
     for (auto iter = threads_data.begin(); iter != threads_data.end(); ++iter)
         sort(iter->second.begin(), iter->second.end(),
-             [] (const pair<ThreadSplit, TraceData*>& x, const pair<ThreadSplit, TraceData*>& y) -> bool {
+             [] (const std::pair<ThreadSplit, TraceData*>& x,
+                const std::pair<ThreadSplit, TraceData*>& y) -> bool {
                 return x.first.start_time < y.first.start_time
                        || x.first.start_time == y.first.start_time
                           &&  x.first.end_time < y.first.end_time;});

@@ -1,11 +1,9 @@
-#ifndef JAVA_CLASSFILEPARSER_HPP
-#define JAVA_CLASSFILEPARSER_HPP
+#ifndef CLASS_FILE_PARSER_HPP
+#define CLASS_FILE_PARSER_HPP
 
 #include "utilities/definitions.hpp"
 
 #include <string>
-
-using std::string;
 
 class ClassFileStream;
 class Klass;
@@ -14,7 +12,7 @@ class ConstantPool;
 class Analyser;
 
 class ClassFileParser {
-  private:
+private:
     Analyser *_analyser = nullptr;
     Klass *_klass = nullptr;
     ClassFileStream *_stream = nullptr;
@@ -56,9 +54,9 @@ class ClassFileParser {
 
     void parse_class(const ClassFileStream *const stream);
 
-  public:
-    ClassFileParser(string &file_path, Analyser* analyser, Klass* klass);
+public:
+    ClassFileParser(std::string &file_path, Analyser* analyser, Klass* klass);
     ~ClassFileParser();
 };
 
-#endif // JAVA_CLASSFILEPARSER_HPP
+#endif // CLASS_FILE_PARSER_HPP

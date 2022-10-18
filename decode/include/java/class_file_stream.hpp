@@ -82,4 +82,4 @@ class ClassFileStream {
     // Tells whether eos is reached
     bool at_eos() const { return _current == _buffer_end; }
 };
-#endif // JAVA_BUFFER_STREAM_HPP
+#endif // CLASS_FILE_STREAM_HPP

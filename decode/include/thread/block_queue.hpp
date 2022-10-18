@@ -1,13 +1,11 @@
 #ifndef BLOCK_QUEUE_HPP
 #define BLOCK_QUEUE_HPP
 
-#include <mutex> 
-#include <queue> 
-#include <queue>
-#include <thread>
-#include <mutex>
 #include <atomic>
 #include <condition_variable>
+#include <mutex>
+#include <queue>
+#include <thread>
 
 template <typename T>
 class BlockQueue
@@ -85,4 +83,4 @@ public:
     }
 };
 
-#endif
+#endif // BLOCK_QUEUE_HPP

@@ -4,10 +4,8 @@
 #include <cassert>
 #include <iostream>
 
-using std::cout;
-using std::endl;
 
-Method::Method(string name_signature, const u1 *const code_buffer,
+Method::Method(std::string name_signature, const u1 *const code_buffer,
                const u2 code_length, const u1 *const exception_table,
                const u2 exception_table_length, const Klass *klass, u2 flags)
     : _name_signature(name_signature),
@@ -20,11 +18,11 @@ Method::~Method() {
     delete _bg;
 }
 void Method::print_graph() const {
-    cout << _name_signature << " graph:" << endl;
+    std::cout << _name_signature << " graph:" << std::endl;
     _bg->print_graph();
 }
 
 void Method::print_bctlist() const {
-    cout << _name_signature << " bctlist:" << endl;
+    std::cout << _name_signature << " bctlist:" << std::endl;
     _bg->print_bctlist();
 }

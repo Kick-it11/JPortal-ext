@@ -6,11 +6,6 @@
 #include <iomanip>
 #include <iostream>
 
-using std::bitset;
-using std::cout;
-using std::endl;
-using std::setw;
-
 Block *BlockGraph::offset2block(int offset) {
     auto iter = _offset2block.find(offset);
     if (iter != _offset2block.end()) {
@@ -44,9 +39,9 @@ void BlockGraph::build_graph() {
     ClassFileStream bs(_code, _code_length);
     int bc_size = 0;
     _code_count = 0;
-    unordered_set<int> block_start;
+    std::unordered_set<int> block_start;
     block_start.insert(0);
-    unordered_set<int> jsr_following;
+    std::unordered_set<int> jsr_following;
     while (!bs.at_eos()) {
         _bct_offset[bs.get_offset()] = _code_count;
         // cout << "build_graph: " << bs.get_offset() << endl;
@@ -376,53 +371,52 @@ void BlockGraph::print_graph() {
 
     for (auto block : _blocks) {
         // Id
-        cout << "[B" << block->get_id() << "]: [" << block->get_begin_offset()
-             << ", " << block->get_end_offset() << ")" << endl;
+        std::cout << "[B" << block->get_id() << "]: [" << block->get_begin_offset()
+             << ", " << block->get_end_offset() << ")" << std::endl;
         // Preds
         int preds_size = block->get_preds_size();
         int succs_size = block->get_succs_size();
         if (preds_size) {
-            cout << " Preds (" << preds_size << "):";
+            std::cout << " Preds (" << preds_size << "):";
             auto iter = block->get_preds_begin();
             auto end = block->get_preds_end();
             while (iter != end) {
-                cout << " B" << (*iter)->get_id();
+                std::cout << " B" << (*iter)->get_id();
                 ++iter;
             }
-            cout << endl;
+            std::cout << std::endl;
         }
         // Succs
         if (succs_size) {
-            cout << " Succs (" << succs_size << "):";
+            std::cout << " Succs (" << succs_size << "):";
             auto iter = block->get_succs_begin();
             auto end = block->get_succs_end();
             while (iter != end) {
-                cout << " B" << (*iter)->get_id();
+                std::cout << " B" << (*iter)->get_id();
                 ++iter;
             }
-            cout << endl;
+            std::cout << std::endl;
         }
     }
     if (_exception_table_length) {
-        cout << "Exception table:" << endl;
-        cout << "\tfrom\tto\ttarget" << endl;
+        std::cout << "Exception table:" << std::endl;
+        std::cout << "\tfrom\tto\ttarget" << std::endl;
     }
     for (auto ecp : _exceps) {
-        cout << "\t" << ecp.from << "\t" << ecp.to << "\t" << ecp.target
-             << endl;
+        std::cout << "\t" << ecp.from << "\t" << ecp.to << "\t" << ecp.target << std::endl;
     }
     if (_method_site.size()) {
-        cout << "call_site:" << endl;
+        std::cout << "call_site:" << std::endl;
         for (auto call : _method_site) {
-            cout << setw(6) << call.first << ": #" << call.second.second << endl;
+            std::cout << std::setw(6) << call.first << ": #" << call.second.second << std::endl;
         }
     }
 
-    cout << "bc_set:" << endl;
+    std::cout << "bc_set:" << std::endl;
     int start = 0;
     for (int i = 0; i < 7; ++i) {
-        cout << setw(3) << start + 31 << "~" << setw(3) << start << ": "
-             << bitset<sizeof(u4) * 8>(_bc_set[i]) << endl;
+        std::cout << std::setw(3) << start + 31 << "~" << std::setw(3) << start << ": "
+             << std::bitset<sizeof(u4) * 8>(_bc_set[i]) << std::endl;
         start += 32;
     }
 }
@@ -433,7 +427,7 @@ void BlockGraph::build_bctlist() {
     if (!_is_build_graph) {
         build_graph();
     }
-    _bctcode = (u1 *)malloc(_code_count * sizeof(u1));
+    _bctcode = new u1[(_code_count * sizeof(u1))];
     _bctblocks.resize(_blocks.size(), nullptr);
     u1 *_bytes_index = _bctcode;
     BCTBlock *bctbk;
@@ -472,15 +466,15 @@ void BlockGraph::print_bctlist() {
         build_bctlist();
     for (auto block : _bctblocks) {
         // Id
-        cout << "[B" << block->get_id() << "]: ["
+        std::cout << "[B" << block->get_id() << "]: ["
              << block->get_begin() - _bctcode << ", "
-             << block->get_end() - _bctcode << ")" << endl;
+             << block->get_end() - _bctcode << ")" << std::endl;
         // Bytecodes
         for (const u1 *ttt = block->get_begin(); ttt != block->get_end();
              ttt++) {
-            cout << Bytecodes::name_for(Bytecodes::Code(*ttt)) << " ";
+            std::cout << Bytecodes::name_for(Bytecodes::Code(*ttt)) << " ";
         }
-        cout << endl;
+        std::cout << std::endl;
     }
 }
 
@@ -612,17 +606,17 @@ void BCTBlockList::print() {
     /* print */
     for (auto block : _blocks) {
         // Id
-        cout << "[B" << block->get_id() << "]";
+        std::cout << "[B" << block->get_id() << "]";
         // Bytecodes
         const u1 *begin = block->get_begin();
         const u1 *end = block->get_end();
-        cout << ": " << begin - _code;
-        cout << ": " << end - _code << endl;
-        cout << "    ";
+        std::cout << ": " << begin - _code;
+        std::cout << ": " << end - _code << std::endl;
+        std::cout << "    ";
         const u1 *buffer;
         for (buffer = begin; buffer < end; buffer++) {
-            cout << Bytecodes::name_for((Bytecodes::Code)*buffer) << " ";
+            std::cout << Bytecodes::name_for((Bytecodes::Code)*buffer) << " ";
         }
-        cout << "branch " << block->get_branch() << endl;
+        std::cout << "branch " << block->get_branch() << std::endl;
     }
 }

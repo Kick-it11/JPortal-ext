@@ -5,9 +5,6 @@
 
 #include <map>
 
-using std::map;
-using std::pair;
-
 class Method;
 class JitSection;
 class JitImage;
@@ -181,15 +178,15 @@ public:
 private:
     const uint8_t *_current;
     JitImage *_image;
-    map<pair<uint64_t, JitSection *>, uint64_t> _ics;
+    std::map<std::pair<uint64_t, JitSection *>, uint64_t> _ics;
 
     static uint8_t *begin;
     static uint8_t *end;
     /* map between system thread id & java thread id */
-    static map<long, long> thread_map;
-    static map<int, const Method*> md_map;
-    static map<const uint8_t *, JitSection *> section_map;
+    static std::map<long, long> thread_map;
+    static std::map<int, const Method*> md_map;
+    static std::map<const uint8_t *, JitSection *> section_map;
     static bool _initialized;
 };
 
-#endif
+#endif // JVM_RUNTIME_HPP

@@ -1,11 +1,10 @@
 #ifndef JIT_IMAGE_HPP
 #define JIT_IMAGE_HPP
 
-#include <string>
-#include <list>
+#include "utilities/definitions.hpp"
 
-using std::string;
-using std::list;
+#include <list>
+#include <string>
 
 class JitSection;
 
@@ -13,17 +12,17 @@ class JitSection;
 class JitImage {
 private:
     /* The optional image name. */
-    const string _name;
+    const std::string _name;
 
     /* The list of sections. */
-    list<JitSection *> _sections;
+    std::list<JitSection *> _sections;
 
     /* The list of removed sections. */
-    list<JitSection *> _removed;
+    std::list<JitSection *> _removed;
 
 public:
     /** Traced memory image constructor. */
-    JitImage(const string &name);
+    JitImage(const std::string &name);
 
     /** Traced memory image destructor. */
     ~JitImage();

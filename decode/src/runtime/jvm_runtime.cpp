@@ -1,16 +1,16 @@
-#include "runtime/jvm_runtime.hpp"
+#include "java/analyser.hpp"
+#include "runtime/codelets_entry.hpp"
 #include "runtime/jit_image.hpp"
 #include "runtime/jit_section.hpp"
-#include "runtime/codelets_entry.hpp"
-#include "java/analyser.hpp"
+#include "runtime/jvm_runtime.hpp"
 
 #include <cassert>
 
 uint8_t *JVMRuntime::begin = nullptr;
 uint8_t *JVMRuntime::end = nullptr;
-map<long, long> JVMRuntime::thread_map;
-map<int, const Method*> JVMRuntime::md_map;
-map<const uint8_t *, JitSection *> JVMRuntime::section_map;
+std::map<long, long> JVMRuntime::thread_map;
+std::map<int, const Method*> JVMRuntime::md_map;
+std::map<const uint8_t *, JitSection *> JVMRuntime::section_map;
 bool JVMRuntime::_initialized = false;
 
 JVMRuntime::JVMRuntime() {
@@ -130,8 +130,8 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser* analyser) 
                 buffer += me->method_name_length;
                 const char *sig = (const char *)buffer;
                 buffer += me->method_signature_length;
-                string klassName = string(klass_name, me->klass_name_length);
-                string methodName = string(name, me->method_name_length)+string(sig, me->method_signature_length);
+                std::string klassName = std::string(klass_name, me->klass_name_length);
+                std::string methodName = std::string(name, me->method_name_length)+std::string(sig, me->method_signature_length);
                 const Method* method = analyser->get_method(klassName, methodName);
                 md_map[me->idx] = method;
                 break;
@@ -153,7 +153,7 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser* analyser) 
                 cm = (const CompiledMethodLoadInfo*)buffer;
                 buffer += sizeof(CompiledMethodLoadInfo);
                 const Method* mainm = nullptr;
-                map<int, const Method*> methods;
+                std::map<int, const Method*> methods;
                 for (int i = 0; i < cm->inline_method_cnt; i++) {
                     const InlineMethodInfo*imi;
                     imi = (const InlineMethodInfo*)buffer;
@@ -164,8 +164,8 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser* analyser) 
                     buffer += imi->method_name_length;
                     const char *sig = (const char *)buffer;
                     buffer += imi->method_signature_length;
-                    string klassName = string(klass_name, imi->klass_name_length);
-                    string methodName = string(name, imi->method_name_length)+string(sig, imi->method_signature_length);
+                    std::string klassName = std::string(klass_name, imi->klass_name_length);
+                    std::string methodName = std::string(name, imi->method_name_length)+std::string(sig, imi->method_signature_length);
                     const Method* method = analyser->get_method(klassName, methodName);
                     if (i == 0) mainm = method;
                     methods[imi->method_index] = method;

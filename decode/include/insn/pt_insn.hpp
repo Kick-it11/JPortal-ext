@@ -271,33 +271,4 @@ extern int pt_insn_is_ptwrite(const struct pt_insn *insn,
 extern int pt_insn_next_ip(uint64_t *ip, const struct pt_insn *insn,
 			   const struct pt_insn_ext *iext);
 
-// /* Decode and analyze one instruction.
-//  *
-//  * Decodes the instructruction at @insn->ip in @insn->mode into @insn and @iext.
-//  *
-//  * If the instruction can not be decoded using a single memory read in a single
-//  * section, sets @insn->truncated and reads the missing bytes from one or more
-//  * other sections until either the instruction can be decoded or we're sure it
-//  * is invalid.
-//  *
-//  * Returns the size in bytes on success, a negative error code otherwise.
-//  * Returns -pte_bad_insn if the instruction could not be decoded.
-//  */
-// extern int pt_insn_decode(struct pt_insn *insn, struct pt_insn_ext *iext,
-// 			  struct pt_image *image, const struct pt_asid *asid);
-
-// /* Determine if a range of instructions is contiguous.
-//  *
-//  * Try to proceed from IP @begin to IP @end in @asid without using trace.
-//  *
-//  * Returns a positive integer if we reach @end from @begin.
-//  * Returns zero if we couldn't reach @end within @nsteps steps.
-//  * Returns a negative error code otherwise.
-//  */
-// extern int pt_insn_range_is_contiguous(uint64_t begin, uint64_t end,
-// 				       enum pt_exec_mode mode,
-// 				       struct pt_image *image,
-// 				       const struct pt_asid *asid,
-// 				       size_t nsteps);
-
 #endif /* PT_INSN_H */

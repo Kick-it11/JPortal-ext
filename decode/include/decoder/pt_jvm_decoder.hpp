@@ -1,14 +1,14 @@
-#ifndef PT_JVM_DECODER
-#define PT_JVM_DECODER
+#ifndef PT_JVM_DECODER_HPP
+#define PT_JVM_DECODER_HPP
 
-#include "pt/pt.hpp"
-#include "insn/pt_insn.hpp"
-#include "sideband/sideband.hpp"
-#include "java/bytecodes.hpp"
 #include "decoder/decode_result.hpp"
+#include "insn/pt_insn.hpp"
+#include "java/bytecodes.hpp"
+#include "pt/pt.hpp"
 
 class JVMRuntime;
 class JitSection;
+class Sideband;
 struct PCStackInfo;
 
 /* PTJVMDEcoder decode JPortal data form Trace data and Dump data
@@ -114,36 +114,26 @@ private:
     int pt_insn_decode(struct pt_insn *insn, struct pt_insn_ext *iext);
     int pt_insn_decode_retry(struct pt_insn *insn, struct pt_insn_ext *iext);
     int pt_insn_range_is_contiguous(uint64_t begin, uint64_t end,
-				                    enum pt_exec_mode mode, size_t steps);
+                                    enum pt_exec_mode mode, size_t steps);
 
     int check_erratum_skd022();
     int handle_erratum_skd022();
-    int pt_insn_at_skl014(const struct pt_event *ev,
-                          const struct pt_insn *insn,
-                          const struct pt_insn_ext *iext,
-                          const struct pt_config *config);
-    int pt_insn_at_disabled_event(const struct pt_event *ev,
-                                  const struct pt_insn *insn,
-                                  const struct pt_insn_ext *iext,
-                                  const struct pt_config *config);
+    int pt_insn_at_skl014(const struct pt_event *ev, const struct pt_insn *insn,
+                          const struct pt_insn_ext *iext, const struct pt_config *config);
+    int pt_insn_at_disabled_event(const struct pt_event *ev, const struct pt_insn *insn,
+                                  const struct pt_insn_ext *iext, const struct pt_config *config);
     int pt_insn_status(int flags);
-    int handle_erratum_bdm64(const struct pt_event *ev,
-                             const struct pt_insn *insn,
+    int handle_erratum_bdm64(const struct pt_event *ev, const struct pt_insn *insn,
                              const struct pt_insn_ext *iext);
-    int pt_insn_postpone_tsx(const struct pt_insn *insn,
-                             const struct pt_insn_ext *iext,
+    int pt_insn_postpone_tsx(const struct pt_insn *insn, const struct pt_insn_ext *iext,
                              const struct pt_event *ev);
-    int pt_insn_check_ip_event(const struct pt_insn *insn,
-                               const struct pt_insn_ext *iext);
-    int pt_insn_postpone(const struct pt_insn *insn,
-                         const struct pt_insn_ext *iext);
-    int pt_insn_check_insn_event(const struct pt_insn *insn,
-                                 const struct pt_insn_ext *iext);
+    int pt_insn_check_ip_event(const struct pt_insn *insn, const struct pt_insn_ext *iext);
+    int pt_insn_postpone(const struct pt_insn *insn, const struct pt_insn_ext *iext);
+    int pt_insn_check_insn_event(const struct pt_insn *insn, const struct pt_insn_ext *iext);
     int pt_insn_clear_postponed();
     int pt_insn_indirect_branch(uint64_t *ip);
     int pt_insn_cond_branch(int *taken);
-    int pt_insn_proceed(const struct pt_insn *insn,
-                        const struct pt_insn_ext *iext);
+    int pt_insn_proceed(const struct pt_insn *insn, const struct pt_insn_ext *iext);
     int pt_insn_proceed_postponed();
     int pt_insn_process_enabled();
     int pt_insn_process_disabled();
@@ -170,6 +160,7 @@ private:
     void reset_decoder();
 
     void time_change();
+
 public:
 
     PTJVMDecoder(const struct pt_config &config, TraceData &trace, uint32_t cpu);
@@ -179,4 +170,4 @@ public:
 
 };
 
-#endif
+#endif // PT_JVM_DECODER_HPP

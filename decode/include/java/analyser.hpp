@@ -5,30 +5,23 @@
 #include "java/method.hpp"
 
 #include <list>
+#include <map>
 #include <string>
 
-using std::pair;
-using std::string;
-using std::map;
-using std::list;
-
-class Klass;
-class Method;
-
 class Analyser {
-  private:
-    map<string, Klass *> _klasses;
-    map<string, Method *> _methods;
+private:
+    std::map<std::string, Klass *> _klasses;
+    std::map<std::string, Method *> _methods;
 
-    void parse(const list<string>& class_paths);
+    void parse(const std::list<std::string>& class_paths);
 
-  public:
-    Analyser(const list<string>& class_paths);
+public:
+    Analyser(const std::list<std::string>& class_paths);
     ~Analyser();
     void add_klass(Klass* klass);
     void add_method(Method* method);
-    const Klass *get_klass(const string &klassName);
-    const Method *get_method(const string &klassName, const string &methodName);
+    const Klass *get_klass(const std::string &klassName);
+    const Method *get_method(const std::string &klassName, const std::string &methodName);
 };
 
 #endif // ANALYSER_HPP

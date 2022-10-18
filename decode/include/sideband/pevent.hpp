@@ -1,5 +1,5 @@
-#ifndef PEVENT_H
-#define PEVENT_H
+#ifndef PEVENT_HPP
+#define PEVENT_HPP
 
 #include <linux/perf_event.h>
 
@@ -248,4 +248,4 @@ extern int pev_read(struct pev_event *event, const uint8_t *begin,
 extern int pev_write(const struct pev_event *event, uint8_t *begin,
                      uint8_t *end, const struct pev_config *config);
 
-#endif /* PEVENT_H */
+#endif /* PEVENT_HPP */

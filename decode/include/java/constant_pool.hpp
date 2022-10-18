@@ -1,14 +1,11 @@
-#ifndef JAVA_CONSTANTPOOL_HPP
-#define JAVA_CONSTANTPOOL_HPP
+#ifndef CONSTANTPOOL_HPP
+#define CONSTANTPOOL_HPP
 
 #include "utilities/definitions.hpp"
 
 #include <cassert>
 #include <string>
 #include <vector>
-
-using std::string;
-using std::vector;
 
 // Constant Pool Tag
 typedef enum {
@@ -45,15 +42,15 @@ class Constant {
 class Constant_Utf8_info : public Constant {
   private:
     const u2 _length;
-    const string _str;
+    const std::string _str;
 
   public:
-    Constant_Utf8_info(Tag tag, u2 length, string str)
+    Constant_Utf8_info(Tag tag, u2 length, const std::string &str)
         : Constant(tag), _length(length), _str(str) {
         assert(_tag == CONSTANT_Utf8_info);
     };
 
-    string str() { return _str; }
+    std::string str() { return _str; }
 };
 // 3 = CONSTANT_Integer_info
 class Constant_Integer_info : public Constant {
@@ -236,7 +233,7 @@ class ConstantPool {
     friend class ClassFileParser;
     friend class ClassFilePartialParser;
     const u2 _cp_size;
-    vector<Constant *> _constants;
+    std::vector<Constant *> _constants;
 
   public:
     ConstantPool(u2 cp_size) : _cp_size(cp_size) {
@@ -250,7 +247,7 @@ class ConstantPool {
         }
     }
 
-    const string symbol_at(int which);
+    const std::string symbol_at(int which);
 };
 
-#endif // JAVA_CONSTANTPOOL_HPP
+#endif // CONSTANTPOOL_HPP

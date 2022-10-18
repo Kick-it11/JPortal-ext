@@ -1,10 +1,10 @@
-#ifndef _decode_output_hpp
-#define _decode_output_hpp
+#ifndef OUTPUT_DECODE_HPP
+#define OUTPUT_DECODE_HPP
 
 #include <list>
 
 class TraceData;
 
-void output_decode(list<TraceData*> &traces);
+void output_decode(std::list<TraceData*> &traces);
 
-#endif 
+#endif // OUTPUT_DECODE_HPP

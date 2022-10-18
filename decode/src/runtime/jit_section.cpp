@@ -62,7 +62,7 @@ CompiledMethodLoadInlineRecord::CompiledMethodLoadInlineRecord(const uint8_t *sc
 JitSection::JitSection(const uint8_t *code, uint64_t code_begin, uint64_t code_size, 
                        const uint8_t *scopes_pc, size_t scopes_pc_size, 
                        const uint8_t *scopes_data, size_t scopes_data_size,
-                       CompiledMethodDesc *cmd, const string &name) :
+                       CompiledMethodDesc *cmd, const std::string &name) :
                        _code(code), _code_begin(code_begin), _code_size(code_size),
                        _cmd(cmd), _name(name) {
     assert(code != nullptr);

@@ -1,18 +1,13 @@
-#ifndef DECODE_RESULT
-#define DECODE_RESULT
+#ifndef DECODE_RESULT_HPP
+#define DECODE_RESULT_HPP
 
-#include "utilities/definitions.hpp"
 #include "java/bytecodes.hpp"
 #include "runtime/codelets_entry.hpp"
 #include "runtime/jit_section.hpp"
+#include "utilities/definitions.hpp"
 
-#include <unordered_map>
-#include <stack>
 #include <list>
-#include <vector>
-
-using std::unordered_map;
-using std::list;
+#include <unordered_map>
 
 class Method;
 
@@ -49,19 +44,19 @@ class TraceData {
     u1 *data_begin = nullptr;
     u1 *data_end = nullptr;
     size_t data_volume = 0;
-    unordered_map<size_t, const Method*> method_info;
+    std::unordered_map<size_t, const Method*> method_info;
 
-    unordered_map<long, list<ThreadSplit>> thread_map;
+    std::unordered_map<long, std::list<ThreadSplit>> thread_map;
 
     int expand_data(size_t size);
     int write(void *data, size_t size);
 
   public:
     ~TraceData() {
-      free(data_begin);
+      delete[] data_begin;
     }
 
-    unordered_map<long, list<ThreadSplit>> &get_thread_map() { return thread_map; }
+    std::unordered_map<long, std::list<ThreadSplit>> &get_thread_map() { return thread_map; }
 
     const Method* get_method_info(size_t loc);
 
@@ -148,4 +143,4 @@ class TraceDataAccess {
     }
 };
 
-#endif // DECODE_RESULT
+#endif // DECODE_RESULT_HPP

@@ -1,8 +1,8 @@
-#ifndef TRACE_DATA_SPLITTER
-#define TRACE_SPLITTER
+#ifndef TRACE_DATA_PARSER_HPP
+#define TRACE_DATA_PARSER_HPP
 
-#include <map>
 #include <list>
+#include <map>
 #include <string>
 
 struct pt_config;
@@ -22,10 +22,10 @@ private:
         uint64_t header_size;
 
         /** PT CPU configurations: The filter. */
-        uint32_t filter; /*	0 for stop, 1 for filter*/
+        uint32_t filter; /* 0 for stop, 1 for filter*/
 
         /** PT CPU configurations: The cpu vendor. */
-        uint32_t vendor; /*	0 for pcv_unknown, 1 for pcv_intel*/
+        uint32_t vendor; /* 0 for pcv_unknown, 1 for pcv_intel*/
 
         /** PT CPU configurations: The cpu family. */
         uint16_t family;
@@ -134,4 +134,4 @@ public:
     void init_pt_config_from_trace(struct pt_config &config);
 };
 
-#endif
+#endif // TRACE_DATA_PARSER_HPP

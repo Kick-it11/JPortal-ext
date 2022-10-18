@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_CODE_PCDESC_HPP
-#define SHARE_VM_CODE_PCDESC_HPP
+#ifndef PCDESC_HPP
+#define PCDESC_HPP
 
 #include <stdint.h>
 
@@ -93,4 +93,4 @@ class PcDesc {
   bool verify();
 };
 
-#endif // SHARE_VM_CODE_PCDESC_HPP
+#endif // PCDESC_HPP

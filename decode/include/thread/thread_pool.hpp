@@ -1,14 +1,9 @@
 #ifndef THREAD_POOL_HPP
 #define THREAD_POOL_HPP
 
-#include <vector>
-#include <thread>
-#include <mutex>
-#include <condition_variable>
-#include <future>
-
 #include "thread/block_queue.hpp"
 
+#include <future>
 /** Thread Pool class
  *  while committing a task, if the task queue is full
  *  this commit will block until it can do this comit
@@ -102,4 +97,4 @@ public:
     }
 };
 
-#endif
+#endif // THREAD_POOL_HPP

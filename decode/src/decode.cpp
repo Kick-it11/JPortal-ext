@@ -1,17 +1,14 @@
-#include <thread>
-#include <iostream>
-#include <cstring>
-
-#include "thread/thread_pool.hpp"
-#include "java/analyser.hpp"
-#include "decoder/decode_result.hpp"
-#include "decoder/pt_jvm_decoder.hpp"
-#include "runtime/jvm_runtime.hpp"
 #include "decoder/output_decode.hpp"
+#include "decoder/pt_jvm_decoder.hpp"
+#include "java/analyser.hpp"
+#include "runtime/jvm_runtime.hpp"
+#include "sideband/sideband.hpp"
+#include "thread/thread_pool.hpp"
 #include "tracedata/trace_data_parser.hpp"
 
-using std::cout;
-using std::endl;
+#include <cstring>
+#include <iostream>
+#include <thread>
 
 static void decode_part(struct pt_config config, uint32_t cpu, TraceData* trace) {
     PTJVMDecoder decoder(config, *trace, cpu);
@@ -19,12 +16,12 @@ static void decode_part(struct pt_config config, uint32_t cpu, TraceData* trace)
     delete[] config.begin;
 }
 
-static void decode(const string &file, list<string>& paths) {
+static void decode(const std::string &file, std::list<std::string>& paths) {
     TraceDataParser parser(file);
-    list<TraceData*> traces;
+    std::list<TraceData*> traces;
 
     /** Initialize */
-    cout << "Initializing..." << endl;
+    std::cout << "Initializing..." << std::endl;
     Analyser* analyser = new Analyser(paths);
     auto jvmdata = parser.jvm_runtime_data();
     auto sideband_data = parser.sideband_data();
@@ -34,7 +31,7 @@ static void decode(const string &file, list<string>& paths) {
                          parser.time_shift(), parser.time_zero());
 
     /** Decoding */
-    cout << "Decoding..." << endl;
+    std::cout << "Decoding..." << std::endl;
     std::pair<uint8_t*, uint64_t> pt_data;
     uint32_t cpu;
     ThreadPool pool(16, 32);
@@ -50,7 +47,7 @@ static void decode(const string &file, list<string>& paths) {
     pool.shutdown();
 
     /** Output */
-    cout << "Output..." << endl;
+    std::cout << "Output..." << std::endl;
     output_decode(traces);
 
     /* Exit */
@@ -65,7 +62,7 @@ static void decode(const string &file, list<string>& paths) {
 int main(int argc, char **argv) {
     char defualt_trace[20] = "JPortalTrace.data";
     char *trace_data = defualt_trace;
-    list<string> class_paths;
+    std::list<std::string> class_paths;
     int errcode, i;
     for (i = 1; i < argc;) {
         char *arg;

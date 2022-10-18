@@ -3,13 +3,9 @@
 
 #include "utilities/definitions.hpp"
 
-#include <string>
 #include <map>
 #include <mutex>
-
-using std::map;
-using std::mutex;
-using std::string;
+#include <string>
 
 class Method;
 /*
@@ -43,11 +39,11 @@ private:
     address _osr_entry_point;
     int _inline_method_cnt;
     const Method* _mainm;
-    map<int, const Method*> _methods;
+    std::map<int, const Method*> _methods;
 public:
     CompiledMethodDesc(address entry_point, address verified_entry_point,
                        address osr_entry_point, address inline_method_cnt,
-                       const Method* mainm, map<int, const Method*>& methods) :
+                       const Method* mainm, std::map<int, const Method*>& methods) :
       _entry_point(entry_point),
       _verified_entry_point(verified_entry_point),
       _osr_entry_point(osr_entry_point),
@@ -81,13 +77,13 @@ private:
     CompiledMethodDesc *_cmd;
     CompiledMethodLoadInlineRecord *_record;
 
-    const string _name;
+    const std::string _name;
 
 public:
     JitSection(const uint8_t *code, uint64_t code_begin, uint64_t code_size, 
                const uint8_t *scopes_pc, size_t scopes_pc_size,
                const uint8_t *scopes_data, size_t scopes_data_size,
-               CompiledMethodDesc *cmd, const string &name);
+               CompiledMethodDesc *cmd, const std::string &name);
 
     ~JitSection();
 
@@ -114,4 +110,4 @@ public:
     const CompiledMethodLoadInlineRecord *record() const { return _record; }
 };
 
-#endif
+#endif // JIT_SECTION_HPP

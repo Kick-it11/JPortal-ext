@@ -115,4 +115,4 @@ class CompressedReadStream : public CompressedStream {
   jint     read_signed_int()           {return decode_sign(read_int()); }
 };
 
-#endif
+#endif //COMPRESSED_STREAM_HPP

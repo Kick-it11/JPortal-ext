@@ -22,10 +22,10 @@
  *
  */
 
-#ifndef SHARE_VM_CODE_SCOPEDESC_HPP
-#define SHARE_VM_CODE_SCOPEDESC_HPP
+#ifndef SCOPEDESC_HPP
+#define SCOPEDESC_HPP
 
-#include "pc_desc.hpp"
+#include "runtime/pc_desc.hpp"
 
 typedef unsigned char u_char;
 // ScopeDescs contain the information that makes source-level debugging of
@@ -82,4 +82,4 @@ class ScopeDesc {
 
 };
 
-#endif // SHARE_VM_CODE_SCOPEDESC_HPP
+#endif // SCOPEDESC_HPP

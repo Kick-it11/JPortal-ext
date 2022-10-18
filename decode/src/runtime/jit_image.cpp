@@ -1,7 +1,7 @@
-#include "runtime/jit_section.hpp"
 #include "runtime/jit_image.hpp"
+#include "runtime/jit_section.hpp"
 
-JitImage::JitImage(const string& name) : _name(name) {
+JitImage::JitImage(const std::string& name) : _name(name) {
 
 }
 
@@ -18,7 +18,7 @@ void JitImage::add(JitSection *section) {
     uint64_t end = begin + size;
 
     /* Check for overlaps while we move to the end of the list. */
-    list<JitSection*>::iterator it = _sections.begin();
+    std::list<JitSection*>::iterator it = _sections.begin();
     while (it != _sections.end()) {
         JitSection* lsec = *it;
 
@@ -51,7 +51,7 @@ void JitImage::add(JitSection *section) {
 
 bool JitImage::remove(address vaddr)
 {
-    list<JitSection*>::iterator it = _sections.begin();
+    std::list<JitSection*>::iterator it = _sections.begin();
     while(it != _sections.end()) {
         JitSection* sec = *it;
 
@@ -74,7 +74,7 @@ bool JitImage::remove(address vaddr)
 }
 
 JitSection *JitImage::find(address vaddr) {
-    list<JitSection *>::iterator it = _sections.begin();
+    std::list<JitSection *>::iterator it = _sections.begin();
     while (it != _sections.end()) {
         JitSection *sec = *it;
 

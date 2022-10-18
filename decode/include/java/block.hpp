@@ -8,14 +8,9 @@
 #include <unordered_set>
 #include <vector>
 
-using std::pair;
-using std::unordered_map;
-using std::unordered_set;
-using std::vector;
-
 //
 class BCTBlock {
-  private:
+private:
     // BCTBlockList::_blocks[_block_id]
     int _block_id;
     // [_begin, _end)
@@ -27,7 +22,7 @@ class BCTBlock {
     //  1:  block._succs[1]
     //  2:  switch
     int _branch;
-  public:
+public:
     BCTBlock(int id, const u1 *begin)
         : _block_id(id), _begin(begin), _end(nullptr), _branch(0){};
     ~BCTBlock(){};
@@ -77,17 +72,17 @@ class BCTBlock {
 };
 //
 class Block {
-  private:
+private:
     // BlockGraph::_blocks[_block_id]
     int _block_id;
     // [_begin_offset, _end_offset)
     int _begin_offset;
     int _end_offset;
     int _bct_codebegin;
-    vector<Block *> _preds;
-    vector<Block *> _succs;
-    unordered_set<Block *> _preds_set;
-    unordered_set<Block *> _succs_set;
+    std::vector<Block *> _preds;
+    std::vector<Block *> _succs;
+    std::unordered_set<Block *> _preds_set;
+    std::unordered_set<Block *> _succs_set;
     BCTBlock *_bctblock = nullptr;
 
   public:
@@ -97,21 +92,21 @@ class Block {
     void set_end_offset(int offset) { _end_offset = offset; }
     void set_bctblock(BCTBlock *bctblock) { _bctblock = bctblock; }
     void add_preds(Block *block) {
-        if (_preds_set.find(block) == _preds_set.end()) {
+        if (!_preds_set.count(block)) {
             _preds.push_back(block);
             _preds_set.insert(block);
         }
     }
     void add_succs(Block *block) {
-        if (_succs_set.find(block) == _succs_set.end()) {
+        if (!_succs_set.count(block)) {
             _succs.push_back(block);
             _succs_set.insert(block);
         }
     }
-    vector<Block *>::iterator get_preds_begin() { return _preds.begin(); }
-    vector<Block *>::iterator get_preds_end() { return _preds.end(); }
-    vector<Block *>::iterator get_succs_begin() { return _succs.begin(); }
-    vector<Block *>::iterator get_succs_end() { return _succs.end(); }
+    std::vector<Block *>::iterator get_preds_begin() { return _preds.begin(); }
+    std::vector<Block *>::iterator get_preds_end() { return _preds.end(); }
+    std::vector<Block *>::iterator get_succs_begin() { return _succs.begin(); }
+    std::vector<Block *>::iterator get_succs_end() { return _succs.end(); }
     int get_preds_size() const { return _preds.size(); }
     int get_succs_size() const { return _succs.size(); }
     int get_id() const { return _block_id; }
@@ -132,9 +127,9 @@ struct Excep {
 };
 //
 class BlockGraph {
-  friend class BlockMatcher;
-  friend class JitMatcher;
-  private:
+    friend class BlockMatcher;
+    friend class JitMatcher;
+private:
     const u1 *_code;
     u1 *_bctcode = nullptr;
     const int _code_length; // size of _code
@@ -142,15 +137,15 @@ class BlockGraph {
     u4 _bc_set[7] = {0};    //
     const u1 *_exception_table;
     const u2 _exception_table_length;
-    vector<Block *> _blocks;
-    vector<BCTBlock *> _bctblocks;
-    vector<Excep> _exceps;
-    unordered_map<int, Block *> _offset2block;
+    std::vector<Block *> _blocks;
+    std::vector<BCTBlock *> _bctblocks;
+    std::vector<Excep> _exceps;
+    std::unordered_map<int, Block *> _offset2block;
     /* bct code offset to block id */
-    vector<int> _block_id;
+    std::vector<int> _block_id;
     /* bc offset to bct offset */
-    unordered_map<int, int> _bct_offset;
-    unordered_map<int, pair<u1, u2>> _method_site;
+    std::unordered_map<int, int> _bct_offset;
+    std::unordered_map<int, std::pair<u1, u2>> _method_site;
     bool _is_build_graph;
     bool _is_build_bctlist;
 
@@ -160,11 +155,10 @@ class BlockGraph {
         : _code_length(code_length),
           _exception_table_length(exception_table_length),
           _is_build_graph(false), _is_build_bctlist(false) {
-        _code = (u1 *)malloc(code_length * sizeof(u1));
+        _code = new u1[code_length * sizeof(u1)];
         memcpy((void *)_code, code, code_length * sizeof(u1));
         if (exception_table_length) {
-            _exception_table =
-                (u1 *)malloc(exception_table_length * 4 * sizeof(u2));
+            _exception_table = new u1[exception_table_length * 4 * sizeof(u2)];
             memcpy((void *)_exception_table, exception_table,
                    exception_table_length * 4 * sizeof(u2));
         } else {
@@ -178,13 +172,11 @@ class BlockGraph {
         for (auto bctblock : _bctblocks) {
             delete bctblock;
         }
-        free((void *)_code);
-        if (_bctcode != nullptr) {
-            free((void *)_bctcode);
-        }
+        delete[] _code;
+        delete[] _bctcode;
     }
-    void set_exceps(vector<Excep> exceps) {}
-    vector<Excep> *get_exceps() { return &_exceps; }
+    void set_exceps(std::vector<Excep> exceps) {}
+    std::vector<Excep> *get_exceps() { return &_exceps; }
     Block *offset2block(int offset);
     Block *make_block_at(int offset, Block *current);
     u4 *get_bc_set() { return _bc_set; }
@@ -195,7 +187,7 @@ class BlockGraph {
         }
         return true;
     }
-    unordered_map<int, pair<u1, u2>> *get_method_site() {
+    std::unordered_map<int, std::pair<u1, u2>> *get_method_site() {
         build_bctlist();
         build_graph();
         return &_method_site;
@@ -206,9 +198,9 @@ class BlockGraph {
         return _blocks[_block_id[_bct_offset[bci]]];
     }
     const u1 *bctcode() const { return _bctcode; }
-    const unordered_map<int, int> &bct_offset() const { return _bct_offset; }
-    const vector<int> &block_id() const { return _block_id; }
-    const vector<Block *> &blocks() const { return _blocks; }
+    const std::unordered_map<int, int> &bct_offset() const { return _bct_offset; }
+    const std::vector<int> &block_id() const { return _block_id; }
+    const std::vector<Block *> &blocks() const { return _blocks; }
     void build_graph();
     void print_graph();
     void build_bctlist();
@@ -220,7 +212,7 @@ class BCTBlockList {
     const u1 *_code;
     const int _code_length;
     u4 _bc_set[7] = {0}; //
-    vector<BCTBlock *> _blocks;
+    std::vector<BCTBlock *> _blocks;
     bool _is_build_list;
     bool _is_exception = false;
 
@@ -236,10 +228,10 @@ class BCTBlockList {
     BCTBlock *make_block_at(const u1 *addr);
     void build_list();
     u4 *get_bc_set() { return _bc_set; }
-    vector<BCTBlock *> *get_blocks() { return &_blocks; }
+    std::vector<BCTBlock *> *get_blocks() { return &_blocks; }
     bool get_exception() { return _is_exception; }
     void set_exception() { _is_exception = true; }
     void print();
 };
 
-#endif // JAVA_BLOCK_HPP
+#endif // BLOCK_HPP

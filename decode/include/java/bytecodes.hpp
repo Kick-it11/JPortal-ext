@@ -1,10 +1,10 @@
-#ifndef JAVA_BYTECODES_HPP
-#define JAVA_BYTECODES_HPP
+#ifndef BYTECODES_HPP
+#define BYTECODES_HPP
 
 #include "utilities/definitions.hpp"
 
 class Bytecodes {
-  public:
+public:
     enum Code {
         _illegal = -1,
 
@@ -287,7 +287,7 @@ class Bytecodes {
         number_of_jmptypes
     };
 
-  private:
+private:
     static bool _is_initialized;
     static Code _java_code[number_of_codes];
     static bool _is_block_end[number_of_codes];
@@ -301,7 +301,7 @@ class Bytecodes {
                     const char *format, const char *wide_format,
                     Code java_code);
 
-  public:
+public:
     static Code cast(int code) { return (Code)code; }
     static bool is_valid(int code) {
         return 0 <= code && code < number_of_codes;
@@ -354,4 +354,4 @@ class Bytecodes {
     static void initialize();
 };
 
-#endif // JAVA_BYTECODES_HPP
+#endif // BYTECODES_HPP

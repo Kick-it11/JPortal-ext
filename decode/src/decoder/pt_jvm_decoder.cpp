@@ -1,16 +1,9 @@
 #include "decoder/pt_jvm_decoder.hpp"
-#include "decoder/decode_result.hpp"
-#include "runtime/jvm_runtime.hpp"
-#include "runtime/jit_image.hpp"
-#include "runtime/jit_section.hpp"
-#include "insn/pt_insn.hpp"
 #include "insn/pt_ild.hpp"
-#include "pt/pt.hpp"
+#include "runtime/jit_image.hpp"
+#include "sideband/sideband.hpp"
 
 #include <iostream>
-
-using std::cerr;
-using std::endl;
 
 void PTJVMDecoder::reset_decoder()
 {
@@ -48,146 +41,146 @@ void PTJVMDecoder::reset_decoder()
  */
 int PTJVMDecoder::pt_insn_decode_retry(struct pt_insn *insn, struct pt_insn_ext *iext)
 {
-	int size, errcode, isid;
-	uint16_t isize, remaining;
+    int size, errcode, isid;
+    uint16_t isize, remaining;
 
-	if (!insn)
-		return -pte_internal;
+    if (!insn)
+        return -pte_internal;
 
-	isize = insn->size;
-	remaining = sizeof(insn->raw) - isize;
+    isize = insn->size;
+    remaining = sizeof(insn->raw) - isize;
 
-	/* We failed for real if we already read the maximum number of bytes for
-	 * an instruction.
-	 */
-	if (!remaining)
-		return -pte_bad_insn;
+    /* We failed for real if we already read the maximum number of bytes for
+     * an instruction.
+     */
+    if (!remaining)
+        return -pte_bad_insn;
 
-	/* Read the remaining bytes from the image. */
-	JitSection* section = _jvm->image()->find(insn->ip + isize);
+    /* Read the remaining bytes from the image. */
+    JitSection* section = _jvm->image()->find(insn->ip + isize);
     if (!section)
         return -pte_bad_insn;
 
     if (!section->read(&insn->raw[isize], &remaining, insn->ip + isize)) {
-		/* We should have gotten an error if we were not able to read at
-		 * least one byte.  Check this to guarantee termination.
-		 */
+        /* We should have gotten an error if we were not able to read at
+         * least one byte.  Check this to guarantee termination.
+         */
         return -pte_bad_insn;
-	}
+    }
 
-	/* Add the newly read bytes to the instruction's size. */
-	insn->size += (uint8_t) remaining;
+    /* Add the newly read bytes to the instruction's size. */
+    insn->size += (uint8_t) remaining;
 
-	/* Store the new size to avoid infinite recursion in case instruction
-	 * decode fails after length decode, which would set @insn->size to the
-	 * actual length.
-	 */
-	size = insn->size;
+    /* Store the new size to avoid infinite recursion in case instruction
+     * decode fails after length decode, which would set @insn->size to the
+     * actual length.
+     */
+    size = insn->size;
 
-	/* Try to decode the instruction again.
-	 *
-	 * If we fail again, we recursively retry again until we either fail to
-	 * read more bytes or reach the maximum number of bytes for an
-	 * instruction.
-	 */
-	errcode = pt_ild_decode(insn, iext);
-	if (errcode < 0) {
-		if (errcode != -pte_bad_insn)
-			return errcode;
+    /* Try to decode the instruction again.
+     *
+     * If we fail again, we recursively retry again until we either fail to
+     * read more bytes or reach the maximum number of bytes for an
+     * instruction.
+     */
+    errcode = pt_ild_decode(insn, iext);
+    if (errcode < 0) {
+        if (errcode != -pte_bad_insn)
+            return errcode;
 
-		/* If instruction length decode already determined the size,
-		 * there's no point in reading more bytes.
-		 */
-		if (insn->size != (uint8_t) size)
-			return errcode;
+        /* If instruction length decode already determined the size,
+         * there's no point in reading more bytes.
+         */
+        if (insn->size != (uint8_t) size)
+            return errcode;
 
-		return pt_insn_decode_retry(insn, iext);
-	}
+        return pt_insn_decode_retry(insn, iext);
+    }
 
-	/* We succeeded this time, so the instruction crosses image section
-	 * boundaries.
-	 *
-	 * This poses the question which isid to use for the instruction.
-	 *
-	 * To reconstruct exactly this instruction at a later time, we'd need to
-	 * store all isids involved together with the number of bytes read for
-	 * each isid.  Since @insn already provides the exact bytes for this
-	 * instruction, we assume that the isid will be used solely for source
-	 * correlation.  In this case, it should refer to the first byte of the
-	 * instruction - as it already does.
-	 */
-	insn->truncated = 1;
+    /* We succeeded this time, so the instruction crosses image section
+     * boundaries.
+     *
+     * This poses the question which isid to use for the instruction.
+     *
+     * To reconstruct exactly this instruction at a later time, we'd need to
+     * store all isids involved together with the number of bytes read for
+     * each isid.  Since @insn already provides the exact bytes for this
+     * instruction, we assume that the isid will be used solely for source
+     * correlation.  In this case, it should refer to the first byte of the
+     * instruction - as it already does.
+     */
+    insn->truncated = 1;
 
-	return errcode;
+    return errcode;
 }
 
 int PTJVMDecoder::pt_insn_decode(struct pt_insn *insn, struct pt_insn_ext *iext)
 {
-	int errcode;
+    int errcode;
     uint16_t size;
 
-	if (!insn)
-		return -pte_internal;
+    if (!insn)
+        return -pte_internal;
 
-	JitSection* section = _jvm->image()->find(insn->ip);
+    JitSection* section = _jvm->image()->find(insn->ip);
     if (!section)
         return -pte_bad_insn;
 
     if (!section->read(insn->raw, &size, insn->ip)) {
-		/* We should have gotten an error if we were not able to read at
-		 * least one byte.  Check this to guarantee termination.
-		 */
+        /* We should have gotten an error if we were not able to read at
+         * least one byte.  Check this to guarantee termination.
+         */
         return -pte_bad_insn;
-	}
-	/* We initialize @insn->size to the maximal possible size.  It will be
-	 * set to the actual size during instruction decode.
-	 */
-	insn->size = (uint8_t) size;
+    }
+    /* We initialize @insn->size to the maximal possible size.  It will be
+     * set to the actual size during instruction decode.
+     */
+    insn->size = (uint8_t) size;
 
-	errcode = pt_ild_decode(insn, iext);
-	if (errcode < 0) {
-		if (errcode != -pte_bad_insn)
-			return errcode;
+    errcode = pt_ild_decode(insn, iext);
+    if (errcode < 0) {
+        if (errcode != -pte_bad_insn)
+            return errcode;
 
-		/* If instruction length decode already determined the size,
-		 * there's no point in reading more bytes.
-		 */
-		if (insn->size != (uint8_t) size)
-			return errcode;
+        /* If instruction length decode already determined the size,
+         * there's no point in reading more bytes.
+         */
+        if (insn->size != (uint8_t) size)
+            return errcode;
 
-		return pt_insn_decode_retry(insn, iext);
-	}
+        return pt_insn_decode_retry(insn, iext);
+    }
 
-	return errcode;
+    return errcode;
 }
 
 int PTJVMDecoder::pt_insn_range_is_contiguous(uint64_t begin, uint64_t end,
-				enum pt_exec_mode mode, size_t steps)
+                enum pt_exec_mode mode, size_t steps)
 {
-	struct pt_insn_ext iext;
-	struct pt_insn insn;
+    struct pt_insn_ext iext;
+    struct pt_insn insn;
 
-	memset(&insn, 0, sizeof(insn));
+    memset(&insn, 0, sizeof(insn));
 
-	insn.mode = mode;
-	insn.ip = begin;
+    insn.mode = mode;
+    insn.ip = begin;
 
-	while (insn.ip != end) {
-		int errcode;
+    while (insn.ip != end) {
+        int errcode;
 
-		if (!steps--)
-			return 0;
+        if (!steps--)
+            return 0;
 
-		errcode = pt_insn_decode(&insn, &iext);
-		if (errcode < 0)
-			return errcode;
+        errcode = pt_insn_decode(&insn, &iext);
+        if (errcode < 0)
+            return errcode;
 
-		errcode = pt_insn_next_ip(&insn.ip, &insn, &iext);
-		if (errcode < 0)
-			return errcode;
-	}
+        errcode = pt_insn_next_ip(&insn.ip, &insn, &iext);
+        if (errcode < 0)
+            return errcode;
+    }
 
-	return 1;
+    return 1;
 }
 
 
@@ -1380,7 +1373,7 @@ int PTJVMDecoder::handle_compiled_code()
             insn_size = sizeof(insn.raw);
             if (!section->read(insn.raw, &insn_size, _ip))
             {
-                cerr << "PTJVMDecoder error: compiled code's section" << endl;
+                std::cerr << "PTJVMDecoder error: compiled code's section" << std::endl;
                 break;
             }
         }
@@ -1389,7 +1382,7 @@ int PTJVMDecoder::handle_compiled_code()
         errcode = pt_ild_decode(&insn, &iext);
         if (errcode < 0)
         {
-            cerr << "PTJVMDecoder error: compiled code's ild" << endl; 
+            std::cerr << "PTJVMDecoder error: compiled code's ild" << std::endl; 
             break;
         }
         uint64_t ip = _ip;
@@ -1397,7 +1390,7 @@ int PTJVMDecoder::handle_compiled_code()
         errcode = handle_compiled_code_result(section);
         if (errcode < 0)
         {
-            cerr << "PTJVMDecoder error: compiled code's result" << endl;
+            std::cerr << "PTJVMDecoder error: compiled code's result" << std::endl;
             break;
         }
 
@@ -1439,11 +1432,11 @@ int PTJVMDecoder::handle_compiled_code()
         {
             if (_process_event && (_event.type == ptev_disabled || _event.type == ptev_tsx))
             {
-                cerr << "PTJVMDecoder error: disable" << endl;
+                std::cerr << "PTJVMDecoder error: disable" << std::endl;
             }
             else if (errcode != -pte_eos)
             {
-                cerr << "PTJVMDecoder error: proceed" << endl;
+                std::cerr << "PTJVMDecoder error: proceed" << std::endl;
             }
             break;
         }
@@ -1503,7 +1496,7 @@ int PTJVMDecoder::ptjvm_result_decode()
             if (status != -pte_eos)
             {
                 _record.switch_out(true);
-                cerr << "PTJVMDecoder error: compiled code decode" << status << endl;
+                std::cerr << "PTJVMDecoder error: compiled code decode" << status << std::endl;
             }
             return 0;
         }
@@ -1521,7 +1514,7 @@ int PTJVMDecoder::ptjvm_result_decode()
             if (status != -pte_eos)
             {
                 _record.switch_out(true);
-                cerr << "PTJVMDecoder error: bytecode " << status << endl;
+                std::cerr << "PTJVMDecoder error: bytecode " << status << std::endl;
             }
             return 0;
         }
@@ -1663,7 +1656,7 @@ void PTJVMDecoder::decode()
             {
                 break;
             }
-            cerr << "PTJVMDecoder error: " << pt_errstr(pt_errcode(status)) << endl;
+            std::cerr << "PTJVMDecoder error: " << pt_errstr(pt_errcode(status)) << std::endl;
             _record.switch_out(true);
             return;
         }
@@ -1714,7 +1707,7 @@ void PTJVMDecoder::decode()
             break;
         else
         {
-            cerr << "PTJVMDecoder error: " << status << " " << _time << endl;
+            std::cerr << "PTJVMDecoder error: " << status << " " << _time << std::endl;
             _record.switch_out(true);
             return;
         }
@@ -1732,7 +1725,7 @@ PTJVMDecoder::PTJVMDecoder(const struct pt_config &config, TraceData &trace, uin
 
     if ((_qry = pt_qry_alloc_decoder(&_config)) == nullptr)
     {
-        cerr << "PTJVMDecoder: fail to allocate query decoder." << endl;
+        std::cerr << "PTJVMDecoder: fail to allocate query decoder." << std::endl;
         exit(-1);
     }
 }

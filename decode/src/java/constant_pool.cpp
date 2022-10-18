@@ -1,6 +1,6 @@
 #include "java/constant_pool.hpp"
 
-const string ConstantPool::symbol_at(int which) {
+const std::string ConstantPool::symbol_at(int which) {
     switch (_constants[which]->tag()) {
     case CONSTANT_Class_info: {
         return symbol_at(

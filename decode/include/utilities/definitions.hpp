@@ -36,4 +36,4 @@ inline jint alignup(jint offset) {
     return 0;
 }
 
-#endif
+#endif // DEFINITIONS_HPP

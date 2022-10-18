@@ -1,22 +1,21 @@
 #include "decoder/decode_result.hpp"
 
-#include <stdlib.h>
-#include <string.h>
+#include <cstring>
 
 int TraceData::expand_data(size_t size) {
     if (!data_volume) {
-        data_begin = (u1 *)malloc(initial_data_volume);
+        data_begin = new u1[(initial_data_volume)];
         if (!data_begin)
             return -1;
         data_end = data_begin;
         data_volume = initial_data_volume;
     }
     while (data_volume - (data_end - data_begin) < size) {
-        u1 *new_data = (u1 *)malloc(data_volume + initial_data_volume);
+        u1 *new_data = new u1[(data_volume + initial_data_volume)];
         if (!new_data)
             return -1;
         memcpy(new_data, data_begin, data_volume);
-        free(data_begin);
+        delete[] data_begin;
         data_end = new_data + (data_end - data_begin);
         data_begin = new_data;
         data_volume += initial_data_volume;

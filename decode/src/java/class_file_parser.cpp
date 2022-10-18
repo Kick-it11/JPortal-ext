@@ -1,14 +1,12 @@
 #include "java/analyser.hpp"
 #include "java/class_file_parser.hpp"
-#include "java/constant_pool.hpp"
 #include "java/class_file_stream.hpp"
+#include "java/constant_pool.hpp"
 
 #include <cassert>
 #include <cstring>
 #include <fstream>
 #include <sys/stat.h>
-
-using std::ifstream;
 
 #define JAVA_CLASSFILE_MAGIC 0xCAFEBABE
 #define JAVA_MIN_SUPPORTED_VERSION 45
@@ -42,7 +40,7 @@ using std::ifstream;
 // Class file format tags
 #define TAG_CODE "Code"
 
-ClassFileParser::ClassFileParser(string &file_path, Analyser *analyser, Klass* klass)
+ClassFileParser::ClassFileParser(std::string &file_path, Analyser *analyser, Klass* klass)
     : _analyser(analyser), _klass(klass) {
     assert(analyser != nullptr);
     assert(klass != nullptr);
@@ -50,7 +48,7 @@ ClassFileParser::ClassFileParser(string &file_path, Analyser *analyser, Klass* k
     struct stat st;
     if (stat(file_path.c_str(), &st) == 0) {
         // found file, open it
-        ifstream file_handle(file_path);
+        std::ifstream file_handle(file_path);
         if (file_handle.is_open()) {
             // read contents into resource array
             u1* buffer = new u1[st.st_size * sizeof(u1)];
@@ -93,13 +91,13 @@ void ClassFileParser::parse_class(const ClassFileStream *const stream) {
 
     // This class
     _this_class_index = stream->get_u2();
-    const string class_name = cp->symbol_at(_this_class_index);
+    const std::string class_name = cp->symbol_at(_this_class_index);
     // cout << _klass.get_name() << " class " << class_name << endl;
 
     // Super class
     _super_class_index = stream->get_u2();
     if (_super_class_index){
-        const string super_class_name = cp->symbol_at(_super_class_index);
+        const std::string super_class_name = cp->symbol_at(_super_class_index);
         // cout << " super_class " << super_class_name << endl;
         _klass->set_father_name(super_class_name);
     }
@@ -107,7 +105,7 @@ void ClassFileParser::parse_class(const ClassFileStream *const stream) {
     u2 itfs_len = stream->get_u2();
     for (u2 i = 0; i < itfs_len; ++i) {
         u2 interface_index = stream->get_u2();
-        const string interface_name = cp->symbol_at(interface_index);
+        const std::string interface_name = cp->symbol_at(interface_index);
         // cout << " interface " << interface_name << endl;
         _klass->add_interface_name(interface_name);
     }
@@ -261,8 +259,7 @@ void ClassFileParser::parse_constant_pool(const ClassFileStream *const stream,
             // TODO
             const u2 str_len = stream->get_u2();
             char *buffer = (char *)stream->current();
-            char *str = (char *)malloc(str_len * sizeof(char) + 1);
-            strncpy(str, buffer, str_len);
+            std::string str(buffer, str_len);
             str[str_len] = '\0';
             // cout << index << ":Utf8 " << str << endl;
             cp->_constants[index] =
@@ -296,7 +293,7 @@ void ClassFileParser::parse_constant_pool(const ClassFileStream *const stream,
             auto class_info =
                 (Constant_Class_info
                      *)(cp->_constants[methodref->get_class_index()]);
-            string class_name =
+            std::string class_name =
                 ((Constant_Utf8_info
                       *)(cp->_constants[class_info->get_name_index()]))
                     ->str();
@@ -305,12 +302,12 @@ void ClassFileParser::parse_constant_pool(const ClassFileStream *const stream,
                 (Constant_NameAndType_info
                      *)(cp->_constants[methodref->get_name_and_type_index()]);
             // cout << name_and_type->get_name_index() << endl;
-            string name =
+            std::string name =
                 ((Constant_Utf8_info
                       *)(cp->_constants[name_and_type->get_name_index()]))
                     ->str();
             // cout << name_and_type->get_type_index() << endl;
-            string type =
+            std::string type =
                 ((Constant_Utf8_info
                       *)(cp->_constants[name_and_type->get_type_index()]))
                     ->str();
@@ -323,12 +320,12 @@ void ClassFileParser::parse_constant_pool(const ClassFileStream *const stream,
                 (Constant_NameAndType_info
                      *)(cp->_constants[dynamicinfo->get_name_and_type_index()]);
             // cout << name_and_type->get_name_index() << endl;
-            string name =
+            std::string name =
                 ((Constant_Utf8_info
                       *)(cp->_constants[name_and_type->get_name_index()]))
                     ->str();
             // cout << name_and_type->get_type_index() << endl;
-            string type =
+            std::string type =
                 ((Constant_Utf8_info
                       *)(cp->_constants[name_and_type->get_type_index()]))
                     ->str();
@@ -377,10 +374,10 @@ Method *ClassFileParser::parse_method(const ClassFileStream *const stream,
 
     int flags = stream->get_u2();
     const u2 name_index = stream->get_u2();
-    const string method_name = cp->symbol_at(name_index);
+    const std::string method_name = cp->symbol_at(name_index);
 
     const u2 signature_index = stream->get_u2();
-    const string method_signature = cp->symbol_at(signature_index);
+    const std::string method_signature = cp->symbol_at(signature_index);
 
     u2 max_stack = 0;
     u2 max_locals = 0;
@@ -394,7 +391,7 @@ Method *ClassFileParser::parse_method(const ClassFileStream *const stream,
         const u2 method_attribute_name_index = stream->get_u2();
         const u4 method_attribute_length = stream->get_u4();
 
-        const string method_attribute_name =
+        const std::string method_attribute_name =
             cp->symbol_at(method_attribute_name_index);
         if (0 == method_attribute_name.compare(TAG_CODE)) {
             // Stack size, locals size, and code size

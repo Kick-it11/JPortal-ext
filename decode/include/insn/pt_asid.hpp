@@ -57,8 +57,7 @@ extern int pt_asid_from_user(struct pt_asid *asid, const struct pt_asid *user);
  * Returns -pte_internal, if @user or @asid is NULL.
  * Returns -pte_invalid, if @size is too small.
  */
-extern int pt_asid_to_user(struct pt_asid *user, const struct pt_asid *asid,
-			   size_t size);
+extern int pt_asid_to_user(struct pt_asid *user, const struct pt_asid *asid, size_t size);
 
 /* Match two asids.
  *

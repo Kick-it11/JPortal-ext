@@ -6,9 +6,7 @@
 
 ​jdk12-06222165c35f:     the extended Openjdk12 where online information collection is added
 
-​trace:                  used to enable Intel Processor Trace
-
-dump:                   used to dump JVM runtime infomation needed
+​trace:                  used to enable Intel Processor Trace and dump PT/Sideband/JVMRuntime data
 
 ​decode:                 used to decode hardware tracing data
 

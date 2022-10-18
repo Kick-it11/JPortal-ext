@@ -1,57 +1,59 @@
 #ifndef SIDEBAND_DECODER
 #define SIDEBAND_DECODER 
 
-#include <inttypes.h>
 #include "pevent.hpp"
-#include <cassert>
 
+#include <map>
+
+/* Sideband decoder */
 class Sideband {
 private:
-    /* trace data begin */
+    /** Sideband data for all cpus */
+    static std::map<uint32_t, std::pair<uint8_t*, uint64_t>> _data;
+
+    /** config */
+    static struct pev_config _config;
+
+    /** is initialized or not */
+    static bool _initialized;
+
+    /** sideband data begin */
     const uint8_t *_begin;
-    /* trace data end */
+
+    /** sideband data end */
     const uint8_t *_end;
-    /* trace data current */
+
+    /** sideband data current */
     const uint8_t *_current;
 
-    /* config */
-    struct pev_config _config;
-
-    /* 
-     * indicates a loss event
-     * will be reset before every event call
-     */
-    bool _loss;
-
-    /* current thread id */
-    long _tid;
+    /** event of last event() call*/
+    struct pev_event _event;
 
 public:
-    /* 
-     * sideband(perf event) constructor
-     * @buffer indicates data begin, @size represents data size
-     * perf event recorded data buffer
-     */
-    Sideband(const uint8_t * buffer, const size_t size,
-             uint64_t sample_type, uint16_t time_shift,
-             uint32_t time_mult, uint64_t time_zero);
+    /** sideband(perf event) constructor */
+    Sideband(uint32_t cpu);
 
-    /* 
-     * sideband(perf event) destructor
-     * set _begin, _end, _current nullptr;
-     */
+    /** sideband(perf event) destructor */
     ~Sideband();
 
-    /* 
-     * iterate sideband(perf event) util @time
-     * 
-     * return: true indicates a sideband to handle, else nothing.
-     */
+    /* iterate sideband events until time */
     bool event(uint64_t time);
 
-    long tid() { return _tid; }
+    /* tid of current event */
+    uint32_t tid() {
+        return _event.sample.tid?(* _event.sample.tid):-1;
+    }
 
-    bool loss() { return _loss; }
+    /** current event has a data loss flag */
+    bool loss() {
+        return (_event.type != PERF_RECORD_AUX) ? false :
+                    (_event.record.aux->flags&PERF_AUX_FLAG_TRUNCATED==PERF_AUX_FLAG_TRUNCATED);
+    }
+
+    static void initialize(std::map<uint32_t, std::pair<uint8_t*, uint64_t>> &data,
+                           uint64_t sample_type, uint32_t time_mult,
+                           uint16_t time_shift, uint16_t time_zero);
+    static void destroy();
 };
 
 #endif

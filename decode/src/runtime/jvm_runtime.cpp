@@ -3,15 +3,18 @@
 #include "runtime/jit_section.hpp"
 #include "runtime/codelets_entry.hpp"
 #include "java/analyser.hpp"
-#include "utilities/load_file.hpp"
+
+#include <cassert>
 
 uint8_t *JVMRuntime::begin = nullptr;
 uint8_t *JVMRuntime::end = nullptr;
 map<long, long> JVMRuntime::thread_map;
 map<int, const Method*> JVMRuntime::md_map;
 map<const uint8_t *, JitSection *> JVMRuntime::section_map;
+bool JVMRuntime::_initialized = false;
 
 JVMRuntime::JVMRuntime() {
+    assert(_initialized);
     _image = new JitImage("jitted-code");
     _current = begin;
 }
@@ -101,31 +104,14 @@ long JVMRuntime::get_java_tid(long tid) {
     return iter->second;
 }
 
-void JVMRuntime::initialize(char *dump_data, Analyser* analyser) {
-    uint8_t *buffer;
-    size_t size;
-    uint64_t foffset, fsize;
-    int errcode;
-
-    errcode = preprocess_filename(dump_data, &foffset, &fsize);
-    if (errcode < 0) {
-        fprintf(stderr, "JvmDumpDecoder: bad file: %s.\n", dump_data);
-        return;
-    }
-    errcode = load_file(&buffer, &size, dump_data,
-                                foffset, fsize, "main");
-    if (errcode < 0) {
-        fprintf(stderr, "JvmDumpDecoder: bad file: %s.\n", dump_data);
-        return;
-    }
-
+void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser* analyser) {
     begin = buffer;
     end = buffer + size;
     const DumpInfo *info;
     while (buffer < end) {
         info = (const struct DumpInfo *)buffer;
         if (buffer + info->size > end)
-           return;
+           break;
         buffer += sizeof(DumpInfo);
         switch(info->type) {
             case _codelet_info: {
@@ -175,11 +161,11 @@ void JVMRuntime::initialize(char *dump_data, Analyser* analyser) {
                     const char *klass_name = (const char *)buffer;
                     buffer += imi->klass_name_length;
                     const char *name = (const char *)buffer;
-                    buffer += imi->name_length;
+                    buffer += imi->method_name_length;
                     const char *sig = (const char *)buffer;
-                    buffer += imi->signature_length;
+                    buffer += imi->method_signature_length;
                     string klassName = string(klass_name, imi->klass_name_length);
-                    string methodName = string(name, imi->name_length)+string(sig, imi->signature_length);
+                    string methodName = string(name, imi->method_name_length)+string(sig, imi->method_signature_length);
                     const Method* method = analyser->get_method(klassName, methodName);
                     if (i == 0) mainm = method;
                     methods[imi->method_index] = method;
@@ -233,6 +219,8 @@ void JVMRuntime::initialize(char *dump_data, Analyser* analyser) {
             }
         }
     }
+
+    _initialized = true;
     return;
 }
 
@@ -241,11 +229,12 @@ void JVMRuntime::destroy() {
         delete section.second;
     section_map.clear();
 
-    for (auto md : md_map)
-        delete md.second;
     md_map.clear();
 
-    free(begin);
+    delete[] begin;
+
     begin = nullptr;
     end = nullptr;
+
+    _initialized = false;
 }

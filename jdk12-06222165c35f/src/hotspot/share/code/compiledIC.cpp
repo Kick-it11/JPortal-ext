@@ -32,6 +32,7 @@
 #include "code/vtableStubs.hpp"
 #include "interpreter/interpreter.hpp"
 #include "interpreter/linkResolver.hpp"
+#include "jportal/jportalEnable.hpp"
 #include "memory/metadataFactory.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
@@ -294,7 +295,7 @@ bool CompiledIC::set_to_megamorphic(CallInfo* call_info, Bytecodes::Code bytecod
 
   // JPortal
   if (JPortal && CodeCache::is_jportal(instruction_address())) {
-    JPortalEnable::jportal_inline_cache_add(instruction_address(), entry);
+    JPortalEnable::dump_inline_cache_add(instruction_address(), entry);
   }
   // We can't check this anymore. With lazy deopt we could have already
   // cleaned this IC entry before we even return. This is possible if
@@ -397,7 +398,7 @@ bool CompiledIC::set_to_clean(bool in_use) {
 
   // JPortal
   if (JPortal && CodeCache::is_jportal(instruction_address())) {
-    JPortalEnable::jportal_inline_cache_clear(instruction_address());
+    JPortalEnable::dump_inline_cache_clear(instruction_address());
   }
   // We can't check this anymore. With lazy deopt we could have already
   // cleaned this IC entry before we even return. This is possible if
@@ -466,7 +467,7 @@ bool CompiledIC::set_to_monomorphic(CompiledICInfo& info) {
 
       // JPortal
       if (JPortal && CodeCache::is_jportal(instruction_address())) {
-        JPortalEnable::jportal_inline_cache_add(instruction_address(), info.entry());
+        JPortalEnable::dump_inline_cache_add(instruction_address(), info.entry());
       }
     }
   } else {
@@ -505,7 +506,7 @@ bool CompiledIC::set_to_monomorphic(CompiledICInfo& info) {
 
     // JPortal
     if (JPortal && CodeCache::is_jportal(instruction_address())) {
-      JPortalEnable::jportal_inline_cache_add(instruction_address(), info.entry());
+      JPortalEnable::dump_inline_cache_add(instruction_address(), info.entry());
     }
   }
   // We can't check this anymore. With lazy deopt we could have already
@@ -617,7 +618,7 @@ bool CompiledStaticCall::set_to_clean(bool in_use) {
 
   // JPortal
   if (JPortal && CodeCache::is_jportal(instruction_address())) {
-    JPortalEnable::jportal_inline_cache_clear(instruction_address());
+    JPortalEnable::dump_inline_cache_clear(instruction_address());
   }
   return true;
 }
@@ -658,7 +659,7 @@ void CompiledStaticCall::set_to_compiled(address entry) {
 
   // JPortal
   if (JPortal && CodeCache::is_jportal(instruction_address())) {
-    JPortalEnable::jportal_inline_cache_add(instruction_address(), entry);
+    JPortalEnable::dump_inline_cache_add(instruction_address(), entry);
   }
 }
 

@@ -67,6 +67,7 @@ Mutex*   SymbolArena_lock             = NULL;
 Monitor* StringDedupQueue_lock        = NULL;
 Mutex*   StringDedupTable_lock        = NULL;
 Monitor* CodeCache_lock               = NULL;
+Monitor* JPortalEnable_lock           = NULL;
 Mutex*   MethodData_lock              = NULL;
 Mutex*   TouchedMethodLog_lock        = NULL;
 Mutex*   RetData_lock                 = NULL;
@@ -246,6 +247,7 @@ void mutex_init() {
   def(DerivedPointerTableGC_lock   , PaddedMutex  , leaf,        true,  Monitor::_safepoint_check_never);
   def(CGCPhaseManager_lock         , PaddedMonitor, leaf,        false, Monitor::_safepoint_check_sometimes);
   def(CodeCache_lock               , PaddedMutex  , special,     true,  Monitor::_safepoint_check_never);
+  def(JPortalEnable_lock           , PaddedMutex  , special,     true,  Monitor::_safepoint_check_never);
   def(RawMonitor_lock              , PaddedMutex  , special,     true,  Monitor::_safepoint_check_never);
   def(OopMapCacheAlloc_lock        , PaddedMutex  , leaf,        true,  Monitor::_safepoint_check_always);     // used for oop_map_cache allocation.
 

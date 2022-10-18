@@ -12,7 +12,7 @@ aux_source_directory(src/java/ java_srcs)
 aux_source_directory(src/runtime/ runtime_srcs)
 aux_source_directory(src/pt/ pt_srcs)
 aux_source_directory(src/thread/ thread_srcs)
-aux_source_directory(src/utilities/ utilities_srcs)
+aux_source_directory(src/tracedata/ tracedata_srcs)
 aux_source_directory(src/sideband/ sideband_srcs)
 
 add_executable(decode src/decode.cpp
@@ -22,6 +22,6 @@ add_executable(decode src/decode.cpp
   ${runtime_srcs}
   ${pt_srcs}
   ${thread_srcs}
-  ${utilities_srcs}
+  ${tracedata_srcs}
   ${sideband_srcs}
 )

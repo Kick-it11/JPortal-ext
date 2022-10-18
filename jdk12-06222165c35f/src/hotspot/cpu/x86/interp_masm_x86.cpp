@@ -26,6 +26,7 @@
 #include "interp_masm_x86.hpp"
 #include "interpreter/interpreter.hpp"
 #include "interpreter/interpreterRuntime.hpp"
+#include "jportal/jportalEnable.hpp"
 #include "logging/log.hpp"
 #include "oops/arrayOop.hpp"
 #include "oops/markOop.hpp"
@@ -330,14 +331,10 @@ void InterpreterMacroAssembler::check_and_handle_popframe(Register java_thread) 
     jcc(Assembler::notZero, L);
     // Call Interpreter::remove_activation_preserving_args_entry() to get the
     // address of the same-named entrypoint in the generated interpreter code.
-#ifdef JPORTAL
     address addr = pc();
     Register mirror;
     movl(mirror, Interpreter::is_mirror(addr));
     call_VM_leaf(CAST_FROM_FN_PTR(address, Interpreter::remove_activation_preserving_args_entry), mirror);
-#elif
-    call_VM_leaf(CAST_FROM_FN_PTR(address, Interpreter::remove_activation_preserving_args_entry));
-#endif
     jmp(rax);
     bind(L);
     NOT_LP64(get_thread(java_thread);)
@@ -419,15 +416,11 @@ void InterpreterMacroAssembler::check_and_handle_earlyret(Register java_thread) 
     NOT_LP64(get_thread(java_thread);)
     movptr(tmp, Address(rthread, JavaThread::jvmti_thread_state_offset()));
 #ifdef _LP64
-#ifdef JPORTAL
     movl(tmp, Address(tmp, JvmtiThreadState::earlyret_tos_offset()));
     address addr = pc();
     Register mirror;
     movl(mirror, Interpreter::is_mirror(addr));
     call_VM_leaf(CAST_FROM_FN_PTR(address, Interpreter::remove_activation_early_entry), tmp, mirror);
-#else
-    call_VM_leaf(CAST_FROM_FN_PTR(address, Interpreter::remove_activation_early_entry), tmp);
-#endif // JPORTAL
 #else
     pushl(Address(tmp, JvmtiThreadState::earlyret_tos_offset()));
     call_VM_leaf(CAST_FROM_FN_PTR(address, Interpreter::remove_activation_early_entry), 1);
@@ -2010,7 +2003,7 @@ void InterpreterMacroAssembler::notify_method_entry() {
   if (JPortal && JPortalMethod && Interpreter::is_mirror(addr)) {
     NOT_LP64(get_thread(rthread);)
     get_method(rarg);
-    call_VM_leaf(CAST_FROM_FN_PTR(address, JPortalEnable::jportal_method_entry),
+    call_VM_leaf(CAST_FROM_FN_PTR(address, JPortalEnable::dump_method_entry),
                  rthread, rarg);
   }
 
@@ -2065,7 +2058,7 @@ void InterpreterMacroAssembler::notify_method_exit(
     push(state);
     NOT_LP64(get_thread(rthread);)
     get_method(rarg);
-    call_VM_leaf(CAST_FROM_FN_PTR(address, JPortalEnable::jportal_method_exit),
+    call_VM_leaf(CAST_FROM_FN_PTR(address, JPortalEnable::dump_method_exit),
                  rthread, rarg);
     pop(state);
   }

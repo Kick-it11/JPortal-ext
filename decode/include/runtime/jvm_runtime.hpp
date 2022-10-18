@@ -63,59 +63,84 @@ public:
     };
 
     struct DumpInfo {
-        DumpType type;
-        uint64_t size;
-        uint64_t time;
+        u4 type;
+        u4 size;
+        u8 time;
     };
 
     struct MethodEntryInitial {
-      int idx;
-      uint64_t tid;
-      int klass_name_length;
-      int method_name_length;
-      int method_signature_length;
+        u4 idx;
+        u4 klass_name_length;
+        u4 method_name_length;
+        u4 method_signature_length;
+        u4 tid;
+        u4 _pending;
     };
 
     struct MethodEntryInfo {
-      int idx;
-      uint64_t tid;
+        u4 idx;
+        u4 tid;
     };
 
     struct MethodExitInfo {
-      int idx;
-      uint64_t tid;
+        u4 idx;
+        u4 tid;
+    };
+
+    struct CompiledMethodLoadInfo {
+        u8 code_begin;
+        u8 entry_point;
+        u8 verified_entry_point;
+        u8 osr_entry_point;
+        u4 inline_method_cnt;
+        u4 code_size;
+        u4 scopes_pc_size;
+        u4 scopes_data_size;
+    };
+
+    struct CompiledMethodUnloadInfo {
+        u8 code_begin;
     };
 
     struct InlineMethodInfo {
-        int klass_name_length;
-        int name_length;
-        int signature_length;
-        int method_index;
+        u4 klass_name_length;
+        u4 method_name_length;
+        u4 method_signature_length;
+        u4 method_index;
     };
 
     struct ThreadStartInfo {
-        long java_tid;
-        long sys_tid;
+        u4 java_tid;
+        u4 sys_tid;
+    };
+
+    struct InlineCacheAdd {
+        u8 src;
+        u8 dest;
+    };
+
+    struct InlineCacheClear {
+        u8 src;
     };
 
     struct CodeletsInfo {
-        // [low, high]
         address _low_bound;
         address _high_bound;
 
-        // [error]
+        address _slow_signature_handler;
+
         address _unimplemented_bytecode_entry;
         address _illegal_bytecode_sequence_entry;
 
-        // return
         address _return_entry[number_of_return_entries][number_of_states];
         address _invoke_return_entry[number_of_return_addrs];
         address _invokeinterface_return_entry[number_of_return_addrs];
         address _invokedynamic_return_entry[number_of_return_addrs];
 
+        address _earlyret_entry[number_of_states];
+
         address _native_abi_to_tosca[number_of_result_handlers];
 
-        // exception
         address _rethrow_exception_entry;
         address _throw_exception_entry;
         address _remove_activation_preserving_args_entry;
@@ -127,47 +152,14 @@ public:
         address _throw_NullPointerException_entry;
         address _throw_StackOverflowError_entry;
 
-        // method entry
         address _entry_table[number_of_method_entries];
 
-        // bytecode template
         address _normal_table[dispatch_length][number_of_states];
         address _wentry_point[dispatch_length];
 
-        // deoptimization
         address _deopt_entry[number_of_deopt_entries][number_of_states];
         address _deopt_reexecute_return_entry;
 
-    };
-
-    struct CompiledMethodLoadInfo {
-        uint64_t code_begin;
-        uint64_t code_size;
-        uint64_t scopes_pc_size;
-        uint64_t scopes_data_size;
-        uint64_t entry_point;
-        uint64_t verified_entry_point;
-        uint64_t osr_entry_point;
-        int inline_method_cnt;
-    };
-
-    struct CompiledMethodUnloadInfo {
-      uint64_t code_begin;
-    };
-
-    struct DynamicCodeGenerated {
-      int name_length;
-      uint64_t code_begin;
-      uint64_t code_size;
-    };
-
-    struct InlineCacheAdd {
-      uint64_t src;
-      uint64_t dest;
-    };
-
-    struct InlineCacheClear {
-      uint64_t src;
     };
 
     JVMRuntime();
@@ -176,17 +168,17 @@ public:
     long get_java_tid(long tid);
     JitImage* image() { return _image; }
     bool get_ic(uint64_t &ip, JitSection* section) {
-      if (_ics.count({ip, section})) {
-        ip = _ics[{ip, section}];
-        return true;
-      }
-      return false;
+        if (_ics.count({ip, section})) {
+            ip = _ics[{ip, section}];
+            return true;
+        }
+        return false;
     }
 
-    static void initialize(char *dump_data, Analyser* analyser);
+    static void initialize(uint8_t *buffer, uint64_t size, Analyser* analyser);
     static void destroy();
 
-  private:
+private:
     const uint8_t *_current;
     JitImage *_image;
     map<pair<uint64_t, JitSection *>, uint64_t> _ics;
@@ -197,6 +189,7 @@ public:
     static map<long, long> thread_map;
     static map<int, const Method*> md_map;
     static map<const uint8_t *, JitSection *> section_map;
+    static bool _initialized;
 };
 
 #endif

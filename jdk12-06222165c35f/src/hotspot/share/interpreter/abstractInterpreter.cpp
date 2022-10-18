@@ -135,6 +135,7 @@ StubQueue* AbstractInterpreter::_jportal_code                                   
 address    AbstractInterpreter::_jportal_rethrow_exception_entry                    = NULL;
 address    AbstractInterpreter::_jportal_native_entry_begin                         = NULL;
 address    AbstractInterpreter::_jportal_native_entry_end                           = NULL;
+address    AbstractInterpreter::_jportal_slow_signature_handler;
 address    AbstractInterpreter::_jportal_entry_table            [AbstractInterpreter::number_of_method_entries];
 address    AbstractInterpreter::_jportal_native_abi_to_tosca    [AbstractInterpreter::number_of_result_handlers];
 

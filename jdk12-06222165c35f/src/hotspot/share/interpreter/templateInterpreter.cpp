@@ -32,6 +32,8 @@
 #include "memory/resourceArea.hpp"
 #include "runtime/timerTrace.hpp"
 
+#include "jportal/jportalEnable.hpp"
+
 #ifndef CC_INTERP
 
 # define __ _masm->
@@ -70,10 +72,6 @@ void TemplateInterpreter::initialize() {
     }
   }
 
-  if (JPortal) {
-    jportal_entry_dump();
-  }
-
   if (PrintInterpreter) {
     ResourceMark rm;
     print();
@@ -84,54 +82,6 @@ void TemplateInterpreter::initialize() {
   _mirror_active_table = _jportal_normal_table;
 }
 
-void TemplateInterpreter::jportal_entry_dump() {
-  if (JPortal) {
-    JPortalEnable::InterpreterInfo inter(sizeof(JPortalEnable::InterpreterInfo));
-    inter.low_bound = (uint64_t)_jportal_code->code_start();
-    inter.high_bound = (uint64_t)_jportal_code->code_end();
-    inter.unimplemented_bytecode = (uint64_t)_jportal_unimplemented_bytecode;
-    inter.illegal_bytecode_sequence = (uint64_t)_jportal_illegal_bytecode_sequence;
-    for (int i = 0; i < number_of_return_entries; i++) {
-      for (int j = 0; j < number_of_states; j++) {
-        inter.return_entry[i][j] = (uint64_t)_jportal_return_entry[i].entry((TosState)j);
-      }
-    }
-    for (int i = 0; i < number_of_return_addrs; i++) {
-      inter.invoke_return_entry[i] = (uint64_t)_jportal_invoke_return_entry[i];
-      inter.invokeinterface_return_entry[i] = (uint64_t)_jportal_invokeinterface_return_entry[i];
-      inter.invokedynamic_return_entry[i] = (uint64_t)_jportal_invokedynamic_return_entry[i];
-    }
-    for (int i = 0; i < number_of_result_handlers; i++) {
-      inter.native_abi_to_tosca[i] = (uint64_t)_jportal_native_abi_to_tosca[i];
-    }
-    inter.rethrow_exception_entry = (uint64_t)_jportal_rethrow_exception_entry;
-    inter.throw_exception_entry = (uint64_t)_jportal_throw_exception_entry;
-    inter.remove_activation_preserving_args_entry = (uint64_t)_jportal_remove_activation_preserving_args_entry;
-    inter.remove_activation_entry = (uint64_t)_jportal_remove_activation_entry;
-    inter.throw_ArrayIndexOutOfBoundsException_entry = (uint64_t)_jportal_throw_ArrayIndexOutOfBoundsException_entry;
-    inter.throw_ArrayStoreException_entry = (uint64_t)_jportal_throw_ArrayStoreException_entry;
-    inter.throw_ArithmeticException_entry = (uint64_t)_jportal_throw_ArithmeticException_entry;
-    inter.throw_ClassCastException_entry = (uint64_t)_jportal_throw_ClassCastException_entry;
-    inter.throw_NullPointerException_entry = (uint64_t)_jportal_throw_NullPointerException_entry;
-    inter.throw_StackOverflowError_entry = (uint64_t)_jportal_throw_StackOverflowError_entry;
-    for (int i = 0; i < number_of_method_entries; i++) {
-      inter.entry_table[i] = (uint64_t)(_jportal_entry_table[i]);
-    }
-    for (int i = 0; i < DispatchTable::length; i++) {
-      for (int j = 0; j < number_of_states; j++) {
-        inter.normal_table[i][j] = (uint64_t)_jportal_normal_table.entry(i).entry((TosState)j);
-      }
-      inter.wentry_point[i] = (uint64_t)_jportal_wentry_point[i];
-    }
-    for (int i = 0; i < number_of_deopt_entries; i++) {
-      for (int j = 0; j < number_of_states; j++) {
-        inter.deopt_entry[i][j] = (uint64_t)(_jportal_deopt_entry[i].entry((TosState)j));
-      }
-    }
-    inter.deopt_reexecute_return_entry = (uint64_t)_jportal_deopt_reexecute_return_entry;
-    JPortalEnable::jportal_interpreter_codelets(inter);
-  }
-}
 //------------------------------------------------------------------------------------------------------------------------
 // Implementation of EntryPoint
 
@@ -317,6 +267,7 @@ address    TemplateInterpreter::_jportal_throw_StackOverflowError_entry         
 address    TemplateInterpreter::_jportal_throw_exception_entry                      = NULL;
 
 EntryPoint TemplateInterpreter::_jportal_return_entry[TemplateInterpreter::number_of_return_entries];
+EntryPoint TemplateInterpreter::_jportal_earlyret_entry;
 EntryPoint TemplateInterpreter::_jportal_deopt_entry [TemplateInterpreter::number_of_deopt_entries ];
 address    TemplateInterpreter::_jportal_deopt_reexecute_return_entry;
 

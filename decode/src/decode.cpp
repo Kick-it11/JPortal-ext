@@ -8,33 +8,62 @@
 #include "decoder/pt_jvm_decoder.hpp"
 #include "runtime/jvm_runtime.hpp"
 #include "decoder/output_decode.hpp"
-#include "decoder/trace_splitter.hpp"
+#include "tracedata/trace_data_parser.hpp"
 
 using std::cout;
 using std::endl;
 
-static void decode_part(TracePart part, Analyser* analyser, TraceData &trace) {
-    PTJVMDecoder decoder(part, analyser);
-    TraceDataRecord record(trace);
-    decoder.decode(record);
+static void decode_part(struct pt_config config, uint32_t cpu, TraceData* trace) {
+    PTJVMDecoder decoder(config, *trace, cpu);
+    decoder.decode();
+    delete[] config.begin;
 }
 
-static void decode(const char *trace_data, Analyser* analyser, list<TraceData*> &traces) {
-    TraceSplitter splitter(trace_data);
-    TracePart part;
-    ThreadPool pool(16, 32);
+static void decode(const string &file, list<string>& paths) {
+    TraceDataParser parser(file);
+    list<TraceData*> traces;
 
-    while (splitter.next(part)) {
+    /** Initialize */
+    cout << "Initializing..." << endl;
+    Analyser* analyser = new Analyser(paths);
+    auto jvmdata = parser.jvm_runtime_data();
+    auto sideband_data = parser.sideband_data();
+    Bytecodes::initialize();
+    JVMRuntime::initialize(jvmdata.first, jvmdata.second, analyser);
+    Sideband::initialize(sideband_data, parser.sample_type(), parser.time_mult(),
+                         parser.time_shift(), parser.time_zero());
+
+    /** Decoding */
+    cout << "Decoding..." << endl;
+    std::pair<uint8_t*, uint64_t> pt_data;
+    uint32_t cpu;
+    ThreadPool pool(16, 32);
+    while (parser.next_pt_data(pt_data, cpu)) {
         TraceData* trace = new TraceData();
         traces.push_back(trace);
-        pool.submit(decode_part, part, analyser, *trace);
+        struct pt_config config;
+        parser.init_pt_config_from_trace(config);
+        config.begin = pt_data.first;
+        config.end = pt_data.first + pt_data.second;
+        pool.submit(decode_part, config, cpu, trace);
     }
+    pool.shutdown();
+
+    /** Output */
+    cout << "Output..." << endl;
+    output_decode(traces);
+
+    /* Exit */
+    JVMRuntime::destroy();
+    Sideband::destroy();
+    delete analyser;
+    for (auto trace : traces)
+        delete trace;
+    traces.clear();
 }
 
 int main(int argc, char **argv) {
     char defualt_trace[20] = "JPortalTrace.data";
-    char default_dump[20] = "JPortalDump.data"; 
-    char *dump_data = default_dump;
     char *trace_data = defualt_trace;
     list<string> class_paths;
     int errcode, i;
@@ -47,14 +76,6 @@ int main(int argc, char **argv) {
                 return -1;
             }
             trace_data = argv[i++];
-            continue;
-        }
-
-        if (strcmp(arg, "--dump-data") == 0) {
-            if (argc <= i) {
-                return -1;
-            }
-            dump_data = argv[i++];
             continue;
         }
 
@@ -74,38 +95,8 @@ int main(int argc, char **argv) {
         fprintf(stderr, "Please specify trace data:--trace-data\n");
         return -1;
     }
-    if (!dump_data) {
-        fprintf(stderr, "Please specify dump data:--trace-data\n");
-        return -1;
-    }
-    if (class_paths.empty()) {
-        fprintf(stderr, "Please specify class path:--class-path\n");
-        return -1;
-    }
-    list<TraceData*> traces;
-    ///* Initializing *///
-    cout<<"Initializing..."<<endl;
-    Bytecodes::initialize();
-    Analyser* analyser = new Analyser(class_paths);
 
-    JVMRuntime::initialize(dump_data, analyser);
-    cout<<"Initializing completed."<<endl;
-
-    ///* Decoding *///
-    cout<<"Decoding..."<<endl;
-    decode(trace_data, analyser, traces);
-    cout<<"Decoding completed."<<endl;
-
-    ///* Output Decode *///
-    output_decode(traces);
-
-    ///* Exit *///
-    for (auto trace : traces) {
-        delete trace;
-    }
-
-    JVMRuntime::destroy();
-    delete analyser;
+    decode(trace_data, class_paths);
 
     return 0;
 }

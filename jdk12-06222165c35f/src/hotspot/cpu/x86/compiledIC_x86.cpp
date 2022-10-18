@@ -28,6 +28,7 @@
 #include "code/compiledIC.hpp"
 #include "code/icBuffer.hpp"
 #include "code/nmethod.hpp"
+#include "jportal/jportalEnable.hpp"
 #include "memory/resourceArea.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/safepoint.hpp"
@@ -177,7 +178,7 @@ void CompiledDirectStaticCall::set_to_interpreted(const methodHandle& callee, ad
 
   // JPortal
   if (JPortal && CodeCache::is_jportal(instruction_address())) {
-    JPortalEnable::jportal_inline_cache_add(instruction_address(), entry);
+    JPortalEnable::dump_inline_cache_add(instruction_address(), entry);
   }
 }
 

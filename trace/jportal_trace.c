@@ -27,7 +27,8 @@
 #include <sys/syscall.h>
 #include <linux/types.h>
 #include <sys/stat.h>
-
+#include <sys/ipc.h>
+#include <sys/shm.h>
 #include <fcntl.h>
 #include <stdbool.h>
 #include <errno.h>
@@ -40,8 +41,12 @@
 #include <inttypes.h>
 #include <cpuid.h>
 
-extern void pt_cpuid(uint32_t leaf, uint32_t *eax, uint32_t *ebx,
-             uint32_t *ecx, uint32_t *edx)
+#define PERF_RECORD_AUXTRACE 71
+#define PERF_RECORD_JVMRUNTIME 72
+
+#define PER_READ_LIMIT 1024*1024*16
+
+extern void pt_cpuid(__u32 leaf, __u32 *eax, __u32 *ebx, __u32 *ecx, __u32 *edx)
 {
     __get_cpuid(leaf, eax, ebx, ecx, edx);
 }
@@ -58,9 +63,9 @@ enum {
 union cpu_vendor {
     /* The raw data returned from cpuid. */
     struct {
-        uint32_t ebx;
-        uint32_t edx;
-        uint32_t ecx;
+        __u32 ebx;
+        __u32 edx;
+        __u32 ecx;
     } cpuid;
 
     /* The resulting vendor string. */
@@ -76,7 +81,7 @@ enum pt_cpu_vendor {
 static enum pt_cpu_vendor cpu_vendor(void)
 {
     union cpu_vendor vendor;
-    uint32_t eax;
+    __u32 eax;
     size_t i;
 
     memset(&vendor, 0, sizeof(vendor));
@@ -93,9 +98,9 @@ static enum pt_cpu_vendor cpu_vendor(void)
     return pcv_unknown;
 }
 
-static uint32_t cpu_info(void)
+static __u32 cpu_info(void)
 {
-    uint32_t eax, ebx, ecx, edx;
+    __u32 eax, ebx, ecx, edx;
 
     eax = 0;
     ebx = 0;
@@ -113,19 +118,19 @@ struct pt_cpu {
     enum pt_cpu_vendor vendor;
 
     /** The cpu family. */
-    uint16_t family;
+    __u16 family;
 
     /** The cpu model. */
-    uint8_t model;
+    __u8 model;
 
     /** The stepping. */
-    uint8_t stepping;
+    __u8 stepping;
 };
 
 int pt_cpu_read(struct pt_cpu *cpu)
 {
-    uint32_t info;
-    uint16_t family;
+    __u32 info;
+    __u16 family;
 
     if (!cpu)
         return -1;
@@ -147,8 +152,18 @@ int pt_cpu_read(struct pt_cpu *cpu)
     return 0;
 }
 
-#define PERF_RECORD_AUXTRACE 71
-#define PERF_RECORD_AUX_ADVANCE 72
+/* Supported address range configurations. */
+enum pt_addr_cfg {
+	pt_addr_cfg_disabled	= 0,
+	pt_addr_cfg_filter	= 1,
+	pt_addr_cfg_stop	= 2
+};
+
+struct shm_header {
+    volatile __u64 data_head;
+    volatile __u64 data_tail;
+    __u64 data_size;
+};
 
 /* global tracing info */
 struct trace_record
@@ -171,23 +186,68 @@ struct trace_record
     __u64 *mmap_start;
     __u64 *aux_start;
 
+    /* shared memory address */
+    int shm_id;
+    void *shm_addr;
+    __u64 shm_start;
+
     /* file descriptor returned by open file */
     int fd;
 };
 
-struct attr_config {
-    struct pt_cpu cpu; 
-    int nr_cpus;
+/** TraceData header */
+struct trace_header
+{
+    /** Trace header size: in case of wrong trace data */
+    __u64 header_size;
+
+    /** PT CPU configurations: The filter. */
+    __u32 filter; /*	0 for stop, 1 for filter*/
+
+    /** PT CPU configurations: The cpu vendor. */
+    __u32 vendor; /*	0 for pcv_unknown, 1 for pcv_intel*/
+
+    /** PT CPU configurations: The cpu family. */
+    __u16 family;
+
+    /** PT CPU configurations: The cpu model. */
+    __u8 model;
+
+    /** PT CPU configurations: The stepping. */
+    __u8 stepping;
+
+    /** PT CPU configurations: The cpu numbers */
+    __u32 nr_cpus;
+
+    /** PT configurations: mtc frequency */
     __u8 mtc_freq;
+
+    /** PT configurations: normal frequency */
     __u8 nom_freq;
-    __u32 cpuid_0x15_eax;
-    __u32 cpuid_0x15_ebx;
-    __u64 sample_type;
+
+    /** Sideband configurations: time shift */
     __u16 time_shift;
+
+    /** PT configurations: cpuid 15 eax */
+    __u32 cpuid_0x15_eax;
+
+    /** PT configurations: cpuid 15 ebx */
+    __u32 cpuid_0x15_ebx;
+
+    /** Sideband configurations: cpuid 15 eax */
     __u32 time_mult;
-    __u64 time_zero;
+
+    /** PT configurations: filter address lower bound */
     __u64 addr0_a;
+
+    /** PT configurations: filter address higher bound */
     __u64 addr0_b;
+
+    /** Sideband configurations: time zero */
+    __u64 time_zero;
+
+    /** Sideband configurations: sample type */
+    __u64 sample_type;
 };
 
 struct auxtrace_event {
@@ -201,11 +261,9 @@ struct auxtrace_event {
     __u32 reservered__; /* for alignment */
 };
 
-struct aux_advance_event {
+struct jvmruntime_event {
     struct perf_event_header header;
-    __u32 cpu;
-    __u32 tid;
-    __u64 advance_size;
+    __u64 size;
 };
 
 #define PAGE_SIZE 4096
@@ -229,7 +287,7 @@ static inline int cpu_num()
     return (nr_cpus < 0) ? 0 : nr_cpus;
 }
 
-void wrmsr_on_cpu(uint32_t reg, int cpu, uint64_t data)
+void wrmsr_on_cpu(__u32 reg, int cpu, __u64 data)
 {
     int fd;
     char msr_file_name[64];
@@ -269,7 +327,7 @@ void wrmsr_on_cpu(uint32_t reg, int cpu, uint64_t data)
     return;
 }
 
-void wrmsr_on_all_cpus(int nr_cpus, uint32_t reg, uint64_t data){
+void wrmsr_on_all_cpus(int nr_cpus, __u32 reg, __u64 data){
     int cpu = 0;
 
     for (; cpu < nr_cpus; cpu++){
@@ -293,6 +351,14 @@ static void trace_record_free(struct trace_record *record)
 
     if (record->trace_fd)
         free(record->trace_fd);
+
+    if (record->shm_addr)
+        shmdt(record->shm_addr);
+
+    if (record->shm_id != -1)
+        shmctl(record->shm_id, IPC_RMID, NULL);
+
+    free(record);
 }
 
 static struct trace_record *trace_record_alloc()
@@ -347,6 +413,7 @@ static struct trace_record *trace_record_alloc()
     }
     memset(record->trace_fd, -1, sizeof(int) * nr_cpus);
 
+    record->shm_id = -1;
     return record;
 }
 
@@ -450,6 +517,24 @@ static __u64 mmap_read_head(struct perf_event_mmap_page *header)
 }
 
 static void mmap_write_tail(struct perf_event_mmap_page *header,
+                            __u64 tail)
+{
+    /* To ensure all read are done before write tail */
+    __sync_synchronize();
+
+    header->data_tail = tail;
+}
+
+static __u64 shm_read_head(struct shm_header *header)
+{
+    __u64 head = header->data_head;
+
+    /* To ensure all read are done after read head; */
+    __sync_synchronize();
+    return head;
+}
+
+static void shm_write_tail(struct shm_header *header,
                             __u64 tail)
 {
     /* To ensure all read are done before write tail */
@@ -564,7 +649,7 @@ static __u64 pt_default_config()
     return config;
 }
 
-/* deafault perf_event_attr config for Intel PT*/
+/* default perf_event_attr config for Intel PT*/
 static int pt_default_attr(struct perf_event_attr *attr)
 {
     if (!attr)
@@ -704,19 +789,21 @@ inline static ssize_t ion(bool is_read, int fd, void *buf, size_t n)
     return n;
 }
 
+__u64 total_size = 0;
 inline static ssize_t record_write(int fd, const void *buf, size_t n)
 {
     record_samples++;
+    total_size += n;
     return ion(false, fd, (void *)buf, n);
 }
 
-static inline uint64_t get_timestamp() {
+static inline __u64 get_timestamp() {
 #if defined(__i386__) || defined(__x86_64__)
     unsigned int low, high;
 
     asm volatile("rdtsc" : "=a" (low), "=d" (high));
 
-    return low | ((uint64_t)high) << 32;
+    return low | ((__u64)high) << 32;
 #else
     return 0;
 #endif
@@ -755,9 +842,9 @@ static int auxtrace_mmap_record(void *mmap_base, void *aux_base,
     }
 
     /* Per read limitation */
-    if (size >= len/64*1) {
-        size = len/64*1;
-        head = (old + len/64*1);
+    if (size >= PER_READ_LIMIT) {
+        size = PER_READ_LIMIT;
+        head = (old + PER_READ_LIMIT);
         head_off = head & mask;
     }
 
@@ -865,12 +952,76 @@ static int mmap_record(void *mmap_base, __u64 *start, int fd)
     return 0;
 }
 
+static int shm_record(void *shm_addr, __u64 *start, int fd) {
+    struct shm_header *header = (struct shm_header *)shm_addr;
+    __u64 head, old;
+    void *data_begin = shm_addr + sizeof(struct shm_header);
+    size_t size;
+
+    old = *start;
+    head = shm_read_head(header);
+
+    if (head == old)
+        return 0;
+
+    if (old < head) {
+        size = head - old;
+    }
+    else
+    {
+        size = header->data_size - old + head;
+    }
+
+    struct jvmruntime_event event;
+    event.header.type = PERF_RECORD_JVMRUNTIME;
+    event.header.size = sizeof(event);
+    event.size = size;
+
+    if (record_write(fd, &event, sizeof(event)) < 0)
+    {
+        return -1;
+    }
+
+    if (old < head)
+    {
+        if (record_write(fd, data_begin + old, head - old) < 0)
+        {
+            return -1;
+        }
+    }
+    else
+    {
+        if (record_write(fd, data_begin + old, header->data_size - old) < 0)
+        {
+            return -1;
+        }
+
+        if (record_write(1, data_begin, head) < 0)
+        {
+            return -1;
+        }
+    }
+
+    *start = head;
+
+    shm_write_tail(header, head);
+
+    return 0;
+}
+
 static int record_all(struct trace_record *record)
 {
     int nr_cpus = record->nr_cpus;
+    int i;
 
-    for (int i = 0; i < nr_cpus; i++)
+    if (shm_record(record->shm_addr, &record->shm_start, record->fd) < 0)
     {
+        return -1;
+    }
+
+    for (i = 0; i < nr_cpus; i++)
+    {
+        
         if (auxtrace_mmap_record(record->mmap_base[i], record->aux_base[i],
                                  &record->aux_start[i], i, record->fd) < 0)
         {
@@ -892,20 +1043,20 @@ static void sig_handler(int sig)
     done = 1;
 }
 
-/* test */
 int main(int argc, char *argv[])
 {
     
-    if (argc != 7)
+    if (argc != 8)
     {
         fprintf(stderr, "JPortalTrace: arguments error.\n");
         exit(-1);
     }
 
-    int ret;
-    int write_pipe;
-    uint64_t _low_bound, _high_bound;
+    int ret, write_pipe;
+    __u64 _low_bound, _high_bound;
     struct trace_record *rec = trace_record_alloc();
+    int cpu;
+
     if (!rec)
     {
         fprintf(stderr, "JPortalTrace: fail to alloc record.\n");
@@ -913,10 +1064,13 @@ int main(int argc, char *argv[])
     }
     sscanf(argv[1], "%d", &rec->pid);
     sscanf(argv[2], "%d", &write_pipe);
-    sscanf(argv[3], "%lx", &_low_bound);
-    sscanf(argv[4], "%lx", &_high_bound);
+    sscanf(argv[3], "%llx", &_low_bound);
+    sscanf(argv[4], "%llx", &_high_bound);
     sscanf(argv[5], "%d", &rec->mmap_pages);
     sscanf(argv[6], "%d", &rec->aux_pages);
+    sscanf(argv[7], "%d", &rec->shm_id);
+
+    rec->shm_addr = shmat(rec->shm_id, NULL, 0);
 
     /* write msr to set ip filter */
     wrmsr_on_all_cpus(rec->nr_cpus, MSR_IA32_RTIT_ADDR0_A, _low_bound);
@@ -928,7 +1082,7 @@ int main(int argc, char *argv[])
         goto err;
     }
 
-    for (int cpu = 0; cpu < rec->nr_cpus; cpu++)
+    for (cpu = 0; cpu < rec->nr_cpus; cpu++)
     {
         int errr = ioctl(rec->trace_fd[cpu], PERF_EVENT_IOC_SET_FILTER, 
             "filter 0x580/580@/bin/bash");
@@ -939,12 +1093,18 @@ int main(int argc, char *argv[])
         }
     }
 
-    struct attr_config attr;
-    read_tsc_conversion(rec->mmap_base[0], &attr.time_mult,
-                            &attr.time_shift, &attr.time_zero);
-    pt_cpu_read(&attr.cpu);
-    tsc_ctc_ratio(&attr.cpuid_0x15_ebx, &attr.cpuid_0x15_eax);
+    struct trace_header attr;
+    struct pt_cpu cpuinfo;
     int max_nonturbo_ratio;
+    read_tsc_conversion(rec->mmap_base[0], &attr.time_mult, &attr.time_shift, &attr.time_zero);
+    pt_cpu_read(&cpuinfo);
+    attr.header_size = sizeof(attr);
+    attr.filter = (__u32)pt_addr_cfg_filter;
+    attr.vendor = (__u32)cpuinfo.vendor;
+    attr.family = cpuinfo.family;
+    attr.model = cpuinfo.model;
+    attr.stepping = cpuinfo.stepping;
+    tsc_ctc_ratio(&attr.cpuid_0x15_ebx, &attr.cpuid_0x15_eax);
     pt_scan_file("max_nonturbo_ratio", "%d", &max_nonturbo_ratio);
     attr.nom_freq = (__u8)max_nonturbo_ratio;
     attr.mtc_freq = ((rec->attr.config >> 14) & 0xf);
@@ -952,6 +1112,7 @@ int main(int argc, char *argv[])
     attr.nr_cpus = rec->nr_cpus;
     attr.addr0_a = _low_bound;
     attr.addr0_b = _high_bound;
+
     if (record_write(rec->fd, &attr, sizeof(attr)) < 0)
     {
         goto err;
@@ -985,7 +1146,7 @@ int main(int argc, char *argv[])
 
         if (done && record_samples == hits)
         {
-            printf("JPortal tracing process end.\n");
+            printf("JPortalTrace end %llu.\n", total_size);
             break;
         }
     }

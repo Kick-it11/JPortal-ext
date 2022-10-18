@@ -53,7 +53,7 @@ ClassFileParser::ClassFileParser(string &file_path, Analyser *analyser, Klass* k
         ifstream file_handle(file_path);
         if (file_handle.is_open()) {
             // read contents into resource array
-            u1* buffer = new u1[st.st_size * sizeof(u1)]();
+            u1* buffer = new u1[st.st_size * sizeof(u1)];
             file_handle.read((char *)buffer, st.st_size);
             assert(file_handle.peek() == EOF);
             // close file
@@ -63,7 +63,7 @@ ClassFileParser::ClassFileParser(string &file_path, Analyser *analyser, Klass* k
             parse_class(stream);
 
             delete stream;
-            delete buffer;            
+            delete[] buffer;            
         }
     }
 }

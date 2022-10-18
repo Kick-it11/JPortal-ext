@@ -49,6 +49,9 @@ CodeletsEntry::Codelet CodeletsEntry::entry_match(address ip, Bytecodes::Code &c
     if (ip < _entries._unimplemented_bytecode_entry)
         return _illegal;
 
+    if (ip == _entries._slow_signature_handler)
+        return _slow_signature_handler;
+
     if (ip == _entries._unimplemented_bytecode_entry)
         return _unimplemented_bytecode;
 
@@ -64,8 +67,11 @@ CodeletsEntry::Codelet CodeletsEntry::entry_match(address ip, Bytecodes::Code &c
     if (ip >= _entries._invokeinterface_return_entry[0] && ip < _entries._invokedynamic_return_entry[0])
         return _invokeinterface_return;
 
-    if (ip >= _entries._invokedynamic_return_entry[0] && ip < _entries._native_abi_to_tosca[0])
+    if (ip >= _entries._invokedynamic_return_entry[0] && ip < _entries._earlyret_entry[0])
         return _invokedynamic_return;
+
+    if (ip >= _entries._earlyret_entry[0] && ip < _entries._native_abi_to_tosca[0])
+        return _earlyret;
 
     if (ip >= _entries._native_abi_to_tosca[0] && ip < _entries._rethrow_exception_entry)
         return _result_handlers_for_native_calls;

@@ -267,6 +267,10 @@ void TemplateInterpreterGenerator::generate_all() {
       AbstractInterpreter::_mirror_slow_signature_handler = generate_slow_signature_handler();
     }
 
+    { CodeletMark cm(_masm, "jportal entry for slow signature handler", false, true);
+      AbstractInterpreter::_jportal_slow_signature_handler = generate_jportal_entry_for(AbstractInterpreter::_mirror_slow_signature_handler);
+    }
+
     { CodeletMark cm(_masm, "error exits", true, false);
       _mirror_unimplemented_bytecode    = generate_error_exit("unimplemented bytecode");
       _mirror_illegal_bytecode_sequence = generate_error_exit("illegal bytecode sequence - method not verified");
@@ -278,6 +282,7 @@ void TemplateInterpreterGenerator::generate_all() {
     }
 
 #ifndef PRODUCT
+    // bytecode tracing do the same thing as JPortal, do not generate
     if (TraceBytecodes) {
       { CodeletMark cm(_masm, "bytecode tracing support", true, false);
         Interpreter::_mirror_trace_code =
@@ -346,11 +351,12 @@ void TemplateInterpreterGenerator::generate_all() {
     }
 
     { CodeletMark cm(_masm, "jportal entry for invoke return entry points", false, true);
-      for (int i = 0; i < Interpreter::number_of_return_addrs; i++) {
+      for (int i = 0; i < Interpreter::number_of_return_addrs; i++)
         Interpreter::_jportal_invoke_return_entry[i] = generate_jportal_entry_for(Interpreter::_mirror_invoke_return_entry[i]);
+      for (int i = 0; i < Interpreter::number_of_return_addrs; i++)
         Interpreter::_jportal_invokeinterface_return_entry[i] = generate_jportal_entry_for(Interpreter::_mirror_invokeinterface_return_entry[i]);
+      for (int i = 0; i < Interpreter::number_of_return_addrs; i++)
         Interpreter::_jportal_invokedynamic_return_entry[i] = generate_jportal_entry_for(Interpreter::_mirror_invokedynamic_return_entry[i]);
-      }
     }
 
     { CodeletMark cm(_masm, "earlyret entry points", true, false);
@@ -367,6 +373,14 @@ void TemplateInterpreterGenerator::generate_all() {
                    generate_earlyret_entry_for(dtos),
                    generate_earlyret_entry_for(vtos)
                    );
+    }
+
+    { CodeletMark cm(_masm, "jportal entry for earlyret entry points", false, true);
+      Interpreter::_jportal_earlyret_entry = EntryPoint();
+        for (int i = 0; i < number_of_states; ++i) {
+          address addr = Interpreter::_mirror_earlyret_entry.entry((TosState)i);
+          Interpreter::_jportal_earlyret_entry.set_entry((TosState)i, generate_jportal_entry_for(addr));
+        }
     }
 
     { CodeletMark cm(_masm, "result handlers for native calls", true, false);
@@ -388,6 +402,7 @@ void TemplateInterpreterGenerator::generate_all() {
       }
     }
 
+    // safept_entry & safept_table just dispatch to normal_table at safepoints, do not generate jportal entry
     { CodeletMark cm(_masm, "safepoint entry points", true, false);
       Interpreter::_mirror_safept_entry =
         EntryPoint(
@@ -499,7 +514,7 @@ void TemplateInterpreterGenerator::generate_all() {
       }
     }
 
-    { CodeletMark cm(_masm, "jportal entry for normal table", false, true);
+    { CodeletMark cm(_masm, "jportal entry for wentry table", false, true);
       for (int i = 0; i < DispatchTable::length; i++) {
         Interpreter::_jportal_wentry_point[i] = generate_jportal_entry_for(Interpreter::_mirror_wentry_point[i]);
       }

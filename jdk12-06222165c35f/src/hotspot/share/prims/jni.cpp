@@ -40,6 +40,7 @@
 #include "interpreter/linkResolver.hpp"
 #include "jfr/jfrEvents.hpp"
 #include "jfr/support/jfrThreadId.hpp"
+#include "jportal/jportalEnable.hpp"
 #include "logging/log.hpp"
 #include "memory/allocation.hpp"
 #include "memory/allocation.inline.hpp"
@@ -4044,8 +4045,12 @@ _JNI_IMPORT_OR_EXPORT_ jint JNICALL JNI_GetCreatedJavaVMs(JavaVM **vm_buf, jsize
 }
 
 // JPortal
-_JNI_IMPORT_OR_EXPORT_ void JNICALL JNI_JPortalEnable() {
-  JPortalEnable::jportal_enable();
+_JNI_IMPORT_OR_EXPORT_ void JNICALL JNI_JPortalEnableInit() {
+  JPortalEnable::init();
+}
+
+_JNI_IMPORT_OR_EXPORT_ void JNICALL JNI_JPortalEnableDestroy() {
+  JPortalEnable::destroy();
 }
 
 extern "C" {

@@ -1,18 +1,15 @@
 #ifndef PT_JVM_DECODER
 #define PT_JVM_DECODER
 
-#include <stdint.h>
 #include "pt/pt.hpp"
 #include "insn/pt_insn.hpp"
 #include "sideband/sideband.hpp"
-#include "decoder/trace_splitter.hpp"
 #include "java/bytecodes.hpp"
+#include "decoder/decode_result.hpp"
 
 class JVMRuntime;
-class Analyser;
-class TraceDataRecord;
-struct PCStackInfo;
 class JitSection;
+struct PCStackInfo;
 
 /* PTJVMDEcoder decode JPortal data form Trace data and Dump data
  *   JPortalTrace.data records pt and sideband related data
@@ -27,6 +24,21 @@ class PTJVMDecoder
 private:
     /* The actual decoder. qry helps insn to decode bytecode*/
     struct pt_query_decoder *_qry;
+
+    /* pt config */
+    const struct pt_config &_config;
+
+    /* Trace Data Record*/
+    TraceDataRecord _record;
+
+    /* Jvm dump infomation decoder */
+    JVMRuntime *_jvm;
+
+    /* The perf event sideband decoder configuration. */
+    Sideband *_sideband;
+
+    /* The current thread id */
+    long _tid;
 
     /* The current time */
     uint64_t _time;
@@ -78,26 +90,11 @@ private:
     /* The current event. */
     struct pt_event _event;
 
-    /* pt config */
-    struct pt_config _config;
-
     /* instruction */
     struct pt_insn _insn;
 
     /* instruction ext */
     struct pt_insn_ext _iext;
-
-    /* The current thread id */
-    long _tid;
-
-    /* Jvm dump infomation decoder */
-    JVMRuntime *_jvm;
-
-    /* The perf event sideband decoder configuration. */
-    Sideband *_sideband;
-
-    /* Java class files static analyser */
-    Analyser *_analyser;
 
     PCStackInfo *_last_pcinfo = nullptr;
     int _pcinfo_tow = 0;
@@ -164,22 +161,22 @@ private:
 private:
     int event_pending();
     int drain_insn_events(int status);
-    int handle_compiled_code_result(TraceDataRecord &record, JitSection *section);
-    int handle_compiled_code(TraceDataRecord &record);
-    int handle_bytecode(TraceDataRecord &record, Bytecodes::Code bytecode);
-    int ptjvm_result_decode(TraceDataRecord &record);
+    int handle_compiled_code_result(JitSection *section);
+    int handle_compiled_code();
+    int handle_bytecode(Bytecodes::Code bytecode);
+    int ptjvm_result_decode();
     int drain_qry_events();
 
     void reset_decoder();
 
-
-    void time_change(TraceDataRecord &record);
-
+    void time_change();
 public:
-    void decode(TraceDataRecord &record);
 
-    PTJVMDecoder(TracePart tracepart, Analyser *analyser);
+    PTJVMDecoder(const struct pt_config &config, TraceData &trace, uint32_t cpu);
     ~PTJVMDecoder();
+
+    void decode();
+
 };
 
 #endif

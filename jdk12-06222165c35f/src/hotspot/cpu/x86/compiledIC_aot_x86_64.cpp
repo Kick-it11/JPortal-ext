@@ -25,6 +25,7 @@
 
 #include "aot/compiledIC_aot.hpp"
 #include "code/codeCache.hpp"
+#include "jportal/jportalEnable.hpp"
 #include "memory/resourceArea.hpp"
 
 void CompiledDirectStaticCall::set_to_far(const methodHandle& callee, address entry) {
@@ -58,7 +59,7 @@ void CompiledDirectStaticCall::set_to_far(const methodHandle& callee, address en
 
   // JPortal
   if (JPortal && CodeCache::is_jportal(instruction_address())) {
-    JPortalEnable::jportal_inline_cache_add(instruction_address(), stub);
+    JPortalEnable::dump_inline_cache_add(instruction_address(), stub);
   }
 }
 
@@ -92,7 +93,7 @@ void CompiledPltStaticCall::set_to_interpreted(const methodHandle& callee, addre
 
   // JPortal
   if (JPortal && CodeCache::is_jportal(instruction_address())) {
-    JPortalEnable::jportal_inline_cache_add(instruction_address(), entry);
+    JPortalEnable::dump_inline_cache_add(instruction_address(), entry);
   }
 }
 

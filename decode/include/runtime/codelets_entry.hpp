@@ -8,36 +8,40 @@ class CodeletsEntry {
     public:
         enum Codelet {
             _illegal = -1,
-            _unimplemented_bytecode = 0,
-            _illegal_bytecode_sequence = 1,
 
-            _return = 2,
-            _invoke_return = 3,
-            _invokeinterface_return = 4,
-            _invokedynamic_return = 5,
+            _slow_signature_handler = 0,
+            _unimplemented_bytecode = 1,
+            _illegal_bytecode_sequence = 2,
 
-            _result_handlers_for_native_calls = 6,
-            _rethrow_exception = 7,
-            _throw_exception = 8,
-            _remove_activation_preserving_args = 9,
-            _remove_activation = 10,
-            _throw_ArrayIndexOutOfBoundsException = 11,
-            _throw_ArrayStoreException = 12,
-            _throw_ArithmeticException = 13,
-            _throw_ClassCastException = 14,
-            _throw_NullPointerException = 15,
-            _throw_StackOverflowError = 16,
+            _return = 3,
+            _invoke_return = 4,
+            _invokeinterface_return = 5,
+            _invokedynamic_return = 6,
 
-            _method_entry = 17,
+            _earlyret = 7,
 
-            _deopt = 18,
-            _deopt_reexecute_return = 19,
+            _result_handlers_for_native_calls = 8,
+            _rethrow_exception = 9,
+            _throw_exception = 10,
+            _remove_activation_preserving_args = 11,
+            _remove_activation = 12,
+            _throw_ArrayIndexOutOfBoundsException = 13,
+            _throw_ArrayStoreException = 14,
+            _throw_ArithmeticException = 15,
+            _throw_ClassCastException = 16,
+            _throw_NullPointerException = 17,
+            _throw_StackOverflowError = 18,
 
-            _bytecode = 20,
+            _method_entry = 19,
 
-            _jitcode_entry = 21,
-            _jitcode_osr_entry = 22,
-            _jitcode = 23,
+            _deopt = 20,
+            _deopt_reexecute_return = 21,
+
+            _bytecode = 22,
+
+            _jitcode_entry = 23,
+            _jitcode_osr_entry = 24,
+            _jitcode = 25,
 
         };
 

@@ -148,4 +148,4 @@ class TraceDataAccess {
     }
 };
 
-#endif
+#endif // DECODE_RESULT

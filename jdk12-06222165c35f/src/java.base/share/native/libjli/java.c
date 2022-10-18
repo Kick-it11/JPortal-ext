@@ -546,11 +546,13 @@ JavaMain(void * _args)
     CHECK_EXCEPTION_NULL_LEAVE(mainID);
 
     // JPortal
-    ifn.JPortalEnable();
+    ifn.JPortalEnableInit();
 
     /* Invoke main method. */
     (*env)->CallStaticVoidMethod(env, mainClass, mainID, mainArgs);
 
+    // JPortal
+    ifn.JPortalEnableDestroy();
     /*
      * The launcher's exit code (in the absence of calls to
      * System.exit) will be non-zero if main threw an exception.

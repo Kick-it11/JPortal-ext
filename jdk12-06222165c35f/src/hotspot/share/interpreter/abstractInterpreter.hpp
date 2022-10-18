@@ -137,6 +137,7 @@ class AbstractInterpreter: AllStatic {
   // method entry points
   static address    _jportal_entry_table[number_of_method_entries];     // entry points for a given method
   static address    _jportal_native_abi_to_tosca[number_of_result_handlers];  // for native method result handlers
+  static address    _jportal_slow_signature_handler;                              // the native method generic (slow) signature handler
   static address    _jportal_rethrow_exception_entry;                   // rethrows an activation in previous frame
 
   friend class      AbstractInterpreterGenerator;
@@ -247,7 +248,7 @@ class AbstractInterpreter: AllStatic {
   static void       ignore_safepoints()                         { ShouldNotReachHere(); } // ignores safepoints
 
   // Support for native calls
-  static address    slow_signature_handler(bool mirror = false)        { return mirror?_mirror_slow_signature_handler:_normal_slow_signature_handler; }
+  static address    slow_signature_handler(bool jportal = false)         { return jportal?_jportal_slow_signature_handler:_normal_slow_signature_handler; }
   static address    result_handler(BasicType type, bool jportal = false) { return jportal?_jportal_native_abi_to_tosca[BasicType_as_index(type)]:_normal_native_abi_to_tosca[BasicType_as_index(type)]; }
   static int        BasicType_as_index(BasicType type);         // computes index into result_handler_by_index table
   static bool       in_native_entry(address pc)   {

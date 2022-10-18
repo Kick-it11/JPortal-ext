@@ -19,7 +19,7 @@ CompiledMethodLoadInlineRecord::CompiledMethodLoadInlineRecord(const uint8_t *sc
         numpcs++;
     }
 
-    pcinfo = new PCStackInfo[numpcs]() ;
+    pcinfo = new PCStackInfo[numpcs];
     int scope = 0;
 
     for (PcDesc *p = (PcDesc *)scopes_pc;
@@ -40,8 +40,8 @@ CompiledMethodLoadInlineRecord::CompiledMethodLoadInlineRecord(const uint8_t *sc
             sd = sd_p;
             numstackframes++;
         }
-        pcinfo[scope].methods = new jint[numstackframes]();
-        pcinfo[scope].bcis = new jint[numstackframes]();
+        pcinfo[scope].methods = new jint[numstackframes];
+        pcinfo[scope].bcis = new jint[numstackframes];
         pcinfo[scope].numstackframes = numstackframes;
         int stackframe = 0;
         sd = new ScopeDesc(p->scope_decode_offset(), p->obj_decode_offset(),

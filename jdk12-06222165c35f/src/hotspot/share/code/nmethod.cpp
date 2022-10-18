@@ -38,6 +38,7 @@
 #include "compiler/directivesParser.hpp"
 #include "compiler/disassembler.hpp"
 #include "interpreter/bytecode.hpp"
+#include "jportal/jportalEnable.hpp"
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
 #include "memory/allocation.inline.hpp"
@@ -1240,7 +1241,7 @@ bool nmethod::make_not_entrant_or_zombie(int state) {
 
       // JPortal
       if (JPortal && CodeCache::is_jportal((address)this)) {
-        JPortalEnable::jportal_inline_cache_add(verified_entry_point(),
+        JPortalEnable::dump_inline_cache_add(verified_entry_point(),
                   SharedRuntime::get_handle_wrong_method_stub());
       }
     }
@@ -1468,7 +1469,7 @@ void nmethod::post_compiled_method_load_event() {
 
   // JPortal
   if (JPortal && CodeCache::is_jportal((address)this)) {
-    JPortalEnable::jportal_compiled_method_load(moop, this);
+    JPortalEnable::dump_compiled_method_load(moop, this);
   }
 }
 
@@ -1510,7 +1511,7 @@ void nmethod::post_compiled_method_unload() {
 
   // JPortal
   if (JPortal && CodeCache::is_jportal((address)this)) {
-    JPortalEnable::jportal_compiled_method_unload(method(), this);
+    JPortalEnable::dump_compiled_method_unload(method(), this);
   }
 
   // The JVMTI CompiledMethodUnload event can be enabled or disabled at

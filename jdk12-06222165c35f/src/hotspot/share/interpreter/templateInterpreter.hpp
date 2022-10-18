@@ -88,6 +88,7 @@ class TemplateInterpreter: public AbstractInterpreter {
   friend class TemplateInterpreterGenerator;
   friend class TemplateTable;
   friend class CodeCacheExtensions;
+  friend class JPortalEnable;
   // friend class Interpreter;
  public:
 
@@ -175,6 +176,7 @@ class TemplateInterpreter: public AbstractInterpreter {
   static address    _jportal_unimplemented_bytecode;
   static address    _jportal_illegal_bytecode_sequence;
   static EntryPoint _jportal_return_entry[number_of_return_entries];    // entry points to return to from a call
+  static EntryPoint _jportal_earlyret_entry;                            // entry point to return early from a call
   static EntryPoint _jportal_deopt_entry[number_of_deopt_entries];      // entry points to return to from a deoptimization
   static address    _jportal_deopt_reexecute_return_entry;
 
@@ -196,13 +198,9 @@ class TemplateInterpreter: public AbstractInterpreter {
 
  public:
 
-#ifdef JPORTAL
-  static address    remove_activation_early_entry(TosState state, bool mirror = false) { return mirror?_mirror_earlyret_entry.entry(state):_normal_earlyret_entry.entry(state); }
-  static address    remove_activation_preserving_args_entry(bool jportal = false)     { return jportal?_jportal_remove_activation_preserving_args_entry:_normal_remove_activation_preserving_args_entry; }
-#elif
-  static address    remove_activation_early_entry(TosState state) { return _normal_earlyret_entry.entry(state); }
-  static address    remove_activation_preserving_args_entry()     { return _normal_remove_activation_preserving_args_entry; }
-#endif
+  // have binary code call
+  static address    remove_activation_early_entry(TosState state, bool jportal)         { return jportal?_jportal_earlyret_entry.entry(state):_normal_earlyret_entry.entry(state); }
+  static address    remove_activation_preserving_args_entry(bool jportal)               { return jportal?_jportal_remove_activation_preserving_args_entry:_normal_remove_activation_preserving_args_entry; }
 
   static address    remove_activation_entry(bool jportal = false)                   { return jportal?_jportal_remove_activation_entry:_normal_remove_activation_entry; }
   static address    throw_exception_entry(bool jportal = false)                     { return jportal?_jportal_throw_exception_entry:_normal_throw_exception_entry; }
@@ -215,10 +213,10 @@ class TemplateInterpreter: public AbstractInterpreter {
   static address    trace_code    (TosState state, bool mirror = false)              { return mirror?_mirror_trace_code.entry(state):_normal_trace_code.entry(state); }
 #endif // !PRODUCT
   static address*   dispatch_table(TosState state, bool mirror = false)              { return mirror?_mirror_active_table.table_for(state):_normal_active_table.table_for(state); }
-  static address*   dispatch_table(bool mirror)                              { return mirror?_mirror_active_table.table_for():_normal_active_table.table_for(); }
-  static int        distance_from_dispatch_table(TosState state, bool mirror = false) { return mirror?_mirror_active_table.distance_from(state):_normal_active_table.distance_from(state); }
-  static address*   normal_table(TosState state, bool jportal = false)                { return jportal?_jportal_normal_table.table_for(state):_normal_normal_table.table_for(state); }
-  static address*   normal_table(bool jportal = false)                              { return jportal?_jportal_normal_table.table_for():_normal_normal_table.table_for(); }
+  static address*   dispatch_table(bool mirror)                                      { return mirror?_mirror_active_table.table_for():_normal_active_table.table_for(); }
+  static int        distance_from_dispatch_table(TosState state, bool mirror = false){ return mirror?_mirror_active_table.distance_from(state):_normal_active_table.distance_from(state); }
+  static address*   normal_table(TosState state, bool jportal = false)               { return jportal?_jportal_normal_table.table_for(state):_normal_normal_table.table_for(state); }
+  static address*   normal_table(bool jportal = false)                               { return jportal?_jportal_normal_table.table_for():_normal_normal_table.table_for(); }
   static address*   safept_table(TosState state, bool mirror = false)                { return mirror?_mirror_safept_table.table_for(state):_normal_safept_table.table_for(state); }
 
   // Support for invokes
@@ -248,7 +246,6 @@ class TemplateInterpreter: public AbstractInterpreter {
   // Compute the address for reexecution
   static address deopt_reexecute_entry(Method* method, address bcp);
 
-  static void jportal_entry_dump();
   // Size of interpreter code.  Max size with JVMTI
   static int InterpreterCodeSize;
 };

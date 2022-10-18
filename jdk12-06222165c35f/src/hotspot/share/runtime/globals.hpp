@@ -132,14 +132,6 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
 #define falseInProduct true
 #endif
 
-#if defined(__linux__)
-#if defined(__x86_64__)
-#if defined(_LP64)
-#define JPORTAL 1
-#endif
-#endif
-#endif
-
 // develop flags are settable / visible only during development and are constant in the PRODUCT version
 // product flags are always settable / visible
 // notproduct flags are settable / visible only during development and are not declared in the PRODUCT version

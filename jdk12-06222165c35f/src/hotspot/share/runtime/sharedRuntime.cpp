@@ -42,6 +42,7 @@
 #include "interpreter/interpreter.hpp"
 #include "interpreter/interpreterRuntime.hpp"
 #include "jfr/jfrEvents.hpp"
+#include "jportal/jportalEnable.hpp"
 #include "logging/log.hpp"
 #include "memory/metaspaceShared.hpp"
 #include "memory/resourceArea.hpp"
@@ -1981,7 +1982,7 @@ IRT_LEAF(void, SharedRuntime::fixup_callers_callsite(Method* method, address cal
 
         // JPortal
         if (JPortal && CodeCache::is_jportal(call->instruction_address())) {
-          JPortalEnable::jportal_inline_cache_add(call->instruction_address(), entry_point);
+          JPortalEnable::dump_inline_cache_add(call->instruction_address(), entry_point);
         }
       }
     }

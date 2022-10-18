@@ -133,6 +133,7 @@
 #if INCLUDE_JFR
 #include "jfr/jfr.hpp"
 #endif
+#include "jportal/jportalEnable.hpp"
 
 // Initialization after module runtime initialization
 void universe_post_module_init();  // must happen after call_initPhase2
@@ -1789,7 +1790,7 @@ void JavaThread::run() {
 
   // JPortal
   if (JPortal) {
-    JPortalEnable::jportal_thread_start(this);
+    JPortalEnable::dump_thread_start(this);
   }
 
   // We call another function to do the rest so we are sure that the stack addresses used
@@ -3800,11 +3801,6 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
   JvmtiExport::post_early_vm_start();
 
   initialize_java_lang_classes(main_thread, CHECK_JNI_ERR);
-
-  // JPortal
-  if (JPortal) {
-    JPortalEnable::jportal_thread_start(main_thread);
-  }
 
   quicken_jni_functions();
 

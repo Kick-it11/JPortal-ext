@@ -48,11 +48,10 @@ class CodeletsEntry {
     private:
         static JVMRuntime::CodeletsInfo _entries;
 
-        static int single_match(address *table, int size, address ip);
     public:
         static void initialize(JVMRuntime::CodeletsInfo *entries);
 
-        static Codelet entry_match(address ip, Bytecodes::Code &code);
+        static Codelet entry_match(uint64_t ip, Bytecodes::Code &code);
 };
 
 #endif // CODELETS_ENTRY_HPP

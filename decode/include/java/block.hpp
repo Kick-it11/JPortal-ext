@@ -1,7 +1,7 @@
 #ifndef BLOCK_HPP
 #define BLOCK_HPP
 
-#include "utilities/definitions.hpp"
+#include "java/definitions.hpp"
 
 #include <cstring>
 #include <unordered_map>

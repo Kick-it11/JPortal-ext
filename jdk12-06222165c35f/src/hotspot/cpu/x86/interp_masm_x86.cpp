@@ -2052,17 +2052,6 @@ void InterpreterMacroAssembler::notify_method_exit(
     pop(state);
   }
 
-  // JPortal
-  address addr = pc();
-  if (JPortal && JPortalMethod && Interpreter::is_mirror(addr)) {
-    push(state);
-    NOT_LP64(get_thread(rthread);)
-    get_method(rarg);
-    call_VM_leaf(CAST_FROM_FN_PTR(address, JPortalEnable::dump_method_exit),
-                 rthread, rarg);
-    pop(state);
-  }
-
   {
     SkipIfEqual skip(this, &DTraceMethodProbes, false);
     push(state);

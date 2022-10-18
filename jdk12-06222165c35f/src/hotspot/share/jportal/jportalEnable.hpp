@@ -36,7 +36,6 @@ class JPortalEnable {
       _illegal = -1,
       _method_entry_initial,     // first method entry: map between idx to method signature
       _method_entry,             // method entry: when call
-      _method_exit,              // method exit: after return
       _compiled_method_load,     // after loading a compiled method: entry, codes, scopes data etc included
       _compiled_method_unload,   // after unloading a compiled method
       _thread_start,             // a thread begins, map between system tid and java tid
@@ -80,18 +79,6 @@ class JPortalEnable {
       u4 idx;
       u4 tid;
       MethodEntryInfo(u4 _idx, u4 _tid, u4 _size) : idx(_idx), tid(_tid) {
-        info.type = _method_entry;
-        info.size = _size;
-        info.time = get_timestamp();
-      }
-    };
-
-    struct MethodExitInfo {
-      struct DumpInfo info;
-      u4 idx;
-      u4 tid;
-
-      MethodExitInfo(u4 _idx, u4 _tid, u4 _size) : idx(_idx), tid(_tid) {
         info.type = _method_entry;
         info.size = _size;
         info.time = get_timestamp();
@@ -255,8 +242,6 @@ class JPortalEnable {
     static void dump_codelets();
 
     static void dump_method_entry(JavaThread *thread, Method *moop);
-
-    static void dump_method_exit(JavaThread *thread, Method *moop);
 
     static void dump_compiled_method_load(Method *moop, nmethod *nm);
 

@@ -60,36 +60,34 @@ static void decode(const std::string &file, std::list<std::string>& paths) {
 }
 
 int main(int argc, char **argv) {
-    char defualt_trace[20] = "JPortalTrace.data";
-    char *trace_data = defualt_trace;
+    std::string trace_data = "JPortalTrace.data";
     std::list<std::string> class_paths;
-    int errcode, i;
-    for (i = 1; i < argc;) {
-        char *arg;
-        arg = argv[i++];
-
-        if (strcmp(arg, "--trace-data") == 0) {
+    for (int i = 1; i < argc;) {
+        std::string arg = argv[i++];
+        if (arg == "-d") {
             if (argc <= i) {
+                std::cerr << "Missing tracedata -d" << std::endl;
                 return -1;
             }
             trace_data = argv[i++];
             continue;
         }
 
-        if (strcmp(arg, "--class-path") == 0) {
+        if (arg == "-c") {
             if (argc <= i) {
+                std::cerr << "Missing class path -c" << std::endl;
                 return -1;
             }
             class_paths.push_back(argv[i++]);
             continue;
         }
 
-        fprintf(stderr, "unknown:%s\n", arg);
-        return -1;
-    }
+        if (arg == "-h") {
+            std::cout << "decode -d $file [-c $path]+ -h" << std::endl;
+            return 0;
+        }
 
-    if (!trace_data) {
-        fprintf(stderr, "Please specify trace data:--trace-data\n");
+        std::cerr << "Unknown arguments" << std::endl;
         return -1;
     }
 

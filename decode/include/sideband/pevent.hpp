@@ -14,9 +14,9 @@ struct pev_config
     size_t size;
 
     /* The respective field in struct perf_event_attr.
-   *
-   * We require sample_id_all in struct perf_event_attr to be set.
-   */
+     *
+     * We require sample_id_all in struct perf_event_attr to be set.
+     */
     uint64_t sample_type;
 
     /* The respective fields in struct perf_event_mmap_page. */

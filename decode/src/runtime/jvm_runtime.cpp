@@ -5,10 +5,11 @@
 #include "runtime/jvm_runtime.hpp"
 
 #include <cassert>
+#include <iostream>
 
 uint8_t *JVMRuntime::begin = nullptr;
 uint8_t *JVMRuntime::end = nullptr;
-std::map<long, long> JVMRuntime::thread_map;
+std::map<uint32_t, uint32_t> JVMRuntime::thread_map;
 std::map<int, const Method*> JVMRuntime::md_map;
 std::map<const uint8_t *, JitSection *> JVMRuntime::section_map;
 bool JVMRuntime::_initialized = false;
@@ -47,12 +48,6 @@ void JVMRuntime::move_on(uint64_t time) {
                 const MethodEntryInfo* me;
                 me = (const MethodEntryInfo*)_current;
                 _current += sizeof(MethodEntryInfo);
-                break;
-            }
-            case _method_exit: {
-                const MethodExitInfo* me;
-                me = (const MethodExitInfo*)_current;
-                _current += sizeof(MethodExitInfo);
                 break;
             }
             case _compiled_method_load: {
@@ -97,7 +92,7 @@ void JVMRuntime::move_on(uint64_t time) {
     }
 }
 
-long JVMRuntime::get_java_tid(long tid) {
+uint32_t JVMRuntime::get_java_tid(uint32_t tid) {
     auto iter = thread_map.find(tid);
     if (iter == thread_map.end())
         return -1;
@@ -142,12 +137,6 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser* analyser) 
                 buffer += sizeof(MethodEntryInfo);
                 break;
             }
-            case _method_exit: {
-                const MethodExitInfo* me;
-                me = (const MethodExitInfo*)buffer;
-                buffer += sizeof(MethodExitInfo);
-                break;
-            }
             case _compiled_method_load: {
                 const CompiledMethodLoadInfo *cm;
                 cm = (const CompiledMethodLoadInfo*)buffer;
@@ -178,7 +167,7 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser* analyser) 
                 scopes_data = (const uint8_t *)buffer;
                 buffer += cm->scopes_data_size;
                 if (!mainm || !mainm->is_jportal()) {
-                    fprintf(stderr, "JvmDumpDecoder: unknown or un-jportal section.\n");
+                    std::cerr << "JvmDumpDecoder: unknown or un-jportal section" << std::endl;
                     break;
                 }
                 CompiledMethodDesc *cmd = new CompiledMethodDesc(cm->entry_point, cm->verified_entry_point,
@@ -214,7 +203,7 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser* analyser) 
             }
             default: {
                 buffer = end;
-                fprintf(stderr, "JvmDumpDecoder: unknown dump type.\n");
+                std::cerr << "JvmDumpDecoder: unknown dump type" << std::endl;
                 return;
             }
         }

@@ -1,7 +1,7 @@
 #ifndef CLASS_FILE_PARSER_HPP
 #define CLASS_FILE_PARSER_HPP
 
-#include "utilities/definitions.hpp"
+#include "java/definitions.hpp"
 
 #include <string>
 

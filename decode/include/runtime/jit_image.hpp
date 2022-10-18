@@ -1,7 +1,7 @@
 #ifndef JIT_IMAGE_HPP
 #define JIT_IMAGE_HPP
 
-#include "utilities/definitions.hpp"
+#include "java/definitions.hpp"
 
 #include <list>
 #include <string>
@@ -39,13 +39,13 @@ public:
     /* Remove a section from an image that contains vaddr.
      * Returns true on success.
      */
-    bool remove(address vadrr);
+    bool remove(uint64_t vadrr);
 
     /* Find an image section.
      * Find the section containing @vaddr.
      * On success, return this @section
      */
-    JitSection *find(address vaddr);
+    JitSection *find(uint64_t vaddr);
 
     /* Validate an image section.
      *
@@ -55,7 +55,7 @@ public:
      * 
      * Returns false if validation failed.
      */
-    bool validate(JitSection *section, address vaddr);
+    bool validate(JitSection *section, uint64_t vaddr);
 };
 
 #endif

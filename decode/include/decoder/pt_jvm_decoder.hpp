@@ -26,7 +26,7 @@ private:
     struct pt_query_decoder *_qry;
 
     /* pt config */
-    const struct pt_config &_config;
+    struct pt_config _config;
 
     /* Trace Data Record*/
     TraceDataRecord _record;
@@ -38,7 +38,7 @@ private:
     Sideband *_sideband;
 
     /* The current thread id */
-    long _tid;
+    uint32_t _tid;
 
     /* The current time */
     uint64_t _time;
@@ -114,16 +114,16 @@ private:
     int pt_insn_decode(struct pt_insn *insn, struct pt_insn_ext *iext);
     int pt_insn_decode_retry(struct pt_insn *insn, struct pt_insn_ext *iext);
     int pt_insn_range_is_contiguous(uint64_t begin, uint64_t end,
-                                    enum pt_exec_mode mode, size_t steps);
+                                    enum pt_exec_mode mode, uint64_t steps);
 
-    int check_erratum_skd022();
-    int handle_erratum_skd022();
+    int pt_insn_check_erratum_skd022();
+    int pt_insn_handle_erratum_skd022();
     int pt_insn_at_skl014(const struct pt_event *ev, const struct pt_insn *insn,
                           const struct pt_insn_ext *iext, const struct pt_config *config);
     int pt_insn_at_disabled_event(const struct pt_event *ev, const struct pt_insn *insn,
                                   const struct pt_insn_ext *iext, const struct pt_config *config);
     int pt_insn_status(int flags);
-    int handle_erratum_bdm64(const struct pt_event *ev, const struct pt_insn *insn,
+    int pt_insn_handle_erratum_bdm64(const struct pt_event *ev, const struct pt_insn *insn,
                              const struct pt_insn_ext *iext);
     int pt_insn_postpone_tsx(const struct pt_insn *insn, const struct pt_insn_ext *iext,
                              const struct pt_event *ev);

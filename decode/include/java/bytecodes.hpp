@@ -1,7 +1,7 @@
 #ifndef BYTECODES_HPP
 #define BYTECODES_HPP
 
-#include "utilities/definitions.hpp"
+#include "java/definitions.hpp"
 
 class Bytecodes {
 public:

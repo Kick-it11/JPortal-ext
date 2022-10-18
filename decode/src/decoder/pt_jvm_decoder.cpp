@@ -5,22 +5,6 @@
 
 #include <iostream>
 
-void PTJVMDecoder::reset_decoder()
-{
-    _mode = ptem_unknown;
-    _ip = 0ull;
-    _status = 0;
-    _enabled = 0;
-    _process_event = 0;
-    _speculative = 0;
-    _process_insn = 0;
-    _bound_paging = 0;
-    _bound_vmcs = 0;
-    _bound_ptwrite = 0;
-
-    pt_asid_init(&_asid);
-}
-
 /* Retry decoding an instruction after a preceding decode error.
  *
  * Instruction length decode typically fails due to 'not enough
@@ -155,7 +139,7 @@ int PTJVMDecoder::pt_insn_decode(struct pt_insn *insn, struct pt_insn_ext *iext)
 }
 
 int PTJVMDecoder::pt_insn_range_is_contiguous(uint64_t begin, uint64_t end,
-                enum pt_exec_mode mode, size_t steps)
+                                              enum pt_exec_mode mode, uint64_t steps)
 {
     struct pt_insn_ext iext;
     struct pt_insn insn;
@@ -183,32 +167,7 @@ int PTJVMDecoder::pt_insn_range_is_contiguous(uint64_t begin, uint64_t end,
     return 1;
 }
 
-
-void PTJVMDecoder::time_change()
-{
-    _jvm->move_on(_time);
-
-    /** data loss, if loss set, do not try to change it. */
-    bool loss = false;
-
-    /** iterate all sideband ( perf event )*/
-    while (_sideband->event(_time)) {
-        long sideband_tid = _sideband->tid();
-        if (_sideband->loss())
-            loss = true;
-
-        long java_tid = _jvm->get_java_tid(sideband_tid);
-
-        if (loss || _tid != java_tid) {
-            _tid = java_tid;
-            _record.switch_out(loss);
-            _record.switch_in(_tid, _time, loss);
-        }
-    }
-    _record.switch_in(_tid, _time, loss);
-}
-
-int PTJVMDecoder::check_erratum_skd022()
+int PTJVMDecoder::pt_insn_check_erratum_skd022()
 {
     struct pt_insn_ext iext;
     struct pt_insn insn;
@@ -232,13 +191,13 @@ int PTJVMDecoder::check_erratum_skd022()
     }
 }
 
-int PTJVMDecoder::handle_erratum_skd022()
+int PTJVMDecoder::pt_insn_handle_erratum_skd022()
 {
     struct pt_event *ev;
     uint64_t ip;
     int errcode;
 
-    errcode = check_erratum_skd022();
+    errcode = pt_insn_check_erratum_skd022();
     if (errcode <= 0)
         return errcode;
 
@@ -423,7 +382,7 @@ enum
  * Returns zero if the erratum does not seem to apply.
  * Returns a negative error code otherwise.
  */
-int PTJVMDecoder::handle_erratum_bdm64(const struct pt_event *ev,
+int PTJVMDecoder::pt_insn_handle_erratum_bdm64(const struct pt_event *ev,
                                        const struct pt_insn *insn,
                                        const struct pt_insn_ext *iext)
 {
@@ -474,7 +433,7 @@ int PTJVMDecoder::pt_insn_postpone_tsx(const struct pt_insn *insn,
 
     if (insn && iext && _config.errata.bdm64)
     {
-        status = handle_erratum_bdm64(ev, insn, iext);
+        status = pt_insn_handle_erratum_bdm64(ev, insn, iext);
         if (status < 0)
             return status;
     }
@@ -517,7 +476,7 @@ int PTJVMDecoder::pt_insn_check_ip_event(const struct pt_insn *insn,
         {
             int errcode;
 
-            errcode = handle_erratum_skd022();
+            errcode = pt_insn_handle_erratum_skd022();
             if (errcode != 0)
             {
                 if (errcode < 0)
@@ -1326,6 +1285,30 @@ int PTJVMDecoder::pt_insn_start()
     return pt_insn_check_ip_event(NULL, NULL);
 }
 
+void PTJVMDecoder::time_change()
+{
+    _jvm->move_on(_time);
+
+    /** data loss, if loss set, do not try to change it. */
+    bool loss = false;
+
+    /** iterate all sideband ( perf event )*/
+    while (_sideband->event(_time)) {
+        uint32_t sideband_tid = _sideband->tid();
+        if (_sideband->loss())
+            loss = true;
+
+        uint32_t java_tid = _jvm->get_java_tid(sideband_tid);
+
+        if (loss || _tid != java_tid) {
+            _tid = java_tid;
+            _record.switch_out(loss);
+            _record.switch_in(_tid, _time, loss);
+        }
+    }
+    _record.switch_in(_tid, _time, loss);
+}
+
 int PTJVMDecoder::handle_compiled_code()
 {
     int status;
@@ -1480,6 +1463,22 @@ int PTJVMDecoder::handle_bytecode(Bytecodes::Code bytecode)
     return status;
 }
 
+void PTJVMDecoder::reset_decoder()
+{
+    _mode = ptem_unknown;
+    _ip = 0ull;
+    _status = 0;
+    _enabled = 0;
+    _process_event = 0;
+    _speculative = 0;
+    _process_insn = 0;
+    _bound_paging = 0;
+    _bound_vmcs = 0;
+    _bound_ptwrite = 0;
+
+    pt_asid_init(&_asid);
+}
+
 int PTJVMDecoder::ptjvm_result_decode()
 {
     int status = 0;
@@ -1493,12 +1492,7 @@ int PTJVMDecoder::ptjvm_result_decode()
         status = handle_compiled_code();
         if (status < 0)
         {
-            if (status != -pte_eos)
-            {
-                _record.switch_out(true);
-                std::cerr << "PTJVMDecoder error: compiled code decode" << status << std::endl;
-            }
-            return 0;
+            return status;
         }
         /* might query a non-compiled-code ip */
         codelet = CodeletsEntry::entry_match(_ip, bytecode);
@@ -1511,12 +1505,7 @@ int PTJVMDecoder::ptjvm_result_decode()
         status = handle_bytecode(bytecode);
         if (status < 0)
         {
-            if (status != -pte_eos)
-            {
-                _record.switch_out(true);
-                std::cerr << "PTJVMDecoder error: bytecode " << status << std::endl;
-            }
-            return 0;
+            return status;
         }
 
         pt_qry_time(_qry, &_time, NULL, NULL);
@@ -1653,12 +1642,9 @@ void PTJVMDecoder::decode()
         if (status < 0)
         {
             if (status == -pte_eos)
-            {
                 break;
-            }
             std::cerr << "PTJVMDecoder error: " << pt_errstr(pt_errcode(status)) << std::endl;
             _record.switch_out(true);
-            return;
         }
 
         _status = status;
@@ -1709,7 +1695,6 @@ void PTJVMDecoder::decode()
         {
             std::cerr << "PTJVMDecoder error: " << status << " " << _time << std::endl;
             _record.switch_out(true);
-            return;
         }
     }
 
@@ -1717,8 +1702,10 @@ void PTJVMDecoder::decode()
 }
 
 PTJVMDecoder::PTJVMDecoder(const struct pt_config &config, TraceData &trace, uint32_t cpu)
-        : _config(config), _record(trace), _tid(-1)
+        : _record(trace), _tid(-1)
 {
+    pt_config_from_user(&_config, &config);
+
     _sideband = new Sideband(cpu);
 
     _jvm = new JVMRuntime();

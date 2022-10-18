@@ -1,7 +1,7 @@
 #ifndef KLASS_HPP
 #define KLASS_HPP
 
-#include "utilities/definitions.hpp"
+#include "java/definitions.hpp"
 
 #include <list>
 #include <map>

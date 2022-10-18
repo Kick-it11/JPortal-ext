@@ -1,7 +1,7 @@
 #ifndef CONSTANTPOOL_HPP
 #define CONSTANTPOOL_HPP
 
-#include "utilities/definitions.hpp"
+#include "java/definitions.hpp"
 
 #include <cassert>
 #include <string>

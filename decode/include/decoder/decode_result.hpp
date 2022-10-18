@@ -4,7 +4,6 @@
 #include "java/bytecodes.hpp"
 #include "runtime/codelets_entry.hpp"
 #include "runtime/jit_section.hpp"
-#include "utilities/definitions.hpp"
 
 #include <list>
 #include <unordered_map>
@@ -12,27 +11,27 @@
 class Method;
 
 struct InterRecord {
-    u8 size = 0;
+    uint64_t size;
+    InterRecord() : size(0) {}
 };
 
 struct JitRecord {
-    u8 size = 0;
-    const JitSection *section = nullptr;
-    JitRecord(const JitSection *_section) :
-      section(_section) {}
+    uint64_t size;
+    const JitSection *section;
+    JitRecord(const JitSection *_section) : size(0), section(_section) {}
 };
 
 struct ThreadSplit {
-    long tid;
-    size_t start_addr;
-    size_t end_addr;
-    u8 start_time;
-    u8 end_time;
-    bool head_loss = false;
-    bool tail_loss = false;
-    ThreadSplit(long _tid, size_t _start_addr, u8 _start_time):
-        tid(_tid), start_addr(_start_addr), end_addr(-1l),
-        start_time(_start_time), end_time(_start_time) {}
+    uint16_t head_loss; /* 0 for not loss, 1 for head loss */
+    uint16_t tail_loss; /* 0 for not loss, 1 for head loss */
+    uint32_t tid;
+    uint64_t start_addr;
+    uint64_t end_addr;
+    uint64_t start_time;
+    uint64_t end_time;
+    ThreadSplit(uint32_t _tid, uint64_t _start_addr, uint64_t _start_time):
+        head_loss(0), tail_loss(0), tid(_tid), start_addr(_start_addr),
+        end_addr(_start_addr), start_time(_start_time), end_time(_start_time) {}
 };
 
 class TraceData {
@@ -40,39 +39,41 @@ class TraceData {
   friend class TraceDataAccess;
   public:
   private:
-    const int initial_data_volume = 1024 * 1024;
-    u1 *data_begin = nullptr;
-    u1 *data_end = nullptr;
-    size_t data_volume = 0;
-    std::unordered_map<size_t, const Method*> method_info;
+    const static int initial_data_volume = 1024 * 4;
+    uint8_t *data_begin;
+    uint8_t *data_end;
+    uint64_t data_volume;
 
-    std::unordered_map<long, std::list<ThreadSplit>> thread_map;
+    /** indicate a method entry here; */
+    std::unordered_map<uint64_t, const Method*> method_info;
 
-    int expand_data(size_t size);
-    int write(void *data, size_t size);
+    /** thread split */
+    std::unordered_map<uint32_t, std::list<ThreadSplit>> thread_map;
+
+    void expand_data(uint64_t size);
+    void write(void *data, uint64_t size);
 
   public:
-    ~TraceData() {
-      delete[] data_begin;
-    }
+    TraceData() : data_begin(nullptr), data_end(nullptr), data_volume(0) {}
 
-    std::unordered_map<long, std::list<ThreadSplit>> &get_thread_map() { return thread_map; }
+    ~TraceData() { delete[] data_begin; }
 
-    const Method* get_method_info(size_t loc);
+    std::unordered_map<uint32_t, std::list<ThreadSplit>> &get_thread_map() { return thread_map; }
 
-    bool get_inter(size_t loc, const u1* &codes, size_t &size);
+    const Method* get_method_info(uint64_t loc);
 
-    bool get_jit(size_t loc, const PCStackInfo**&codes, size_t &size, const JitSection *&section);
+    bool get_inter(uint64_t loc, const uint8_t* &codes, uint64_t &size);
 
-    void output();
+    bool get_jit(uint64_t loc, const PCStackInfo**&codes, uint64_t &size, const JitSection *&section);
+
 };
 
 class TraceDataRecord {
   private:
     TraceData &trace;
     CodeletsEntry::Codelet codelet_type = CodeletsEntry::_illegal;
-    size_t loc;
-    u8 current_time = 0;
+    uint64_t loc;
+    uint64_t current_time = 0;
     ThreadSplit *thread= nullptr;
     const JitSection *last_section = nullptr;
     Bytecodes::Code last_bytecode = Bytecodes::_illegal;
@@ -80,40 +81,42 @@ class TraceDataRecord {
     TraceDataRecord(TraceData &_trace) :
         trace(_trace) {}
 
-    int add_bytecode(u8 time, Bytecodes::Code bytecode);
+    void add_bytecode(uint64_t time, Bytecodes::Code bytecode);
 
-    int add_jitcode(u8 time, const JitSection *section, PCStackInfo *pc, u8 entry);
+    void add_jitcode(uint64_t time, const JitSection *section, PCStackInfo *pc, uint64_t entry);
 
-    int add_codelet(CodeletsEntry::Codelet codelet);
+    void add_codelet(CodeletsEntry::Codelet codelet);
 
     void add_method_info(const Method* method);
 
+    /** Should always be called at leave */
     void switch_out(bool loss);
 
-    void switch_in(long tid, u8 time, bool loss);
+    /** Should always be called at start */
+    void switch_in(uint32_t tid, uint64_t time, bool loss);
 
-    size_t get_loc() { return loc; }
+    uint64_t get_loc() { return loc; }
 };
 
 class TraceDataAccess {
   private:
     TraceData &trace;
-    const u1* current;
-    const u1* terminal;
+    const uint8_t* current;
+    const uint8_t* terminal;
   public:
     TraceDataAccess(TraceData &_trace) :
         trace(_trace) {
         current = trace.data_begin;
         terminal = trace.data_end;
     }
-    TraceDataAccess(TraceData &_trace, size_t begin) :
+    TraceDataAccess(TraceData &_trace, uint64_t begin) :
         trace(_trace) {
         current = trace.data_begin + begin;
         if (current < trace.data_begin)
             current = trace.data_end;
         terminal = trace.data_end;
     }
-    TraceDataAccess(TraceData &_trace, size_t begin, size_t end) :
+    TraceDataAccess(TraceData &_trace, uint64_t begin, uint64_t end) :
         trace(_trace) {
         current = trace.data_begin + begin;
         terminal = trace.data_begin + end;
@@ -122,15 +125,15 @@ class TraceDataAccess {
         if (terminal > trace.data_end)
             terminal = trace.data_end;
     }
-    bool next_trace(CodeletsEntry::Codelet &codelet, size_t &loc);
+    bool next_trace(CodeletsEntry::Codelet &codelet, uint64_t &loc);
 
-    void set_current(size_t addr) {
+    void set_current(uint64_t addr) {
         current = trace.data_begin + addr;
         if (current < trace.data_begin)
             current = trace.data_end;
     }
 
-    size_t get_current() {
+    uint64_t get_current() {
         return current - trace.data_begin;
     }
 
@@ -138,7 +141,7 @@ class TraceDataAccess {
         return current >= terminal;
     }
 
-    size_t get_end() {
+    uint64_t get_end() {
         return terminal - trace.data_begin;
     }
 };

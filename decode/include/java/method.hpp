@@ -1,7 +1,7 @@
 #ifndef METHOD_HPP
 #define METHOD_HPP
 
-#include "utilities/definitions.hpp"
+#include "java/definitions.hpp"
 
 #include <list>
 #include <map>

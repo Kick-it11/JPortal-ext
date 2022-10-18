@@ -1,7 +1,7 @@
 #ifndef CLASS_FILE_STREAM_HPP
 #define CLASS_FILE_STREAM_HPP
 
-#include "utilities/definitions.hpp"
+#include "java/definitions.hpp"
 
 #include <cassert>
 

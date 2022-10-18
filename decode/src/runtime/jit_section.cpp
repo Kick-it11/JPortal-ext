@@ -6,7 +6,7 @@
 #include <cstring>
 
 CompiledMethodLoadInlineRecord::CompiledMethodLoadInlineRecord(const uint8_t *scopes_pc,
-    size_t scopes_pc_size, const uint8_t *scopes_data, size_t scopes_data_size, uint64_t insts_begin) {
+    uint32_t scopes_pc_size, const uint8_t *scopes_data, uint32_t scopes_data_size, uint64_t insts_begin) {
     if (!scopes_data_size || !scopes_pc_size)
         return;
 
@@ -59,9 +59,9 @@ CompiledMethodLoadInlineRecord::CompiledMethodLoadInlineRecord(const uint8_t *sc
     }
 }
 
-JitSection::JitSection(const uint8_t *code, uint64_t code_begin, uint64_t code_size, 
-                       const uint8_t *scopes_pc, size_t scopes_pc_size, 
-                       const uint8_t *scopes_data, size_t scopes_data_size,
+JitSection::JitSection(const uint8_t *code, uint64_t code_begin, uint32_t code_size, 
+                       const uint8_t *scopes_pc, uint32_t scopes_pc_size, 
+                       const uint8_t *scopes_data, uint32_t scopes_data_size,
                        CompiledMethodDesc *cmd, const std::string &name) :
                        _code(code), _code_begin(code_begin), _code_size(code_size),
                        _cmd(cmd), _name(name) {
@@ -80,7 +80,7 @@ JitSection::~JitSection() {
     delete _cmd;
 }
 
-bool JitSection::read(uint8_t *buffer, uint16_t *size, address vaddr) {
+bool JitSection::read(uint8_t *buffer, uint16_t *size, uint64_t vaddr) {
     uint64_t offset = vaddr - _code_begin;
     uint64_t limit = _code_size;
     if (limit <= offset || !buffer || !size)
@@ -95,7 +95,7 @@ bool JitSection::read(uint8_t *buffer, uint16_t *size, address vaddr) {
     return true;
 }
 
-PCStackInfo *JitSection::find(address vaddr, int &idx) {
+PCStackInfo *JitSection::find(uint64_t vaddr, int &idx) {
     uint64_t begin = _code_begin;
     uint64_t end = begin + _code_size;
 

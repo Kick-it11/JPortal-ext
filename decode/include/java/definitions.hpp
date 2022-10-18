@@ -25,8 +25,6 @@ typedef jushort         u2;
 typedef juint           u4;
 typedef julong          u8;
 
-typedef uint64_t        address;
-
 typedef unsigned char   u_char;
 
 inline jint alignup(jint offset) {

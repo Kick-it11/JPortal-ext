@@ -1,47 +1,43 @@
 #include "decoder/decode_result.hpp"
 
 #include <cstring>
+#include <iostream>
 
-int TraceData::expand_data(size_t size) {
+void TraceData::expand_data(uint64_t size) {
     if (!data_volume) {
-        data_begin = new u1[(initial_data_volume)];
-        if (!data_begin)
-            return -1;
+        data_begin = new uint8_t[(initial_data_volume)];
         data_end = data_begin;
         data_volume = initial_data_volume;
+        if (data_volume > size)
+            return;
     }
-    while (data_volume - (data_end - data_begin) < size) {
-        u1 *new_data = new u1[(data_volume + initial_data_volume)];
-        if (!new_data)
-            return -1;
-        memcpy(new_data, data_begin, data_volume);
-        delete[] data_begin;
-        data_end = new_data + (data_end - data_begin);
-        data_begin = new_data;
-        data_volume += initial_data_volume;
-    }
-    return 0;
+    uint64_t new_volume = data_volume;
+    while (new_volume - (data_end - data_begin) < size)
+        new_volume *= 2;
+    uint8_t *new_data = new uint8_t[new_volume];
+    memcpy(new_data, data_begin, data_end - data_begin);
+    delete[] data_begin;
+    data_end = new_data + (data_end - data_begin);
+    data_begin = new_data;
+    data_volume += new_volume;
 }
 
-int TraceData::write(void *data, size_t size) {
-    if (data_volume - (data_end - data_begin) < size) {
-        if (expand_data(size) < 0)
-            return -1;
-    }
+void TraceData::write(void *data, uint64_t size) {
+    if (data_volume - (data_end - data_begin) < size)
+        expand_data(size);
     memcpy(data_end, data, size);
     data_end += size;
-    return 0;
 }
 
-const Method* TraceData::get_method_info(size_t loc) {
+const Method* TraceData::get_method_info(uint64_t loc) {
     auto iter = method_info.find(loc);
     if (iter != method_info.end())
         return iter->second;
     return nullptr;
 }
 
-bool TraceData::get_inter(size_t loc, const u1 *&codes, size_t &size) {
-    const u1 *pointer = data_begin + loc;
+bool TraceData::get_inter(uint64_t loc, const uint8_t *&codes, uint64_t &size) {
+    const uint8_t *pointer = data_begin + loc;
     if (pointer > data_end)
         return false;
     CodeletsEntry::Codelet codelet = (CodeletsEntry::Codelet)(*pointer);
@@ -60,8 +56,8 @@ bool TraceData::get_inter(size_t loc, const u1 *&codes, size_t &size) {
     return true;
 }
 
-bool TraceData::get_jit(size_t loc, const PCStackInfo **&codes, size_t &size, const JitSection *&section) {
-    const u1 *pointer = data_begin + loc;
+bool TraceData::get_jit(uint64_t loc, const PCStackInfo **&codes, uint64_t &size, const JitSection *&section) {
+    const uint8_t *pointer = data_begin + loc;
     if (pointer > data_end)
         return false;
     CodeletsEntry::Codelet codelet = CodeletsEntry::Codelet(*pointer);
@@ -84,32 +80,22 @@ bool TraceData::get_jit(size_t loc, const PCStackInfo **&codes, size_t &size, co
     return true;
 }
 
-int TraceDataRecord::add_bytecode(u8 time, Bytecodes::Code bytecode) {
+void TraceDataRecord::add_bytecode(uint64_t time, Bytecodes::Code bytecode) {
     current_time = time;
     if (codelet_type != CodeletsEntry::_bytecode) {
-        size_t begin = trace.data_end - trace.data_begin;
+        uint64_t begin = trace.data_end - trace.data_begin;
         codelet_type = CodeletsEntry::_bytecode;
-        if (trace.write(&codelet_type, 1) < 0) {
-            fprintf(stderr, "trace data record: fail to write.\n");
-            return -1;
-        }
+        trace.write(&codelet_type, 1);
         InterRecord inter;
-        if (trace.write(&inter, sizeof(inter)) < 0) {
-            fprintf(stderr, "trace data record: fail to write.\n");
-            return -1;
-        }
-        loc = trace.data_end - trace.data_begin - sizeof(u8);
+        trace.write(&inter, sizeof(inter));
+        loc = trace.data_end - trace.data_begin - sizeof(uint64_t);
     }
-    if (trace.write(&bytecode, 1) < 0) {
-        fprintf(stderr, "trace data record: fail to write.\n");
-        return -1;
-    }
-    (*((u8 *)(trace.data_begin + loc)))++;
-    return 0;
+    trace.write(&bytecode, 1);
+    (*((uint64_t *)(trace.data_begin + loc)))++;
 }
 
-int TraceDataRecord::add_jitcode(u8 time, const JitSection *section,
-                                 PCStackInfo *pc, u8 entry) {
+void TraceDataRecord::add_jitcode(uint64_t time, const JitSection *section,
+                                 PCStackInfo *pc, uint64_t entry) {
     current_time = time;
     if (codelet_type != CodeletsEntry::_jitcode
         && codelet_type != CodeletsEntry::_jitcode_entry
@@ -125,27 +111,18 @@ int TraceDataRecord::add_jitcode(u8 time, const JitSection *section,
             codelet_type = CodeletsEntry::_jitcode_entry;
         else
             codelet_type = CodeletsEntry::_jitcode;
-        if (trace.write(&codelet_type, 1) < 0) {
-            fprintf(stderr, "trace data record: fail to write.\n");
-            return -1;
-        }
+        trace.write(&codelet_type, 1);
         JitRecord jit(section);
-        if (trace.write(&jit, sizeof(jit)) < 0) {
-            fprintf(stderr, "trace data record: fail to write.\n");
-            return -1;
-        }
-        loc = trace.data_end - trace.data_begin - 2 * sizeof(u8);
+        trace.write(&jit, sizeof(jit));
+        loc = trace.data_end - trace.data_begin - 2 * sizeof(uint64_t);
         last_section = section;
     }
-    if (trace.write(&pc, sizeof(pc)) < 0) {
-        fprintf(stderr, "trace data record: fail to write.\n");
-        return -1;
-    }
-    (*((u8 *)(trace.data_begin + loc)))++;
-    return 0;
+    trace.write(&pc, sizeof(pc));
+    (*((uint64_t *)(trace.data_begin + loc)))++;
+    return;
 }
 
-int TraceDataRecord::add_codelet(CodeletsEntry::Codelet codelet) {
+void TraceDataRecord::add_codelet(CodeletsEntry::Codelet codelet) {
     switch (codelet) {
         case CodeletsEntry::_method_entry:
         case CodeletsEntry::_throw_ArrayIndexOutOfBoundsException:
@@ -161,11 +138,8 @@ int TraceDataRecord::add_codelet(CodeletsEntry::Codelet codelet) {
         case CodeletsEntry::_remove_activation:
         case CodeletsEntry::_remove_activation_preserving_args: {
             codelet_type = codelet;
-            if (trace.write(&codelet_type, 1) < 0) {
-                fprintf(stderr, "trace data record: fail to write.\n");
-                return -1;
-            }
-            return 0;
+            trace.write(&codelet_type, 1);
+            return;
         }
         case CodeletsEntry::_invoke_return:
         case CodeletsEntry::_invokedynamic_return:
@@ -173,25 +147,22 @@ int TraceDataRecord::add_codelet(CodeletsEntry::Codelet codelet) {
             if (codelet_type == CodeletsEntry::_method_entry) {
                 trace.data_end--;
                 codelet_type = CodeletsEntry::_illegal;
-                return 0;
+                return;
             }
             codelet_type = codelet;
-            if (trace.write(&codelet_type, 1) < 0) {
-                fprintf(stderr, "trace data record: fail to write.\n");
-                return -1;
-            }
-            return 0;
+            trace.write(&codelet_type, 1);
+            return;
         }
         case CodeletsEntry::_result_handlers_for_native_calls: {
             if (codelet_type == CodeletsEntry::_method_entry)
                 trace.data_end--;
             codelet_type = CodeletsEntry::_illegal;
-            return 0;
+            return;
         }
         default: {
-            fprintf(stdout, "trace data record: unknown codelets type(%d)\n", codelet);
+            std::cerr << "TraceDataRecord: unknown codelets type" << codelet << std::endl;
             codelet_type = CodeletsEntry::_illegal;
-            return 0;
+            return;
         }
     }
 }
@@ -207,21 +178,20 @@ void TraceDataRecord::switch_out(bool loss) {
     if (thread) {
         thread->end_addr = trace.data_end - trace.data_begin;
         thread->end_time = current_time;
-        thread->tail_loss = loss;
+        if (loss) thread->tail_loss = 1;
     }
     thread = nullptr;
     return;
 }
 
-void TraceDataRecord::switch_in(long tid, u8 time, bool loss) {
+void TraceDataRecord::switch_in(uint32_t tid, uint64_t time, bool loss) {
     if (thread && thread->tid == tid && !loss)
         return;
 
     current_time = time;
     auto split = trace.thread_map.find(tid);
     if (split == trace.thread_map.end()) {
-        trace.thread_map[tid].push_back(
-            ThreadSplit(tid, trace.data_end - trace.data_begin, time));
+        trace.thread_map[tid].push_back(ThreadSplit(tid, trace.data_end - trace.data_begin, time));
         thread = &trace.thread_map[tid].back();
         thread->head_loss = loss;
         codelet_type = CodeletsEntry::_illegal;
@@ -235,12 +205,12 @@ void TraceDataRecord::switch_in(long tid, u8 time, bool loss) {
     iter = split->second.insert(
             iter, ThreadSplit(tid, trace.data_end - trace.data_begin, time));
     thread = &*iter;
-    thread->head_loss = loss;
+    if (loss) thread->head_loss = 1;
     codelet_type = CodeletsEntry::_illegal;
     return;
 }
 
-bool TraceDataAccess::next_trace(CodeletsEntry::Codelet &codelet, size_t &loc) {
+bool TraceDataAccess::next_trace(CodeletsEntry::Codelet &codelet, uint64_t &loc) {
     loc = current - trace.data_begin;
     if (current >= terminal) {
         return false;
@@ -248,7 +218,7 @@ bool TraceDataAccess::next_trace(CodeletsEntry::Codelet &codelet, size_t &loc) {
     codelet = CodeletsEntry::Codelet(*current);
     if (codelet < CodeletsEntry::_unimplemented_bytecode ||
         codelet > CodeletsEntry::_jitcode) {
-        fprintf(stderr, "trace data access: format error %ld.\n", loc);
+        std::cerr << "TraceDataAccess: format error " << loc << std::endl;
         current = terminal;
         loc = current - trace.data_begin;
         return false;
@@ -258,7 +228,7 @@ bool TraceDataAccess::next_trace(CodeletsEntry::Codelet &codelet, size_t &loc) {
         const InterRecord *inter = (const InterRecord *)current;
         if (current + sizeof(InterRecord) + inter->size > trace.data_end ||
             current + sizeof(InterRecord) + inter->size < current) {
-            fprintf(stderr, "trace data access: format error %ld.\n", loc);
+            std::cerr << "TraceDataAccess: format error" << loc << std::endl;
             current = terminal;
             loc = current - trace.data_begin;
             return false;
@@ -270,7 +240,7 @@ bool TraceDataAccess::next_trace(CodeletsEntry::Codelet &codelet, size_t &loc) {
         const JitRecord *jit = (const JitRecord *)current;
         if (current + sizeof(JitRecord) + jit->size * sizeof(PCStackInfo *) > trace.data_end
             || current + sizeof(JitRecord) + jit->size * sizeof(PCStackInfo *) < current) {
-            fprintf(stderr, "trace data access: format error %ld.\n", loc);
+            std::cerr << "TraceDataAccess: format error" << loc << std::endl;
             current = terminal;
             loc = current - trace.data_begin;
             return false;

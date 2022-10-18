@@ -25,7 +25,7 @@
 #ifndef COMPRESSED_STREAM_HPP
 #define COMPRESSED_STREAM_HPP
 
-#include "utilities/definitions.hpp"
+#include "java/definitions.hpp"
 
 const int LogBitsPerByte     = 3;
 const int BitsPerByte        = 1 << LogBitsPerByte; 

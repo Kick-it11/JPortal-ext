@@ -205,7 +205,7 @@ public:
     }
 };
 
-static bool output_bytecode(FILE* fp, const uint8_t* codes, size_t size) {
+static bool output_bytecode(FILE* fp, const uint8_t* codes, uint64_t size) {
     // output bytecode
     for (int i = 0; i < size; i++) {
         // fwrite(codes+i, 1, 1, fp);
@@ -252,7 +252,7 @@ static bool handle_jitcode(ExecInfo* exec, const PCStackInfo **pcs, int size,
             int mi = pc->methods[j];
             int bci = pc->bcis[j];
             const Method* method = section->cmd()->method(mi);
-            Block* block = (method && method->is_jportal())? method->get_bg()->block(bci) : (Block*)(long long)bci;
+            Block* block = (method && method->is_jportal())? method->get_bg()->block(bci) : (Block*)(uint64_t)bci;
             frame.push_back({method, block});
             block_execs.insert({method, block});
         }
@@ -285,10 +285,10 @@ static void return_exec(std::stack<ExecInfo*> &exec_st, const JitSection* sectio
     }
 }
 
-static void output_trace(TraceData* trace, size_t start, size_t end, FILE* fp) {
+static void output_trace(TraceData* trace, uint64_t start, uint64_t end, FILE* fp) {
     TraceDataAccess access(*trace, start, end);
     CodeletsEntry::Codelet codelet, prev_codelet = CodeletsEntry::_illegal;
-    size_t loc;
+    uint64_t loc;
     std::stack<ExecInfo*> exec_st;
     while (access.next_trace(codelet, loc)) {
         switch(codelet) {
@@ -340,7 +340,7 @@ static void output_trace(TraceData* trace, size_t start, size_t end, FILE* fp) {
             }
             case CodeletsEntry::_bytecode: {
                 const uint8_t* codes;
-                size_t size;
+                uint64_t size;
                 assert(trace->get_inter(loc, codes, size) && codes);
                 std::vector<std::pair<const Method*, Block*>> blocks;
                 return_exec(exec_st, nullptr, blocks);
@@ -353,7 +353,7 @@ static void output_trace(TraceData* trace, size_t start, size_t end, FILE* fp) {
             case CodeletsEntry::_jitcode: {
                 const JitSection *section = nullptr;
                 const PCStackInfo **pcs = nullptr;
-                size_t size;
+                uint64_t size;
                 assert(trace->get_jit(loc, pcs, size, section)
                        && pcs && section && section->cmd());
                 std::vector<std::pair<const Method*, Block*>> blocks;
@@ -387,7 +387,7 @@ static void output_trace(TraceData* trace, size_t start, size_t end, FILE* fp) {
 
 // per thread output
 void output_decode(std::list<TraceData*> &traces) {
-    std::map<long, std::vector<std::pair<ThreadSplit, TraceData*>>> threads_data;
+    std::map<uint32_t, std::vector<std::pair<ThreadSplit, TraceData*>>> threads_data;
     for (auto && trace : traces)
         for (auto && threads: trace->get_thread_map())
             for (auto && thread : threads.second)

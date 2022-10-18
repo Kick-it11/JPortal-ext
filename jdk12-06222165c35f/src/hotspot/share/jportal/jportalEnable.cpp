@@ -160,29 +160,6 @@ void JPortalEnable::dump_method_entry(JavaThread *thread, Method *moop) {
   dump_data((address)&me, size);
 }
 
-void JPortalEnable::dump_method_exit(JavaThread *thread, Method *moop) {
-  MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
-
-  if (!_initialized) {
-    fprintf(stderr, "JPortalEnable error: method entry before initialize.\n");
-    return;
-  }
-
-  if (!thread || !moop) {
-    fprintf(stderr, "JPortalEnable error: empty method exit.\n");
-    return;
-  }
-
-  int idx = _method_array->find(moop);
-  if (idx == -1)
-    return;
-
-  u4 size = sizeof(MethodExitInfo);
-  MethodExitInfo me(idx, get_java_tid(thread), size);
-
-  dump_data((address)&me, size);
-}
-
 void JPortalEnable::dump_compiled_method_load(Method *moop, nmethod *nm) {
   MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
 

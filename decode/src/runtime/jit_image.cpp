@@ -49,7 +49,7 @@ void JitImage::add(JitSection *section) {
     return;
 }
 
-bool JitImage::remove(address vaddr)
+bool JitImage::remove(uint64_t vaddr)
 {
     std::list<JitSection*>::iterator it = _sections.begin();
     while(it != _sections.end()) {
@@ -73,7 +73,7 @@ bool JitImage::remove(address vaddr)
     return false;
 }
 
-JitSection *JitImage::find(address vaddr) {
+JitSection *JitImage::find(uint64_t vaddr) {
     std::list<JitSection *>::iterator it = _sections.begin();
     while (it != _sections.end()) {
         JitSection *sec = *it;

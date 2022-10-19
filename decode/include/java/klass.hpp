@@ -12,7 +12,6 @@ class Method;
 class Klass {
   private:
     std::string _name;
-    // <ConstantPool_index, class.name+signature>
     std::map<u2, std::string> _cp_index2method_ref;
     std::map<std::string, const Method *> _method_map;
     std::string _father_name;
@@ -34,4 +33,4 @@ class Klass {
     std::map<std::string, const Method*> *get_method_map() { return &_method_map; }
 };
 
-#endif // KLASS_HPP
+#endif /* KLASS_HPP */

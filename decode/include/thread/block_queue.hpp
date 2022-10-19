@@ -83,4 +83,4 @@ public:
     }
 };
 
-#endif // BLOCK_QUEUE_HPP
+#endif /* BLOCK_QUEUE_HPP */

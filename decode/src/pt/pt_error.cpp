@@ -31,92 +31,92 @@
 
 const char *pt_errstr(enum pt_error_code errcode)
 {
-	switch (errcode) {
-	case pte_ok:
-		return "OK";
+    switch (errcode) {
+    case pte_ok:
+        return "OK";
 
-	case pte_internal:
-		return "internal error";
+    case pte_internal:
+        return "internal error";
 
-	case pte_invalid:
-		return "invalid argument";
+    case pte_invalid:
+        return "invalid argument";
 
-	case pte_nosync:
-		return "decoder out of sync";
+    case pte_nosync:
+        return "decoder out of sync";
 
-	case pte_bad_opc:
-		return "unknown opcode";
+    case pte_bad_opc:
+        return "unknown opcode";
 
-	case pte_bad_packet:
-		return "unknown packet";
+    case pte_bad_packet:
+        return "unknown packet";
 
-	case pte_bad_context:
-		return "unexpected packet context";
+    case pte_bad_context:
+        return "unexpected packet context";
 
-	case pte_eos:
-		return "reached end of trace stream";
+    case pte_eos:
+        return "reached end of trace stream";
 
-	case pte_bad_query:
-		return "trace stream does not match query";
+    case pte_bad_query:
+        return "trace stream does not match query";
 
-	case pte_nomem:
-		return "out of memory";
+    case pte_nomem:
+        return "out of memory";
 
-	case pte_bad_config:
-		return "bad configuration";
+    case pte_bad_config:
+        return "bad configuration";
 
-	case pte_noip:
-		return "no ip";
+    case pte_noip:
+        return "no ip";
 
-	case pte_ip_suppressed:
-		return "ip has been suppressed";
+    case pte_ip_suppressed:
+        return "ip has been suppressed";
 
-	case pte_nomap:
-		return "no memory mapped at this address";
+    case pte_nomap:
+        return "no memory mapped at this address";
 
-	case pte_bad_insn:
-		return "unknown instruction";
+    case pte_bad_insn:
+        return "unknown instruction";
 
-	case pte_no_time:
-		return "no timing information";
+    case pte_no_time:
+        return "no timing information";
 
-	case pte_no_cbr:
-		return "no core:bus ratio";
+    case pte_no_cbr:
+        return "no core:bus ratio";
 
-	case pte_bad_image:
-		return "bad image";
+    case pte_bad_image:
+        return "bad image";
 
-	case pte_bad_lock:
-		return "locking error";
+    case pte_bad_lock:
+        return "locking error";
 
-	case pte_not_supported:
-		return "not supported";
+    case pte_not_supported:
+        return "not supported";
 
-	case pte_retstack_empty:
-		return "compressed return without call";
+    case pte_retstack_empty:
+        return "compressed return without call";
 
-	case pte_bad_retcomp:
-		return "bad compressed return";
+    case pte_bad_retcomp:
+        return "bad compressed return";
 
-	case pte_bad_status_update:
-		return "bad status update";
+    case pte_bad_status_update:
+        return "bad status update";
 
-	case pte_no_enable:
-		return "expected tracing enabled event";
+    case pte_no_enable:
+        return "expected tracing enabled event";
 
-	case pte_event_ignored:
-		return "event ignored";
+    case pte_event_ignored:
+        return "event ignored";
 
-	case pte_overflow:
-		return "overflow";
+    case pte_overflow:
+        return "overflow";
 
-	case pte_bad_file:
-		return "bad file";
+    case pte_bad_file:
+        return "bad file";
 
-	case pte_bad_cpu:
-		return "unknown cpu";
-	}
+    case pte_bad_cpu:
+        return "unknown cpu";
+    }
 
-	/* Should not reach here. */
-	return "internal error.";
+    /* Should not reach here. */
+    return "internal error.";
 }

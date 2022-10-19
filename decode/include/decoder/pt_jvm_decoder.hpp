@@ -3,6 +3,7 @@
 
 #include "decoder/decode_result.hpp"
 #include "insn/pt_insn.hpp"
+#include "insn/pt_retstack.hpp"
 #include "java/bytecodes.hpp"
 #include "pt/pt.hpp"
 
@@ -49,14 +50,14 @@ private:
     /* The current execution mode. */
     enum pt_exec_mode _mode;
 
+    /** pt ret stack*/
+    struct pt_retstack _retstack;
+
     /* The status of the last successful decoder query.
      * Errors are reported directly; the status is always a non-negative
      * pt_status_flag bit-vector.
      */
     int _status;
-
-    /* to indicate there is an unresolved ip for query decoder */
-    bool _unresolved;
 
     /* A collection of flags defining how to proceed flow reconstruction:
      * - tracing is enabled.
@@ -96,13 +97,51 @@ private:
     /* instruction ext */
     struct pt_insn_ext _iext;
 
-    PCStackInfo *_last_pcinfo = nullptr;
-    int _pcinfo_tow = 0;
-    uint64_t _last_ip = 0;
+private:
+    /* functions tha are used both by jit & normal*/
 
+    /* query an indirect branch */
+    int decoder_indirect_branch(uint64_t *ip);
+
+    /* query a conditional branch */
+    int decoder_cond_branch(int *taken);
+
+    /* check if there is a event pending*/
+    int decoder_event_pending();
+
+    /* process a specific event*/
+
+    int decoder_process_enabled();
+    int decoder_process_disabled();
+    int decoder_process_async_branch();
+    int decoder_process_paging();
+    int decoder_process_overflow();
+    int decoder_process_exec_mode();
+    int decoder_process_tsx();
+    int decoder_process_stop();
+    int decoder_process_vmcs();
 
 private:
-    /* private functions from libipt/pt_insn_decoder
+    enum
+    {
+        /* The maximum number of steps to take when determining whether the
+         * event location can be reached.
+         */
+        bdm64_max_steps = 0x100
+    };
+
+    /**
+     * From pt_insn.c in libipt
+     * Since we provide different pt_image, pt_section for jit
+     * Abstact it here
+     */
+    int pt_insn_decode(struct pt_insn *insn, struct pt_insn_ext *iext);
+    int pt_insn_decode_retry(struct pt_insn *insn, struct pt_insn_ext *iext);
+    int pt_insn_range_is_contiguous(uint64_t begin, uint64_t end,
+                                    enum pt_exec_mode mode, uint64_t steps);
+
+private:
+    /* private functions from libipt/pt_insn_decoder(for jit)
      * Complete insn decoding for jitted codes
      * 
      * For a instruction pointer, decoder will first do a codelet match.
@@ -111,55 +150,61 @@ private:
      * And will continue until it jumps out of jitted code.
      */
 
-    int pt_insn_decode(struct pt_insn *insn, struct pt_insn_ext *iext);
-    int pt_insn_decode_retry(struct pt_insn *insn, struct pt_insn_ext *iext);
-    int pt_insn_range_is_contiguous(uint64_t begin, uint64_t end,
-                                    enum pt_exec_mode mode, uint64_t steps);
+    /** reset insn-related-only info */
+    int pt_insn_reset();
+
+    int pt_insn_status(int flags);
+
+    int pt_insn_start();
 
     int pt_insn_check_erratum_skd022();
     int pt_insn_handle_erratum_skd022();
+
+    int pt_insn_proceed(const struct pt_insn *insn, const struct pt_insn_ext *iext);
+
     int pt_insn_at_skl014(const struct pt_event *ev, const struct pt_insn *insn,
                           const struct pt_insn_ext *iext, const struct pt_config *config);
     int pt_insn_at_disabled_event(const struct pt_event *ev, const struct pt_insn *insn,
                                   const struct pt_insn_ext *iext, const struct pt_config *config);
-    int pt_insn_status(int flags);
+
+    int pt_insn_postpone(const struct pt_insn *insn, const struct pt_insn_ext *iext);
+    int pt_insn_clear_postponed();
+
+    int pt_insn_check_insn_event(const struct pt_insn *insn, const struct pt_insn_ext *iext);
+
     int pt_insn_handle_erratum_bdm64(const struct pt_event *ev, const struct pt_insn *insn,
                              const struct pt_insn_ext *iext);
     int pt_insn_postpone_tsx(const struct pt_insn *insn, const struct pt_insn_ext *iext,
                              const struct pt_event *ev);
+
     int pt_insn_check_ip_event(const struct pt_insn *insn, const struct pt_insn_ext *iext);
-    int pt_insn_postpone(const struct pt_insn *insn, const struct pt_insn_ext *iext);
-    int pt_insn_check_insn_event(const struct pt_insn *insn, const struct pt_insn_ext *iext);
-    int pt_insn_clear_postponed();
-    int pt_insn_indirect_branch(uint64_t *ip);
-    int pt_insn_cond_branch(int *taken);
-    int pt_insn_proceed(const struct pt_insn *insn, const struct pt_insn_ext *iext);
+
     int pt_insn_proceed_postponed();
-    int pt_insn_process_enabled();
-    int pt_insn_process_disabled();
-    int pt_insn_process_async_branch();
-    int pt_insn_process_paging();
-    int pt_insn_process_overflow();
-    int pt_insn_process_exec_mode();
-    int pt_insn_process_tsx();
-    int pt_insn_process_stop();
-    int pt_insn_process_vmcs();
+
     int pt_insn_event();
-    int pt_insn_reset();
-    int pt_insn_start();
+
+    int pt_insn_drain_events();
+
+    int pt_insn_next(JitSection* &section, struct pt_insn &uinsn);
 
 private:
-    int event_pending();
-    int drain_insn_events(int status);
-    int handle_compiled_code_result(JitSection *section);
-    int handle_compiled_code();
-    int handle_bytecode(Bytecodes::Code bytecode);
-    int ptjvm_result_decode();
-    int drain_qry_events();
+    /* process all events before entering decoder_record_result */
+    int decoder_drain_events();
 
-    void reset_decoder();
+    int decoder_sync_forward();
 
-    void time_change();
+    int decoder_record_jitcode(JitSection *section, PCStackInfo* &info, bool &tow);
+
+    int decoder_process_jitcode();
+
+    int decoder_record_bytecode(Bytecodes::Code bytecode);
+
+    int decoder_process_ip();
+
+    void decoder_reset();
+
+    /* check if time changes & process jvm runtime or sideband event */
+    void decoder_time_change();
 
 public:
 
@@ -170,4 +215,4 @@ public:
 
 };
 
-#endif // PT_JVM_DECODER_HPP
+#endif /* PT_JVM_DECODER_HPP */

@@ -146,4 +146,4 @@ class TraceDataAccess {
     }
 };
 
-#endif // DECODE_RESULT_HPP
+#endif /* DECODE_RESULT_HPP */

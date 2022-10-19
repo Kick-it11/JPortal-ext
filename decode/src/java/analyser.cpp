@@ -66,7 +66,6 @@ void Analyser::parse(const std::list<std::string>& class_paths) {
                     if (name.length() > 6 &&
                             0 == name.compare(name.length() - 6, 6, ".class")) {
                         std::string file_path = main_path+ package_name + name;
-                        // cout << "parse: " << file_path << endl;
                         std::string klass_name = package_name + name.substr(0, name.length()-6);
                         assert(!_klasses.count(klass_name));
                         Klass* klass = new Klass(klass_name);

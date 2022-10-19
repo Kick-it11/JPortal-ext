@@ -181,4 +181,4 @@ private:
     static bool _initialized;
 };
 
-#endif // JVM_RUNTIME_HPP
+#endif /* JVM_RUNTIME_HPP */

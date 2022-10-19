@@ -28,38 +28,32 @@
 #include "runtime/pc_desc.hpp"
 
 typedef unsigned char u_char;
-// ScopeDescs contain the information that makes source-level debugging of
-// nmethods possible; each scopeDesc describes a method activation
-
+/* ScopeDescs contain the information that makes source-level debugging of
+ * nmethods possible; each scopeDesc describes a method activation
+ */
 class ScopeDesc {
  public:
-  // Constructor
   ScopeDesc(int decode_offset, int obj_decode_offset, bool reexecute, bool rethrow_exception, bool return_oop, const u_char *scopes_data);
 
-  // JVM state
   int  method_index()     const {return _method_index; }
   int          bci()      const { return _bci;    }
   bool should_reexecute() const { return _reexecute; }
   bool rethrow_exception() const { return _rethrow_exception; }
   bool return_oop()       const { return _return_oop; }
 
-  // Stack walking, returns NULL if this is the outer most scope.
   ScopeDesc* sender() const;
 
-  // Returns where the scope was decoded
   int decode_offset() const { return _decode_offset; }
 
   int sender_decode_offset() const { return _sender_decode_offset; }
 
-  // Tells whether sender() returns NULL
   bool is_top() const;
 
  private:
   void initialize(const ScopeDesc* parent, int decode_offset);
-  // Alternative constructors
+
   ScopeDesc(const ScopeDesc* parent);
 
-  // JVM state
   int           _method_index;
   int           _bci;
   bool          _reexecute;
@@ -68,7 +62,6 @@ class ScopeDesc {
 
   const u_char *_scopes_data;
 
-  // Decoding offsets
   int _decode_offset;
   int _sender_decode_offset;
   int _locals_decode_offset;
@@ -77,9 +70,8 @@ class ScopeDesc {
 
   int _obj_decode_offset;
 
-  // Decoding operations
   void decode_body();
 
 };
 
-#endif // SCOPEDESC_HPP
+#endif /* SCOPEDESC_HPP */

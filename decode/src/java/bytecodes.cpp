@@ -36,7 +36,6 @@ static inline u4 get_u4(const u1 *buffer) {
 }
 
 int Bytecodes::special_length_at(Code code, const u1 *buffer, const u4 offset) {
-    // offset = buffer + 1 - _code
     switch (code) {
     case _breakpoint: {
         return 1;
@@ -62,7 +61,7 @@ int Bytecodes::special_length_at(Code code, const u1 *buffer, const u4 offset) {
         return alup + (2 + 2 * npairs) * jintSize;
     }
     default: {
-        // should not reach here
+        /* should not reach here */
         return -1;
     }
     }
@@ -184,19 +183,20 @@ void Bytecodes::initialize() {
         return;
     assert(number_of_codes <= 256);
 
-    // initialize bytecode tables - didn't use static array initializers
-    // (such as {}) so we can do additional consistency checks and init-
-    // code is independent of actual bytecode numbering.
-    //
-    // Note 1: nullptr for the format string means the bytecode doesn't exist
-    //         in that form.
-    //
-    // Note 2: The result type is T_ILLEGAL for bytecodes where the top of stack
-    //         type after execution is not only determined by the bytecode
-    //         itself.
-
-    //  Java bytecodes
-    //  bytecode, is_block_end, bytecode_name, format, wide f.
+    /* initialize bytecode tables - didn't use static array initializers
+     * (such as {}) so we can do additional consistency checks and init-
+     * code is independent of actual bytecode numbering.
+     *
+     * Note 1: nullptr for the format string means the bytecode doesn't exist
+     *         in that form.
+     *
+     * Note 2: The result type is T_ILLEGAL for bytecodes where the top of stack
+     *         type after execution is not only determined by the bytecode
+     *         itself.
+     * 
+     * Java bytecodes
+     *  bytecode, is_block_end, bytecode_name, format, wide f.
+     */
     def(_nop, false, "nop", "b", nullptr);
     def(_aconst_null, false, "aconst_null", "b", nullptr);
     def(_iconst_m1, false, "iconst_m1", "b", nullptr);
@@ -401,9 +401,9 @@ void Bytecodes::initialize() {
     def(_jsr_w, true, "jsr_w", "boooo", nullptr);
     def(_breakpoint, false, "breakpoint", "", nullptr);
 
-    //  JVM bytecodes
-    //  bytecode, is_jmp, bytecode_name, format, wide f., code
-
+    /*  JVM bytecodes
+     *  bytecode, is_jmp, bytecode_name, format, wide f., code
+     */
     def(_fast_agetfield, false, "fast_agetfield", "bJJ", nullptr, _getfield);
     def(_fast_bgetfield, false, "fast_bgetfield", "bJJ", nullptr, _getfield);
     def(_fast_cgetfield, false, "fast_cgetfield", "bJJ", nullptr, _getfield);
@@ -432,7 +432,7 @@ void Bytecodes::initialize() {
     def(_fast_iload2, false, "fast_iload2", "bi_i", nullptr, _iload);
     def(_fast_icaload, false, "fast_icaload", "bi_", nullptr, _iload);
 
-    // Faster method invocation.
+    /* Faster method invocation. */
     def(_fast_invokevfinal, false, "fast_invokevfinal", "bJJ", nullptr,
         _invokevirtual);
 
@@ -457,6 +457,6 @@ void Bytecodes::initialize() {
 
     def(_shouldnotreachhere, false, "_shouldnotreachhere", "b", nullptr);
 
-    // initialization successful
+    /* initialization successful */
     _is_initialized = true;
 }

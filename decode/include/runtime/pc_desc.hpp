@@ -27,13 +27,13 @@
 
 #include <stdint.h>
 
-// PcDescs map a physical PC (given as offset from start of nmethod) to
-// the corresponding source scope and byte code index.
-
+/* PcDescs map a physical PC (given as offset from start of nmethod) to
+ * the corresponding source scope and byte code index.
+ */
 class PcDesc {
  private:
-  int _pc_offset;           // offset from start of nmethod
-  int _scope_decode_offset; // offset for scope in nmethod
+  int _pc_offset;           /* offset from start of nmethod */
+  int _scope_decode_offset; /* offset for scope in nmethod */
   int _obj_decode_offset;
 
   enum {
@@ -58,23 +58,23 @@ class PcDesc {
   void set_scope_decode_offset(int x) { _scope_decode_offset = x; }
   void set_obj_decode_offset(int x)   { _obj_decode_offset   = x; }
 
-  // Constructor (only used for static in nmethod.cpp)
-  // Also used by ScopeDesc::sender()]
+  /* Constructor (only used for static in nmethod.cpp) */
+  /* Also used by ScopeDesc::sender()] */
   PcDesc(int pc_offset, int scope_decode_offset, int obj_decode_offset);
 
   enum {
-    // upper and lower exclusive limits real offsets:
+    /* upper and lower exclusive limits real offsets: */
     lower_offset_limit = -1,
     upper_offset_limit = (unsigned int)-1 >> 1
   };
 
-  // Flags
+  /* Flags */
   bool     rethrow_exception()              const { return (_flags & PCDESC_rethrow_exception) != 0; }
   void set_rethrow_exception(bool z)              { set_flag(PCDESC_rethrow_exception, z); }
   bool     should_reexecute()              const { return (_flags & PCDESC_reexecute) != 0; }
   void set_should_reexecute(bool z)              { set_flag(PCDESC_reexecute, z); }
 
-  // Does pd refer to the same information as pd?
+  /* Does pd refer to the same information as pd? */
   bool is_same_info(const PcDesc* pd) {
     return _scope_decode_offset == pd->_scope_decode_offset &&
       _obj_decode_offset == pd->_obj_decode_offset &&
@@ -87,10 +87,10 @@ class PcDesc {
   bool     return_oop()                    const { return (_flags & PCDESC_return_oop) != 0;     }
   void set_return_oop(bool z)                    { set_flag(PCDESC_return_oop, z); }
 
-  // Returns the real pc
+  /* Returns the real pc */
   uint64_t real_pc(uint64_t code_begin) const;
 
   bool verify();
 };
 
-#endif // PCDESC_HPP
+#endif /* PCDESC_HPP */

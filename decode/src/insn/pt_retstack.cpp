@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2013-2021, Intel Corporation
+ * Copyright (c) 2013-2022, Intel Corporation
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -26,64 +27,67 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "pt/pt_tnt_cache.hpp"
-
+#include "insn/pt_retstack.hpp"
 #include "pt/pt.hpp"
 
-
-void pt_tnt_cache_init(struct pt_tnt_cache *cache)
+void pt_retstack_init(struct pt_retstack *retstack)
 {
-    if (!cache)
+    if (!retstack)
         return;
 
-    cache->tnt = 0ull;
-    cache->index = 0ull;
+    retstack->top = 0;
+    retstack->bottom = 0;
 }
 
-int pt_tnt_cache_is_empty(const struct pt_tnt_cache *cache)
+int pt_retstack_is_empty(const struct pt_retstack *retstack)
 {
-    if (!cache)
+    if (!retstack)
         return -pte_invalid;
 
-    return cache->index == 0;
+    return (retstack->top == retstack->bottom ? 1 : 0);
 }
 
-int pt_tnt_cache_query(struct pt_tnt_cache *cache)
+int pt_retstack_pop(struct pt_retstack *retstack, uint64_t *ip)
 {
-    int taken;
+    uint8_t top;
 
-    if (!cache)
+    if (!retstack)
         return -pte_invalid;
 
-    if (!cache->index)
-        return -pte_bad_query;
+    top = retstack->top;
 
-    taken = (cache->tnt & cache->index) != 0;
-    cache->index >>= 1;
+    if (top == retstack->bottom)
+        return -pte_retstack_empty;
 
-    return taken;
+    top = (!top ? pt_retstack_size : top - 1);
+
+    retstack->top = top;
+
+    if (ip)
+        *ip = retstack->stack[top];
+
+    return 0;
 }
 
-int pt_tnt_cache_update_tnt(struct pt_tnt_cache *cache,
-                const struct pt_packet_tnt *packet,
-                const struct pt_config *config)
+int pt_retstack_push(struct pt_retstack *retstack, uint64_t ip)
 {
-    uint8_t bit_size;
+    uint8_t top, bottom;
 
-    (void) config;
-
-    if (!cache || !packet)
+    if (!retstack)
         return -pte_invalid;
 
-    if (cache->index)
-        return -pte_bad_context;
+    top = retstack->top;
+    bottom = retstack->bottom;
 
-    bit_size = packet->bit_size;
-    if (!bit_size)
-        return -pte_bad_packet;
+    retstack->stack[top] = ip;
 
-    cache->tnt = packet->payload;
-    cache->index = 1ull << (bit_size - 1);
+    top = (top == pt_retstack_size ? 0 : top + 1);
+
+    if (bottom == top)
+        bottom = (bottom == pt_retstack_size ? 0 : bottom + 1);
+
+    retstack->top = top;
+    retstack->bottom = bottom;
 
     return 0;
 }

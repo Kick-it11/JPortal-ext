@@ -33,95 +33,95 @@
 
 void pt_last_ip_init(struct pt_last_ip *last_ip)
 {
-	if (!last_ip)
-		return;
+    if (!last_ip)
+        return;
 
-	last_ip->ip = 0ull;
-	last_ip->have_ip = 0;
-	last_ip->suppressed = 0;
+    last_ip->ip = 0ull;
+    last_ip->have_ip = 0;
+    last_ip->suppressed = 0;
 }
 
 int pt_last_ip_query(uint64_t *ip, const struct pt_last_ip *last_ip)
 {
-	if (!last_ip)
-		return -pte_internal;
+    if (!last_ip)
+        return -pte_internal;
 
-	if (!last_ip->have_ip) {
-		if (ip)
-			*ip = 0ull;
-		return -pte_noip;
-	}
+    if (!last_ip->have_ip) {
+        if (ip)
+            *ip = 0ull;
+        return -pte_noip;
+    }
 
-	if (last_ip->suppressed) {
-		if (ip)
-			*ip = 0ull;
-		return -pte_ip_suppressed;
-	}
+    if (last_ip->suppressed) {
+        if (ip)
+            *ip = 0ull;
+        return -pte_ip_suppressed;
+    }
 
-	if (ip)
-		*ip = last_ip->ip;
+    if (ip)
+        *ip = last_ip->ip;
 
-	return 0;
+    return 0;
 }
 
 /* Sign-extend a uint64_t value. */
 static uint64_t sext(uint64_t val, uint8_t sign)
 {
-	uint64_t signbit, mask;
+    uint64_t signbit, mask;
 
-	signbit = 1ull << (sign - 1);
-	mask = ~0ull << sign;
+    signbit = 1ull << (sign - 1);
+    mask = ~0ull << sign;
 
-	return val & signbit ? val | mask : val & ~mask;
+    return val & signbit ? val | mask : val & ~mask;
 }
 
 int pt_last_ip_update_ip(struct pt_last_ip *last_ip,
-			 const struct pt_packet_ip *packet,
-			 const struct pt_config *config)
+             const struct pt_packet_ip *packet,
+             const struct pt_config *config)
 {
-	(void) config;
+    (void) config;
 
-	if (!last_ip || !packet)
-		return -pte_internal;
+    if (!last_ip || !packet)
+        return -pte_internal;
 
-	switch (packet->ipc) {
-	case pt_ipc_suppressed:
-		last_ip->suppressed = 1;
-		return 0;
+    switch (packet->ipc) {
+    case pt_ipc_suppressed:
+        last_ip->suppressed = 1;
+        return 0;
 
-	case pt_ipc_sext_48:
-		last_ip->ip = sext(packet->ip, 48);
-		last_ip->have_ip = 1;
-		last_ip->suppressed = 0;
-		return 0;
+    case pt_ipc_sext_48:
+        last_ip->ip = sext(packet->ip, 48);
+        last_ip->have_ip = 1;
+        last_ip->suppressed = 0;
+        return 0;
 
-	case pt_ipc_update_16:
-		last_ip->ip = (last_ip->ip & ~0xffffull)
-			| (packet->ip & 0xffffull);
-		last_ip->have_ip = 1;
-		last_ip->suppressed = 0;
-		return 0;
+    case pt_ipc_update_16:
+        last_ip->ip = (last_ip->ip & ~0xffffull)
+            | (packet->ip & 0xffffull);
+        last_ip->have_ip = 1;
+        last_ip->suppressed = 0;
+        return 0;
 
-	case pt_ipc_update_32:
-		last_ip->ip = (last_ip->ip & ~0xffffffffull)
-			| (packet->ip & 0xffffffffull);
-		last_ip->have_ip = 1;
-		last_ip->suppressed = 0;
-		return 0;
+    case pt_ipc_update_32:
+        last_ip->ip = (last_ip->ip & ~0xffffffffull)
+            | (packet->ip & 0xffffffffull);
+        last_ip->have_ip = 1;
+        last_ip->suppressed = 0;
+        return 0;
 
-	case pt_ipc_update_48:
-		last_ip->ip = (last_ip->ip & ~0xffffffffffffull)
-			| (packet->ip & 0xffffffffffffull);
-		last_ip->have_ip = 1;
-		last_ip->suppressed = 0;
-		return 0;
+    case pt_ipc_update_48:
+        last_ip->ip = (last_ip->ip & ~0xffffffffffffull)
+            | (packet->ip & 0xffffffffffffull);
+        last_ip->have_ip = 1;
+        last_ip->suppressed = 0;
+        return 0;
 
-	case pt_ipc_full:
-		last_ip->ip = packet->ip;
-		last_ip->have_ip = 1;
-		last_ip->suppressed = 0;
-		return 0;
-	}
+    case pt_ipc_full:
+        last_ip->ip = packet->ip;
+        last_ip->have_ip = 1;
+        last_ip->suppressed = 0;
+        return 0;
+    }
 
-	return -pte_bad_packet;
+    return -pte_bad_packet;
 }

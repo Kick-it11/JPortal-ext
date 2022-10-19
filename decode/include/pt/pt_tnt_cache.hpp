@@ -37,16 +37,16 @@ struct pt_config;
 
 /* Keeping track of tnt indicators. */
 struct pt_tnt_cache {
-	/* The last tnt. */
-	uint64_t tnt;
+    /* The last tnt. */
+    uint64_t tnt;
 
-	/* The index into the above tnt.
-	 *
-	 * (tnt & index) gives the current tnt entry.
-	 * (index >>= 1) moves the index to the next tnt entry.
-	 * (index == 0) means that the current tnt is empty.
-	 */
-	uint64_t index;
+    /* The index into the above tnt.
+     *
+     * (tnt & index) gives the current tnt entry.
+     * (index >>= 1) moves the index to the next tnt entry.
+     * (index == 0) means that the current tnt is empty.
+     */
+    uint64_t index;
 };
 
 
@@ -82,7 +82,7 @@ extern int pt_tnt_cache_query(struct pt_tnt_cache *cache);
  * Returns -pte_bad_context if the tnt cache is not empty.
  */
 extern int pt_tnt_cache_update_tnt(struct pt_tnt_cache *cache,
-				   const struct pt_packet_tnt *packet,
-				   const struct pt_config *config);
+                   const struct pt_packet_tnt *packet,
+                   const struct pt_config *config);
 
-#endif /* PT_TNT_CACHE_H */
+#endif /* PT_TNT_CACHE_HPP */

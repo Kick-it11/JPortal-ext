@@ -12,6 +12,6 @@ uint64_t PcDesc::real_pc(uint64_t code_begin) const {
 }
 
 bool PcDesc::verify() {
-  //Unimplemented();
+  /* Unimplemented(); */
   return true;
 }

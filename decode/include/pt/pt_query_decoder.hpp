@@ -41,47 +41,47 @@ struct pt_decoder_function;
 
 /* An Intel PT query decoder. */
 struct pt_query_decoder {
-	/* The decoder configuration. */
-	struct pt_config config;
+    /* The decoder configuration. */
+    struct pt_config config;
 
-	/* The current position in the trace buffer. */
-	const uint8_t *pos;
+    /* The current position in the trace buffer. */
+    const uint8_t *pos;
 
-	/* The position of the last PSB packet. */
-	const uint8_t *sync;
+    /* The position of the last PSB packet. */
+    const uint8_t *sync;
 
-	/* The decoding function for the next packet. */
-	const struct pt_decoder_function *next;
+    /* The decoding function for the next packet. */
+    const struct pt_decoder_function *next;
 
-	/* The last-ip. */
-	struct pt_last_ip ip;
+    /* The last-ip. */
+    struct pt_last_ip ip;
 
-	/* The cached tnt indicators. */
-	struct pt_tnt_cache tnt;
+    /* The cached tnt indicators. */
+    struct pt_tnt_cache tnt;
 
-	/* Timing information. */
-	struct pt_time time;
+    /* Timing information. */
+    struct pt_time time;
 
-	/* The time at the last query (before reading ahead). */
-	struct pt_time last_time;
+    /* The time at the last query (before reading ahead). */
+    struct pt_time last_time;
 
-	/* Timing calibration. */
-	struct pt_time_cal tcal;
+    /* Timing calibration. */
+    struct pt_time_cal tcal;
 
-	/* Pending (incomplete) events. */
-	struct pt_event_queue evq;
+    /* Pending (incomplete) events. */
+    struct pt_event_queue evq;
 
-	/* The current event. */
-	struct pt_event *event;
+    /* The current event. */
+    struct pt_event *event;
 
-	/* A collection of flags relevant for decoding:
-	 *
-	 * - tracing is enabled.
-	 */
-	uint32_t enabled:1;
+    /* A collection of flags relevant for decoding:
+     *
+     * - tracing is enabled.
+     */
+    uint32_t enabled:1;
 
-	/* - consume the current packet. */
-	uint32_t consume_packet:1;
+    /* - consume the current packet. */
+    uint32_t consume_packet:1;
 };
 
 /* Initialize the query decoder.
@@ -89,7 +89,7 @@ struct pt_query_decoder {
  * Returns zero on success, a negative error code otherwise.
  */
 extern int pt_qry_decoder_init(struct pt_query_decoder *,
-			       const struct pt_config *);
+                               const struct pt_config *);
 
 /* Finalize the query decoder. */
 extern void pt_qry_decoder_fini(struct pt_query_decoder *);
@@ -131,4 +131,4 @@ extern int pt_qry_header_mode(struct pt_query_decoder *);
 extern int pt_qry_header_vmcs(struct pt_query_decoder *);
 extern int pt_qry_header_mnt(struct pt_query_decoder *);
 
-#endif /* PT_QUERY_DECODER_H */
+#endif /* PT_QUERY_DECODER_HPP */

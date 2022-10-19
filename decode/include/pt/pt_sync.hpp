@@ -48,9 +48,9 @@ struct pt_config;
  * Returns -pte_eos if no further synchronization point is found.
  */
 extern int pt_sync_forward(const uint8_t **sync, const uint8_t *pos,
-			   const struct pt_config *config);
+                           const struct pt_config *config);
 extern int pt_sync_backward(const uint8_t **sync, const uint8_t *pos,
-			    const struct pt_config *config);
+                            const struct pt_config *config);
 
 /* Manually synchronize onto the trace stream.
  *
@@ -66,6 +66,6 @@ extern int pt_sync_backward(const uint8_t **sync, const uint8_t *pos,
  * Returns -pte_bad_packet if there is no PSB at @pos.
  */
 extern int pt_sync_set(const uint8_t **sync, const uint8_t *pos,
-		       const struct pt_config *config);
+                       const struct pt_config *config);
 
-#endif /* PT_SYNC_H */
+#endif /* PT_SYNC_HPP */

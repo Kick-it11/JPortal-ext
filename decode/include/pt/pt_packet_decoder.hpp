@@ -34,14 +34,14 @@
 
 /* An Intel PT packet decoder. */
 struct pt_packet_decoder {
-	/* The decoder configuration. */
-	struct pt_config config;
+    /* The decoder configuration. */
+    struct pt_config config;
 
-	/* The current position in the trace buffer. */
-	const uint8_t *pos;
+    /* The current position in the trace buffer. */
+    const uint8_t *pos;
 
-	/* The position of the last PSB packet. */
-	const uint8_t *sync;
+    /* The position of the last PSB packet. */
+    const uint8_t *sync;
 };
 
 
@@ -50,7 +50,7 @@ struct pt_packet_decoder {
  * Returns zero on success, a negative error code otherwise.
  */
 extern int pt_pkt_decoder_init(struct pt_packet_decoder *,
-			       const struct pt_config *);
+                               const struct pt_config *);
 
 /* Finalize the packet decoder. */
 extern void pt_pkt_decoder_fini(struct pt_packet_decoder *);
@@ -58,23 +58,23 @@ extern void pt_pkt_decoder_fini(struct pt_packet_decoder *);
 
 /* Decoder functions for the packet decoder. */
 extern int pt_pkt_decode_unknown(struct pt_packet_decoder *,
-				 struct pt_packet *);
+                                 struct pt_packet *);
 extern int pt_pkt_decode_pad(struct pt_packet_decoder *, struct pt_packet *);
 extern int pt_pkt_decode_psb(struct pt_packet_decoder *, struct pt_packet *);
 extern int pt_pkt_decode_tip(struct pt_packet_decoder *, struct pt_packet *);
 extern int pt_pkt_decode_tnt_8(struct pt_packet_decoder *, struct pt_packet *);
 extern int pt_pkt_decode_tnt_64(struct pt_packet_decoder *,
-				struct pt_packet *);
+                                struct pt_packet *);
 extern int pt_pkt_decode_tip_pge(struct pt_packet_decoder *,
-				 struct pt_packet *);
+                                 struct pt_packet *);
 extern int pt_pkt_decode_tip_pgd(struct pt_packet_decoder *,
-				 struct pt_packet *);
+                                 struct pt_packet *);
 extern int pt_pkt_decode_fup(struct pt_packet_decoder *, struct pt_packet *);
 extern int pt_pkt_decode_pip(struct pt_packet_decoder *, struct pt_packet *);
 extern int pt_pkt_decode_ovf(struct pt_packet_decoder *, struct pt_packet *);
 extern int pt_pkt_decode_mode(struct pt_packet_decoder *, struct pt_packet *);
 extern int pt_pkt_decode_psbend(struct pt_packet_decoder *,
-				struct pt_packet *);
+                                struct pt_packet *);
 extern int pt_pkt_decode_tsc(struct pt_packet_decoder *, struct pt_packet *);
 extern int pt_pkt_decode_cbr(struct pt_packet_decoder *, struct pt_packet *);
 extern int pt_pkt_decode_tma(struct pt_packet_decoder *, struct pt_packet *);
@@ -89,4 +89,4 @@ extern int pt_pkt_decode_pwre(struct pt_packet_decoder *, struct pt_packet *);
 extern int pt_pkt_decode_pwrx(struct pt_packet_decoder *, struct pt_packet *);
 extern int pt_pkt_decode_ptw(struct pt_packet_decoder *, struct pt_packet *);
 
-#endif /* PT_PACKET_DECODER_H */
+#endif /* PT_PACKET_DECODER_HPP */

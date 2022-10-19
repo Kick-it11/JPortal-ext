@@ -37,16 +37,16 @@ struct pt_config;
 
 /* Keeping track of the last-ip in Intel PT packets. */
 struct pt_last_ip {
-	/* The last IP. */
-	uint64_t ip;
+    /* The last IP. */
+    uint64_t ip;
 
-	/* Flags governing the handling of IP updates and queries:
-	 *
-	 * - we have seen an IP update.
-	 */
-	uint32_t have_ip:1;
-	/* - the IP has been suppressed in the last update. */
-	uint32_t suppressed:1;
+    /* Flags governing the handling of IP updates and queries:
+     *
+     * - we have seen an IP update.
+     */
+    uint32_t have_ip:1;
+    /* - the IP has been suppressed in the last update. */
+    uint32_t suppressed:1;
 };
 
 
@@ -73,7 +73,7 @@ extern int pt_last_ip_query(uint64_t *ip, const struct pt_last_ip *last_ip);
  * Returns -pte_bad_packet if @packet appears to be corrupted.
  */
 extern int pt_last_ip_update_ip(struct pt_last_ip *last_ip,
-				const struct pt_packet_ip *packet,
-				const struct pt_config *config);
+                                const struct pt_packet_ip *packet,
+                                const struct pt_config *config);
 
-#endif /* PT_LAST_IP_H */
+#endif /* PT_LAST_IP_HPP */

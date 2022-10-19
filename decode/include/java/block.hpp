@@ -8,19 +8,19 @@
 #include <unordered_set>
 #include <vector>
 
-//
+
 class BCTBlock {
 private:
-    // BCTBlockList::_blocks[_block_id]
+    /* BCTBlockList::_blocks[_block_id] */
     int _block_id;
-    // [_begin, _end)
+    /* [_begin, _end) */
     const u1 *_begin;
     const u1 *_end;
-    // branch:
-    //  -1: exception/return
-    //  0:  block._succs[0]
-    //  1:  block._succs[1]
-    //  2:  switch
+    /* branch: */
+    /*  -1: exception/return */
+    /*  0:  block._succs[0] */
+    /*  1:  block._succs[1] */
+    /*  2:  switch */
     int _branch;
 public:
     BCTBlock(int id, const u1 *begin)
@@ -60,22 +60,22 @@ public:
         return (0 == memcmp(_end - offset - dest_len, bctblock->_begin, dest_len));
     }
     bool is_equal(BCTBlock *bctblock) {
-        // length
+        /* length */
         int src_len = _end - _begin;
         int dest_len = bctblock->_end - bctblock->_begin;
         if (src_len != dest_len) {
             return false;
         }
-        // bytecodes
+        /* bytecodes */
         return (0 == memcmp(_begin, bctblock->_begin, src_len));
     }
 };
-//
+
 class Block {
 private:
-    // BlockGraph::_blocks[_block_id]
+    /* BlockGraph::_blocks[_block_id] */
     int _block_id;
-    // [_begin_offset, _end_offset)
+    /* [_begin_offset, _end_offset) */
     int _begin_offset;
     int _end_offset;
     int _bct_codebegin;
@@ -125,16 +125,16 @@ struct Excep {
     Excep(u2 a1, u2 a2, u2 a3, u2 a4)
         : from(a1), to(a2), target(a3), type(a4) {}
 };
-//
+
 class BlockGraph {
     friend class BlockMatcher;
     friend class JitMatcher;
 private:
     const u1 *_code;
     u1 *_bctcode = nullptr;
-    const int _code_length; // size of _code
-    int _code_count = 0;    // size of _bctcode
-    u4 _bc_set[7] = {0};    //
+    const int _code_length; /* size of _code */
+    int _code_count = 0;    /* size of _bctcode */
+    u4 _bc_set[7] = {0};
     const u1 *_exception_table;
     const u2 _exception_table_length;
     std::vector<Block *> _blocks;
@@ -206,18 +206,18 @@ private:
     void build_bctlist();
     void print_bctlist();
 };
-//
+
 class BCTBlockList {
   private:
     const u1 *_code;
     const int _code_length;
-    u4 _bc_set[7] = {0}; //
+    u4 _bc_set[7] = {0};
     std::vector<BCTBlock *> _blocks;
     bool _is_build_list;
     bool _is_exception = false;
 
   public:
-    // class file method field: code and code_length
+    /* class file method field: code and code_length */
     BCTBlockList(const u1 *code, int code_length)
         : _code(code), _code_length(code_length), _is_build_list(false){};
     ~BCTBlockList() {
@@ -234,4 +234,4 @@ class BCTBlockList {
     void print();
 };
 
-#endif // BLOCK_HPP
+#endif /* BLOCK_HPP */

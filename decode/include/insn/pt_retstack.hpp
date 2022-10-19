@@ -35,23 +35,23 @@
 
 /* The size of the call/return stack in number of entries. */
 enum {
-	pt_retstack_size	= 64
+    pt_retstack_size    = 64
 };
 
 /* A stack of return addresses used for return compression. */
 struct pt_retstack {
-	/* The stack of return addresses.
-	 *
-	 * We use one additional entry in order to distinguish a full from
-	 * an empty stack.
-	 */
-	uint64_t stack[pt_retstack_size + 1];
+    /* The stack of return addresses.
+     *
+     * We use one additional entry in order to distinguish a full from
+     * an empty stack.
+     */
+    uint64_t stack[pt_retstack_size + 1];
 
-	/* The top of the stack. */
-	uint8_t top;
+    /* The top of the stack. */
+    uint8_t top;
 
-	/* The bottom of the stack. */
-	uint8_t bottom;
+    /* The bottom of the stack. */
+    uint8_t bottom;
 };
 
 /* Initialize (or reset) a call/return stack. */
@@ -85,4 +85,4 @@ extern int pt_retstack_pop(struct pt_retstack *retstack, uint64_t *ip);
  */
 extern int pt_retstack_push(struct pt_retstack *retstack, uint64_t ip);
 
-#endif /* PT_RETSTACK_H */
+#endif /* PT_RETSTACK_HPP */

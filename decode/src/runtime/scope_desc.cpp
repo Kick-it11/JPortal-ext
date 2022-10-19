@@ -30,58 +30,58 @@ const int serialized_null = 0;
 const int InvocationEntryBci   = -1;
 
 ScopeDesc::ScopeDesc(int decode_offset, int obj_decode_offset, bool reexecute, bool rethrow_exception, bool return_oop, const u_char *scopes_data) {
-  _decode_offset = decode_offset;
-  _obj_decode_offset = obj_decode_offset;
-  _reexecute     = reexecute;
-  _rethrow_exception = rethrow_exception;
-  _return_oop    = return_oop;
-  _scopes_data = scopes_data;
-  decode_body();
+    _decode_offset = decode_offset;
+    _obj_decode_offset = obj_decode_offset;
+    _reexecute     = reexecute;
+    _rethrow_exception = rethrow_exception;
+    _return_oop    = return_oop;
+    _scopes_data = scopes_data;
+    decode_body();
 }
 
 void ScopeDesc::initialize(const ScopeDesc* parent, int decode_offset) {
-  _decode_offset = decode_offset;
-  _obj_decode_offset = parent->_obj_decode_offset;
-  _reexecute     = false; //reexecute only applies to the first scope
-  _rethrow_exception = false;
-  _return_oop    = false;
-  _scopes_data = parent->_scopes_data;
-  decode_body();
+    _decode_offset = decode_offset;
+    _obj_decode_offset = parent->_obj_decode_offset;
+    _reexecute     = false; /* reexecute only applies to the first scope */
+    _rethrow_exception = false;
+    _return_oop    = false;
+    _scopes_data = parent->_scopes_data;
+    decode_body();
 }
 
 ScopeDesc::ScopeDesc(const ScopeDesc* parent) {
-  initialize(parent, parent->_sender_decode_offset);
+    initialize(parent, parent->_sender_decode_offset);
 }
 
 void ScopeDesc::decode_body() {
-  if (decode_offset() == serialized_null) {
-    // This is a sentinel record, which is only relevant to
-    // approximate queries.  Decode a reasonable frame.
-    _sender_decode_offset = serialized_null;
-    _method_index = 1; /* should be code->method */
-    _bci = InvocationEntryBci;
-    _locals_decode_offset = serialized_null;
-    _expressions_decode_offset = serialized_null;
-    _monitors_decode_offset = serialized_null;
-  } else {
-    // decode header
-    CompressedReadStream stream(_scopes_data, _decode_offset);
+    if (decode_offset() == serialized_null) {
+        /** This is a sentinel record, which is only relevant to
+         *  approximate queries.  Decode a reasonable frame.
+         */
+        _sender_decode_offset = serialized_null;
+        _method_index = 1; /* should be code->method */
+        _bci = InvocationEntryBci;
+        _locals_decode_offset = serialized_null;
+        _expressions_decode_offset = serialized_null;
+        _monitors_decode_offset = serialized_null;
+    } else {
+        CompressedReadStream stream(_scopes_data, _decode_offset);
 
-    _sender_decode_offset = stream.read_int();
-    _method_index = stream.read_int();
-    _bci    = stream.read_int() + InvocationEntryBci;
+        _sender_decode_offset = stream.read_int();
+        _method_index = stream.read_int();
+        _bci    = stream.read_int() + InvocationEntryBci;
 
-    _locals_decode_offset = stream.read_int();
-    _expressions_decode_offset = stream.read_int();
-    _monitors_decode_offset = stream.read_int();
-  }
+        _locals_decode_offset = stream.read_int();
+        _expressions_decode_offset = stream.read_int();
+        _monitors_decode_offset = stream.read_int();
+    }
 }
 
 bool ScopeDesc::is_top() const {
- return _sender_decode_offset == serialized_null;
+    return _sender_decode_offset == serialized_null;
 }
 
 ScopeDesc* ScopeDesc::sender() const {
-  if (is_top()) return nullptr;
-  return new ScopeDesc(this);
+    if (is_top()) return nullptr;
+    return new ScopeDesc(this);
 }

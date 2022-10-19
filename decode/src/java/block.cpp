@@ -16,7 +16,6 @@ Block *BlockGraph::offset2block(int offset) {
 }
 
 Block *BlockGraph::make_block_at(int offset, Block *current) {
-    // cout << "make_block_at" << offset << endl;
     Block *block = offset2block(offset);
     if (block == nullptr) {
         int id = _blocks.size();
@@ -44,49 +43,46 @@ void BlockGraph::build_graph() {
     std::unordered_set<int> jsr_following;
     while (!bs.at_eos()) {
         _bct_offset[bs.get_offset()] = _code_count;
-        // cout << "build_graph: " << bs.get_offset() << endl;
         Bytecodes::Code bc = Bytecodes::cast(bs.get_u1());
         ++_code_count;
-        // _bc_set;
         int index = bc >> 5;
         int ls = bc & 31;
-        // cout << _code_count << ":" << bc << ":" << index << ":" << ls <<
-        // endl;
+
         _bc_set[index] = _bc_set[index] | (1 << ls);
         if (Bytecodes::is_block_end(bc)) {
             switch (bc) {
-            // track bytecodes that affect the control flow
-            case Bytecodes::_athrow:  // fall through
+            /* track bytecodes that affect the control flow */
+            case Bytecodes::_athrow:  /* fall through */
                 block_start.insert(bs.get_offset());
                 break;
-            case Bytecodes::_ret:     // fall through
+            case Bytecodes::_ret:     /* fall through */
                 bs.get_u1();
                 block_start.insert(bs.get_offset());
                 break;
-            case Bytecodes::_ireturn: // fall through
-            case Bytecodes::_lreturn: // fall through
-            case Bytecodes::_freturn: // fall through
-            case Bytecodes::_dreturn: // fall through
-            case Bytecodes::_areturn: // fall through
+            case Bytecodes::_ireturn: /* fall through */
+            case Bytecodes::_lreturn: /* fall through */
+            case Bytecodes::_freturn: /* fall through */
+            case Bytecodes::_dreturn: /* fall through */
+            case Bytecodes::_areturn: /* fall through */
             case Bytecodes::_return:
                 block_start.insert(bs.get_offset());
                 break;
 
-            case Bytecodes::_ifeq:      // fall through
-            case Bytecodes::_ifne:      // fall through
-            case Bytecodes::_iflt:      // fall through
-            case Bytecodes::_ifge:      // fall through
-            case Bytecodes::_ifgt:      // fall through
-            case Bytecodes::_ifle:      // fall through
-            case Bytecodes::_if_icmpeq: // fall through
-            case Bytecodes::_if_icmpne: // fall through
-            case Bytecodes::_if_icmplt: // fall through
-            case Bytecodes::_if_icmpge: // fall through
-            case Bytecodes::_if_icmpgt: // fall through
-            case Bytecodes::_if_icmple: // fall through
-            case Bytecodes::_if_acmpeq: // fall through
-            case Bytecodes::_if_acmpne: // fall through
-            case Bytecodes::_ifnull:    // fall through
+            case Bytecodes::_ifeq:      /* fall through */
+            case Bytecodes::_ifne:      /* fall through */
+            case Bytecodes::_iflt:      /* fall through */
+            case Bytecodes::_ifge:      /* fall through */
+            case Bytecodes::_ifgt:      /* fall through */
+            case Bytecodes::_ifle:      /* fall through */
+            case Bytecodes::_if_icmpeq: /* fall through */
+            case Bytecodes::_if_icmpne: /* fall through */
+            case Bytecodes::_if_icmplt: /* fall through */
+            case Bytecodes::_if_icmpge: /* fall through */
+            case Bytecodes::_if_icmpgt: /* fall through */
+            case Bytecodes::_if_icmple: /* fall through */
+            case Bytecodes::_if_acmpeq: /* fall through */
+            case Bytecodes::_if_acmpne: /* fall through */
+            case Bytecodes::_ifnull:    /* fall through */
             case Bytecodes::_ifnonnull: {
                 int jmp_offset = (short)bs.get_u2();
                 current_offset = bs.get_offset();
@@ -146,7 +142,7 @@ void BlockGraph::build_graph() {
                 bs.skip_u1(bc_size - 1);
                 break;
             }
-            } // End of Switch
+            }
         } else if (bc == Bytecodes::_invokevirtual ||
                     bc == Bytecodes::_invokespecial ||
                     bc == Bytecodes::_invokestatic) {
@@ -173,14 +169,9 @@ void BlockGraph::build_graph() {
             bs.skip_u1(bc_size - 1);
         }
     }
-    // cout << "block_start" << endl;
-    // for (auto blockst : block_start) {
-    //     cout << blockst << endl;
-    // }
     _code_count = 0;
     bs.set_current();
     while (!bs.at_eos()) {
-        // cout << "build_graph: " << bs.get_offset() << endl;
         if (current == nullptr) {
             current_offset = bs.get_offset();
             current = make_block_at(current_offset, current);
@@ -199,8 +190,8 @@ void BlockGraph::build_graph() {
         ++_code_count;
         if (Bytecodes::is_block_end(bc)) {
             switch (bc) {
-            // track bytecodes that affect the control flow
-            case Bytecodes::_ret:     // fall through
+            /* track bytecodes that affect the control flow */
+            case Bytecodes::_ret:     /* fall through */
                 bs.get_u1();
                 current_offset = bs.get_offset();
                 for (auto jsr_off : jsr_following) {
@@ -209,33 +200,33 @@ void BlockGraph::build_graph() {
                 current->set_end_offset(current_offset);
                 current = nullptr;
                 break;
-            case Bytecodes::_athrow:  // fall through
-            case Bytecodes::_ireturn: // fall through
-            case Bytecodes::_lreturn: // fall through
-            case Bytecodes::_freturn: // fall through
-            case Bytecodes::_dreturn: // fall through
-            case Bytecodes::_areturn: // fall through
+            case Bytecodes::_athrow:  /* fall through */
+            case Bytecodes::_ireturn: /* fall through */
+            case Bytecodes::_lreturn: /* fall through */
+            case Bytecodes::_freturn: /* fall through */
+            case Bytecodes::_dreturn: /* fall through */
+            case Bytecodes::_areturn: /* fall through */
             case Bytecodes::_return:
                 current_offset = bs.get_offset();
                 current->set_end_offset(current_offset);
                 current = nullptr;
                 break;
 
-            case Bytecodes::_ifeq:      // fall through
-            case Bytecodes::_ifne:      // fall through
-            case Bytecodes::_iflt:      // fall through
-            case Bytecodes::_ifge:      // fall through
-            case Bytecodes::_ifgt:      // fall through
-            case Bytecodes::_ifle:      // fall through
-            case Bytecodes::_if_icmpeq: // fall through
-            case Bytecodes::_if_icmpne: // fall through
-            case Bytecodes::_if_icmplt: // fall through
-            case Bytecodes::_if_icmpge: // fall through
-            case Bytecodes::_if_icmpgt: // fall through
-            case Bytecodes::_if_icmple: // fall through
-            case Bytecodes::_if_acmpeq: // fall through
-            case Bytecodes::_if_acmpne: // fall through
-            case Bytecodes::_ifnull:    // fall through
+            case Bytecodes::_ifeq:      /* fall through */
+            case Bytecodes::_ifne:      /* fall through */
+            case Bytecodes::_iflt:      /* fall through */
+            case Bytecodes::_ifge:      /* fall through */
+            case Bytecodes::_ifgt:      /* fall through */
+            case Bytecodes::_ifle:      /* fall through */
+            case Bytecodes::_if_icmpeq: /* fall through */
+            case Bytecodes::_if_icmpne: /* fall through */
+            case Bytecodes::_if_icmplt: /* fall through */
+            case Bytecodes::_if_icmpge: /* fall through */
+            case Bytecodes::_if_icmpgt: /* fall through */
+            case Bytecodes::_if_icmple: /* fall through */
+            case Bytecodes::_if_acmpeq: /* fall through */
+            case Bytecodes::_if_acmpne: /* fall through */
+            case Bytecodes::_ifnull:    /* fall through */
             case Bytecodes::_ifnonnull: {
                 int jmp_offset = (short)bs.get_u2();
                 current_offset = bs.get_offset();
@@ -282,14 +273,12 @@ void BlockGraph::build_graph() {
                 int bc_addr = current_offset - 1;
                 bs.skip_u1(alignup(current_offset));
                 int default_offset = bs.get_u4();
-                // default
                 make_block_at(bc_addr + default_offset, current);
                 jlong lo = bs.get_u4();
                 jlong hi = bs.get_u4();
                 int case_count = hi - lo + 1;
                 for (int i = 0; i < case_count; i++) {
                     int case_offset = bs.get_u4();
-                    // case
                     make_block_at(bc_addr + case_offset, current);
                 }
                 current_offset = bs.get_offset();
@@ -303,13 +292,11 @@ void BlockGraph::build_graph() {
                 int bc_addr = current_offset - 1;
                 bs.skip_u1(alignup(current_offset));
                 int default_offset = bs.get_u4();
-                // default
                 make_block_at(bc_addr + default_offset, current);
                 jlong npairs = bs.get_u4();
                 for (int i = 0; i < npairs; i++) {
                     int case_key = bs.get_u4();
                     int case_offset = bs.get_u4();
-                    // case
                     make_block_at(bc_addr + case_offset, current);
                 }
                 current_offset = bs.get_offset();
@@ -350,7 +337,6 @@ void BlockGraph::build_graph() {
             bs.skip_u1(bc_size - 1);
         }
     }
-    // build exception table
     ClassFileStream excep_bs(_exception_table,
                           _exception_table_length * 4 * sizeof(u2));
     for (int i = 0; i < _exception_table_length; ++i) {
@@ -361,7 +347,6 @@ void BlockGraph::build_graph() {
         Excep ecp(a1, a2, a3, a4);
         _exceps.push_back(ecp);
     }
-    //
     _is_build_graph = true;
 }
 
@@ -370,10 +355,8 @@ void BlockGraph::print_graph() {
         build_graph();
 
     for (auto block : _blocks) {
-        // Id
         std::cout << "[B" << block->get_id() << "]: [" << block->get_begin_offset()
              << ", " << block->get_end_offset() << ")" << std::endl;
-        // Preds
         int preds_size = block->get_preds_size();
         int succs_size = block->get_succs_size();
         if (preds_size) {
@@ -386,7 +369,6 @@ void BlockGraph::print_graph() {
             }
             std::cout << std::endl;
         }
-        // Succs
         if (succs_size) {
             std::cout << " Succs (" << succs_size << "):";
             auto iter = block->get_succs_begin();
@@ -465,11 +447,9 @@ void BlockGraph::print_bctlist() {
     if (!_is_build_bctlist)
         build_bctlist();
     for (auto block : _bctblocks) {
-        // Id
         std::cout << "[B" << block->get_id() << "]: ["
              << block->get_begin() - _bctcode << ", "
              << block->get_end() - _bctcode << ")" << std::endl;
-        // Bytecodes
         for (const u1 *ttt = block->get_begin(); ttt != block->get_end();
              ttt++) {
             std::cout << Bytecodes::name_for(Bytecodes::Code(*ttt)) << " ";
@@ -491,7 +471,7 @@ void BCTBlockList::build_list() {
     ClassFileStream bs(_code, _code_length);
     int bc_size = 0;
     if (!bs.at_eos()) {
-        // exception handling indication
+        /* exception handling indication */
         Bytecodes::Code bc = Bytecodes::cast(*_code);
         if (!Bytecodes::is_valid(bc)) {
             _is_exception = true;
@@ -503,7 +483,6 @@ void BCTBlockList::build_list() {
             current = make_block_at(bs.current());
         Bytecodes::Code bc = Bytecodes::cast(bs.get_u1());
 
-        // _bc_set;
         int index = bc >> 5;
         int ls = bc & 31;
         _bc_set[index] = _bc_set[index] | (1 << ls);
@@ -512,34 +491,34 @@ void BCTBlockList::build_list() {
             current->set_branch(-1);
         if (Bytecodes::is_block_end(bc)) {
             switch (bc) {
-            // track bytecodes that affect the control flow
-            case Bytecodes::_athrow:  // fall through
-            case Bytecodes::_ret:     // fall through
-            case Bytecodes::_ireturn: // fall through
-            case Bytecodes::_lreturn: // fall through
-            case Bytecodes::_freturn: // fall through
-            case Bytecodes::_dreturn: // fall through
-            case Bytecodes::_areturn: // fall through
+            /* track bytecodes that affect the control flow */
+            case Bytecodes::_athrow:  /* fall through */
+            case Bytecodes::_ret:     /* fall through */
+            case Bytecodes::_ireturn: /* fall through */
+            case Bytecodes::_lreturn: /* fall through */
+            case Bytecodes::_freturn: /* fall through */
+            case Bytecodes::_dreturn: /* fall through */
+            case Bytecodes::_areturn: /* fall through */
             case Bytecodes::_return:
                 current->set_end(bs.current());
                 current = nullptr;
                 break;
 
-            case Bytecodes::_ifeq:      // fall through
-            case Bytecodes::_ifne:      // fall through
-            case Bytecodes::_iflt:      // fall through
-            case Bytecodes::_ifge:      // fall through
-            case Bytecodes::_ifgt:      // fall through
-            case Bytecodes::_ifle:      // fall through
-            case Bytecodes::_if_icmpeq: // fall through
-            case Bytecodes::_if_icmpne: // fall through
-            case Bytecodes::_if_icmplt: // fall through
-            case Bytecodes::_if_icmpge: // fall through
-            case Bytecodes::_if_icmpgt: // fall through
-            case Bytecodes::_if_icmple: // fall through
-            case Bytecodes::_if_acmpeq: // fall through
-            case Bytecodes::_if_acmpne: // fall through
-            case Bytecodes::_ifnull:    // fall through
+            case Bytecodes::_ifeq:      /* fall through */
+            case Bytecodes::_ifne:      /* fall through */
+            case Bytecodes::_iflt:      /* fall through */
+            case Bytecodes::_ifge:      /* fall through */
+            case Bytecodes::_ifgt:      /* fall through */
+            case Bytecodes::_ifle:      /* fall through */
+            case Bytecodes::_if_icmpeq: /* fall through */
+            case Bytecodes::_if_icmpne: /* fall through */
+            case Bytecodes::_if_icmplt: /* fall through */
+            case Bytecodes::_if_icmpge: /* fall through */
+            case Bytecodes::_if_icmpgt: /* fall through */
+            case Bytecodes::_if_icmple: /* fall through */
+            case Bytecodes::_if_acmpeq: /* fall through */
+            case Bytecodes::_if_acmpne: /* fall through */
+            case Bytecodes::_ifnull:    /* fall through */
             case Bytecodes::_ifnonnull:
                 current->set_end(bs.current());
                 if (!bs.at_eos()) {
@@ -560,20 +539,16 @@ void BCTBlockList::build_list() {
                 break;
 
             case Bytecodes::_jsr:
-                // TODO_JK
                 current->set_end(bs.current());
                 current = nullptr;
                 break;
 
             case Bytecodes::_jsr_w:
-                // TODO_JK
                 current->set_end(bs.current());
                 current = nullptr;
                 break;
 
             case Bytecodes::_tableswitch: {
-                // next block is which case
-                // TODO_JK
                 current->set_end(bs.current());
                 current->set_branch(2);
                 current = nullptr;
@@ -581,8 +556,6 @@ void BCTBlockList::build_list() {
             }
 
             case Bytecodes::_lookupswitch: {
-                // next block is which case
-                // TODO_JK
                 current->set_end(bs.current());
                 current->set_branch(2);
                 current = nullptr;
@@ -605,9 +578,7 @@ void BCTBlockList::print() {
 
     /* print */
     for (auto block : _blocks) {
-        // Id
         std::cout << "[B" << block->get_id() << "]";
-        // Bytecodes
         const u1 *begin = block->get_begin();
         const u1 *end = block->get_end();
         std::cout << ": " << begin - _code;

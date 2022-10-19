@@ -96,7 +96,7 @@ public:
      * 
      * size might be modified
      */
-    bool read(uint8_t *buffer, uint16_t *size, uint64_t vaddr);
+    bool read(uint8_t *buffer, uint8_t *size, uint64_t vaddr);
 
     /* find PCStackInfo from _record
      * 
@@ -110,4 +110,4 @@ public:
     const CompiledMethodLoadInlineRecord *record() const { return _record; }
 };
 
-#endif // JIT_SECTION_HPP
+#endif /* JIT_SECTION_HPP */

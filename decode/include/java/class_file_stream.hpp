@@ -5,12 +5,12 @@
 
 #include <cassert>
 
-// Input stream for reading .class file
-//
-// The entire input stream is present in a buffer allocated by the caller.
-// The caller is responsible for deallocating the buffer and for using
-// ResourceMarks appropriately when constructing streams.
-
+/* Input stream for reading .class file
+ *
+ * The entire input stream is present in a buffer allocated by the caller.
+ * The caller is responsible for deallocating the buffer and for using
+ * ResourceMarks appropriately when constructing streams.
+ */
 class ClassFileStream {
   private:
     const u1 *const _buffer_begin;
@@ -30,10 +30,10 @@ class ClassFileStream {
         _current = pos;
     }
     int get_offset() const { return _current - _buffer_begin; }
-    // Read u1 from stream;
+    /* Read u1 from stream; */
     u1 get_u1() const { return *_current++; }
 
-    // Read u2 from Big-Endian stream;
+    /* Read u2 from Big-Endian stream; */
     u2 get_u2() const {
         u1 us[2];
         us[1] = *_current++;
@@ -41,7 +41,7 @@ class ClassFileStream {
         return *(u2 *)us;
     }
 
-    // Read u2 from Little-Endian stream;
+    /* Read u2 from Little-Endian stream; */
     u2 get_u2_l() const {
         u1 us[2];
         us[0] = *_current++;
@@ -49,7 +49,7 @@ class ClassFileStream {
         return *(u2 *)us;
     }
 
-    // Read u4 from Big-Endian stream;
+    /* Read u4 from Big-Endian stream; */
     u4 get_u4() const {
         u1 ui[4];
         ui[3] = *_current++;
@@ -59,7 +59,7 @@ class ClassFileStream {
         return *(u4 *)ui;
     }
 
-    // Read u8 from Big-Endian stream;
+    /* Read u8 from Big-Endian stream; */
     u8 get_u8() const {
         u1 ul[8];
         ul[7] = *_current++;
@@ -72,14 +72,14 @@ class ClassFileStream {
         ul[0] = *_current++;
         return *(u8 *)ul;
     }
-    // Skip length u1 or u2 elements from stream
+    /* Skip length u1 or u2 elements from stream */
     void skip_u1(int length) const { _current += length; }
 
     void skip_u2(int length) const { _current += 2 * length; }
 
     void skip_u4(int length) const { _current += 4 * length; }
 
-    // Tells whether eos is reached
+    /* Tells whether eos is reached */
     bool at_eos() const { return _current == _buffer_end; }
 };
-#endif // CLASS_FILE_STREAM_HPP
+#endif /* CLASS_FILE_STREAM_HPP */

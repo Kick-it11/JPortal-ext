@@ -7,4 +7,4 @@ class TraceData;
 
 void output_decode(std::list<TraceData*> &traces);
 
-#endif // OUTPUT_DECODE_HPP
+#endif /* OUTPUT_DECODE_HPP */

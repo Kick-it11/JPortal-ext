@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-// Java type definitions
+/* Java type definitions */
 
 typedef int32_t         jint;
 typedef int64_t         jlong;
@@ -34,4 +34,4 @@ inline jint alignup(jint offset) {
     return 0;
 }
 
-#endif // DEFINITIONS_HPP
+#endif /* DEFINITIONS_HPP */

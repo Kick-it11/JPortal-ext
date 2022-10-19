@@ -34,49 +34,49 @@
 
 int pt_cpu_parse(struct pt_cpu *cpu, const char *s)
 {
-	const char sep = '/';
-	char *endptr;
-	long family, model, stepping;
+    const char sep = '/';
+    char *endptr;
+    long family, model, stepping;
 
-	if (!cpu || !s)
-		return -pte_invalid;
+    if (!cpu || !s)
+        return -pte_invalid;
 
-	family = strtol(s, &endptr, 0);
-	if (s == endptr || *endptr == '\0' || *endptr != sep)
-		return -pte_invalid;
+    family = strtol(s, &endptr, 0);
+    if (s == endptr || *endptr == '\0' || *endptr != sep)
+        return -pte_invalid;
 
-	if (family < 0 || family > USHRT_MAX)
-		return -pte_invalid;
+    if (family < 0 || family > USHRT_MAX)
+        return -pte_invalid;
 
-	/* skip separator */
-	s = endptr + 1;
+    /* skip separator */
+    s = endptr + 1;
 
-	model = strtol(s, &endptr, 0);
-	if (s == endptr || (*endptr != '\0' && *endptr != sep))
-		return -pte_invalid;
+    model = strtol(s, &endptr, 0);
+    if (s == endptr || (*endptr != '\0' && *endptr != sep))
+        return -pte_invalid;
 
-	if (model < 0 || model > UCHAR_MAX)
-		return -pte_invalid;
+    if (model < 0 || model > UCHAR_MAX)
+        return -pte_invalid;
 
-	if (*endptr == '\0')
-		/* stepping was omitted, it defaults to 0 */
-		stepping = 0;
-	else {
-		/* skip separator */
-		s = endptr + 1;
+    if (*endptr == '\0')
+        /* stepping was omitted, it defaults to 0 */
+        stepping = 0;
+    else {
+        /* skip separator */
+        s = endptr + 1;
 
-		stepping = strtol(s, &endptr, 0);
-		if (*endptr != '\0')
-			return -pte_invalid;
+        stepping = strtol(s, &endptr, 0);
+        if (*endptr != '\0')
+            return -pte_invalid;
 
-		if (stepping < 0 || stepping > UCHAR_MAX)
-			return -pte_invalid;
-	}
+        if (stepping < 0 || stepping > UCHAR_MAX)
+            return -pte_invalid;
+    }
 
-	cpu->vendor = pcv_intel;
-	cpu->family = (uint16_t) family;
-	cpu->model = (uint8_t) model;
-	cpu->stepping = (uint8_t) stepping;
+    cpu->vendor = pcv_intel;
+    cpu->family = (uint16_t) family;
+    cpu->model = (uint8_t) model;
+    cpu->stepping = (uint8_t) stepping;
 
-	return 0;
+    return 0;
 }

@@ -67,7 +67,7 @@ public:
     /** delete assignment = */
     ThreadPool & operator=(ThreadPool &&) = delete;
 
-    // Waits until threads finish their current task and shutdowns the pool
+    /* Waits until threads finish their current task and shutdowns the pool */
     void shutdown() {
         _queue.stop();
 
@@ -97,4 +97,4 @@ public:
     }
 };
 
-#endif // THREAD_POOL_HPP
+#endif /* THREAD_POOL_HPP */

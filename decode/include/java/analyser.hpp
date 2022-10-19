@@ -24,4 +24,4 @@ public:
     const Method *get_method(const std::string &klassName, const std::string &methodName);
 };
 
-#endif // ANALYSER_HPP
+#endif /* ANALYSER_HPP */

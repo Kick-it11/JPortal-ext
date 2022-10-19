@@ -54,4 +54,4 @@ class CodeletsEntry {
         static Codelet entry_match(uint64_t ip, Bytecodes::Code &code);
 };
 
-#endif // CODELETS_ENTRY_HPP
+#endif /* CODELETS_ENTRY_HPP */

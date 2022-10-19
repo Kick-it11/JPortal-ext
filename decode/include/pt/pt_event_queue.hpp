@@ -36,30 +36,30 @@
 
 /* Events are grouped by the packet the event binds to. */
 enum pt_event_binding {
-	evb_psbend,
-	evb_tip,
-	evb_fup,
-	evb_exstop,
+    evb_psbend,
+    evb_tip,
+    evb_fup,
+    evb_exstop,
 
-	evb_max
+    evb_max
 };
 
 enum {
-	/* The maximal number of pending events - should be a power of two. */
-	evq_max = 8
+    /* The maximal number of pending events - should be a power of two. */
+    evq_max = 8
 };
 
 /* A queue of events. */
 struct pt_event_queue {
-	/* A collection of event queues, one per binding. */
-	struct pt_event queue[evb_max][evq_max];
+    /* A collection of event queues, one per binding. */
+    struct pt_event queue[evb_max][evq_max];
 
-	/* The begin and end indices for the above event queues. */
-	uint8_t begin[evb_max];
-	uint8_t end[evb_max];
+    /* The begin and end indices for the above event queues. */
+    uint8_t begin[evb_max];
+    uint8_t end[evb_max];
 
-	/* A standalone event to be published immediately. */
-	struct pt_event standalone;
+    /* A standalone event to be published immediately. */
+    struct pt_event standalone;
 };
 
 
@@ -82,7 +82,7 @@ extern struct pt_event *pt_evq_standalone(struct pt_event_queue *evq);
  * Returns NULL if @evq is full.
  */
 extern struct pt_event *pt_evq_enqueue(struct pt_event_queue *evq,
-				       enum pt_event_binding evb);
+                                       enum pt_event_binding evb);
 
 
 /* Dequeue an event.
@@ -94,7 +94,7 @@ extern struct pt_event *pt_evq_enqueue(struct pt_event_queue *evq,
  * Returns NULL if @evq is empty.
  */
 extern struct pt_event *pt_evq_dequeue(struct pt_event_queue *evq,
-				       enum pt_event_binding evb);
+                                       enum pt_event_binding evb);
 
 /* Clear a queue and discard events.
  *
@@ -104,7 +104,7 @@ extern struct pt_event *pt_evq_dequeue(struct pt_event_queue *evq,
  * Returns -pte_internal if @evq is NULL or @evb is invalid.
  */
 extern int pt_evq_clear(struct pt_event_queue *evq,
-			enum pt_event_binding evb);
+                        enum pt_event_binding evb);
 
 /* Check for emptiness.
  *
@@ -115,7 +115,7 @@ extern int pt_evq_clear(struct pt_event_queue *evq,
  * Returns -pte_internal if @evq is NULL or @evb is invalid.
  */
 extern int pt_evq_empty(const struct pt_event_queue *evq,
-			enum pt_event_binding evb);
+                        enum pt_event_binding evb);
 
 /* Check for non-emptiness.
  *
@@ -126,7 +126,7 @@ extern int pt_evq_empty(const struct pt_event_queue *evq,
  * Returns -pte_internal if @evq is NULL or @evb is invalid.
  */
 extern int pt_evq_pending(const struct pt_event_queue *evq,
-			  enum pt_event_binding evb);
+                          enum pt_event_binding evb);
 
 /* Find an event by type.
  *
@@ -138,7 +138,7 @@ extern int pt_evq_pending(const struct pt_event_queue *evq,
  * Returns NULL if @evb or @evt is invalid.
  */
 extern struct pt_event *pt_evq_find(struct pt_event_queue *evq,
-				    enum pt_event_binding evb,
-				    enum pt_event_type evt);
+                                    enum pt_event_binding evb,
+                                    enum pt_event_type evt);
 
-#endif /* PT_EVENT_QUEUE_H */
+#endif /* PT_EVENT_QUEUE_HPP */

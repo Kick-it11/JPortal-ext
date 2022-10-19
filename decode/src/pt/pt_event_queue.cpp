@@ -33,171 +33,171 @@
 
 static inline uint8_t pt_evq_inc(uint8_t idx)
 {
-	idx += 1;
-	idx %= evq_max;
+    idx += 1;
+    idx %= evq_max;
 
-	return idx;
+    return idx;
 }
 
 static struct pt_event *pt_event_init(struct pt_event *event)
 {
-	if (event)
-		memset(event, 0, sizeof(*event));
+    if (event)
+        memset(event, 0, sizeof(*event));
 
-	return event;
+    return event;
 }
 
 void pt_evq_init(struct pt_event_queue *evq)
 {
-	if (!evq)
-		return;
+    if (!evq)
+        return;
 
-	memset(evq, 0, sizeof(*evq));
+    memset(evq, 0, sizeof(*evq));
 }
 
 struct pt_event *pt_evq_standalone(struct pt_event_queue *evq)
 {
-	if (!evq)
-		return NULL;
+    if (!evq)
+        return NULL;
 
-	return pt_event_init(&evq->standalone);
+    return pt_event_init(&evq->standalone);
 }
 
 struct pt_event *pt_evq_enqueue(struct pt_event_queue *evq,
-				enum pt_event_binding evb)
+                enum pt_event_binding evb)
 {
-	uint8_t begin, end, gap, idx;
+    uint8_t begin, end, gap, idx;
 
-	if (!evq)
-		return NULL;
+    if (!evq)
+        return NULL;
 
-	if (evb_max <= evb)
-		return NULL;
+    if (evb_max <= evb)
+        return NULL;
 
-	begin = evq->begin[evb];
-	idx = evq->end[evb];
+    begin = evq->begin[evb];
+    idx = evq->end[evb];
 
-	if (evq_max <= begin)
-		return NULL;
+    if (evq_max <= begin)
+        return NULL;
 
-	if (evq_max <= idx)
-		return NULL;
+    if (evq_max <= idx)
+        return NULL;
 
-	end = pt_evq_inc(idx);
-	gap = pt_evq_inc(end);
+    end = pt_evq_inc(idx);
+    gap = pt_evq_inc(end);
 
-	/* Leave a gap so we don't overwrite the last dequeued event. */
-	if (begin == gap)
-		return NULL;
+    /* Leave a gap so we don't overwrite the last dequeued event. */
+    if (begin == gap)
+        return NULL;
 
-	evq->end[evb] = end;
+    evq->end[evb] = end;
 
-	return pt_event_init(&evq->queue[evb][idx]);
+    return pt_event_init(&evq->queue[evb][idx]);
 }
 
 struct pt_event *pt_evq_dequeue(struct pt_event_queue *evq,
-				enum pt_event_binding evb)
+                enum pt_event_binding evb)
 {
-	uint8_t begin, end;
+    uint8_t begin, end;
 
-	if (!evq)
-		return NULL;
+    if (!evq)
+        return NULL;
 
-	if (evb_max <= evb)
-		return NULL;
+    if (evb_max <= evb)
+        return NULL;
 
-	begin = evq->begin[evb];
-	end = evq->end[evb];
+    begin = evq->begin[evb];
+    end = evq->end[evb];
 
-	if (evq_max <= begin)
-		return NULL;
+    if (evq_max <= begin)
+        return NULL;
 
-	if (evq_max <= end)
-		return NULL;
+    if (evq_max <= end)
+        return NULL;
 
-	if (begin == end)
-		return NULL;
+    if (begin == end)
+        return NULL;
 
-	evq->begin[evb] = pt_evq_inc(begin);
+    evq->begin[evb] = pt_evq_inc(begin);
 
-	return &evq->queue[evb][begin];
+    return &evq->queue[evb][begin];
 }
 
 int pt_evq_clear(struct pt_event_queue *evq, enum pt_event_binding evb)
 {
-	if (!evq)
-		return -pte_internal;
+    if (!evq)
+        return -pte_internal;
 
-	if (evb_max <= evb)
-		return -pte_internal;
+    if (evb_max <= evb)
+        return -pte_internal;
 
-	evq->begin[evb] = 0;
-	evq->end[evb] = 0;
+    evq->begin[evb] = 0;
+    evq->end[evb] = 0;
 
-	return 0;
+    return 0;
 }
 
 int pt_evq_empty(const struct pt_event_queue *evq, enum pt_event_binding evb)
 {
-	uint8_t begin, end;
+    uint8_t begin, end;
 
-	if (!evq)
-		return -pte_internal;
+    if (!evq)
+        return -pte_internal;
 
-	if (evb_max <= evb)
-		return -pte_internal;
+    if (evb_max <= evb)
+        return -pte_internal;
 
-	begin = evq->begin[evb];
-	end = evq->end[evb];
+    begin = evq->begin[evb];
+    end = evq->end[evb];
 
-	if (evq_max <= begin)
-		return -pte_internal;
+    if (evq_max <= begin)
+        return -pte_internal;
 
-	if (evq_max <= end)
-		return -pte_internal;
+    if (evq_max <= end)
+        return -pte_internal;
 
-	return begin == end;
+    return begin == end;
 }
 
 int pt_evq_pending(const struct pt_event_queue *evq, enum pt_event_binding evb)
 {
-	int errcode;
+    int errcode;
 
-	errcode = pt_evq_empty(evq, evb);
-	if (errcode < 0)
-		return errcode;
+    errcode = pt_evq_empty(evq, evb);
+    if (errcode < 0)
+        return errcode;
 
-	return !errcode;
+    return !errcode;
 }
 
 struct pt_event *pt_evq_find(struct pt_event_queue *evq,
-			     enum pt_event_binding evb,
-			     enum pt_event_type evt)
+                 enum pt_event_binding evb,
+                 enum pt_event_type evt)
 {
-	uint8_t begin, end;
+    uint8_t begin, end;
 
-	if (!evq)
-		return NULL;
+    if (!evq)
+        return NULL;
 
-	if (evb_max <= evb)
-		return NULL;
+    if (evb_max <= evb)
+        return NULL;
 
-	begin = evq->begin[evb];
-	end = evq->end[evb];
+    begin = evq->begin[evb];
+    end = evq->end[evb];
 
-	if (evq_max <= begin)
-		return NULL;
+    if (evq_max <= begin)
+        return NULL;
 
-	if (evq_max <= end)
-		return NULL;
+    if (evq_max <= end)
+        return NULL;
 
-	for (; begin != end; begin = pt_evq_inc(begin)) {
-		struct pt_event *ev;
+    for (; begin != end; begin = pt_evq_inc(begin)) {
+        struct pt_event *ev;
 
-		ev = &evq->queue[evb][begin];
-		if (ev->type == evt)
-			return ev;
-	}
+        ev = &evq->queue[evb][begin];
+        if (ev->type == evt)
+            return ev;
+    }
 
-	return NULL;
+    return NULL;
 }

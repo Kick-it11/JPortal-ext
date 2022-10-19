@@ -39,46 +39,46 @@ struct pt_config;
 
 /* Intel(R) Processor Trace decoder function flags. */
 enum pt_decoder_function_flag {
-	/* The decoded packet contains an unconditional branch destination. */
-	pdff_tip	= 1 << 0,
+    /* The decoded packet contains an unconditional branch destination. */
+    pdff_tip    = 1 << 0,
 
-	/* The decode packet contains unconditional branch destinations. */
-	pdff_tnt	= 1 << 1,
+    /* The decode packet contains unconditional branch destinations. */
+    pdff_tnt    = 1 << 1,
 
-	/* The decoded packet contains an event. */
-	pdff_event	= 1 << 2,
+    /* The decoded packet contains an event. */
+    pdff_event    = 1 << 2,
 
-	/* The decoded packet marks the end of a PSB header. */
-	pdff_psbend	= 1 << 3,
+    /* The decoded packet marks the end of a PSB header. */
+    pdff_psbend    = 1 << 3,
 
-	/* The decoded packet contains a non-branch IP update. */
-	pdff_fup	= 1 << 4,
+    /* The decoded packet contains a non-branch IP update. */
+    pdff_fup    = 1 << 4,
 
-	/* The decoded packet is unknown to the decoder. */
-	pdff_unknown	= 1 << 5,
+    /* The decoded packet is unknown to the decoder. */
+    pdff_unknown    = 1 << 5,
 
-	/* The decoded packet contains timing information. */
-	pdff_timing	= 1 << 6,
+    /* The decoded packet contains timing information. */
+    pdff_timing    = 1 << 6,
 
-	/* The decoded packet contains padding. */
-	pdff_pad	= 1 << 7
+    /* The decoded packet contains padding. */
+    pdff_pad    = 1 << 7
 };
 
 /* An Intel(R) Processor Trace decoder function. */
 struct pt_decoder_function {
-	/* The function to analyze the next packet. */
-	int (*packet)(struct pt_packet_decoder *, struct pt_packet *);
+    /* The function to analyze the next packet. */
+    int (*packet)(struct pt_packet_decoder *, struct pt_packet *);
 
-	/* The function to decode the next packet. */
-	int (*decode)(struct pt_query_decoder *);
+    /* The function to decode the next packet. */
+    int (*decode)(struct pt_query_decoder *);
 
-	/* The function to decode the next packet in segment header
-	 * context, i.e. between PSB and ENDPSB.
-	 */
-	int (*header)(struct pt_query_decoder *);
+    /* The function to decode the next packet in segment header
+     * context, i.e. between PSB and ENDPSB.
+     */
+    int (*header)(struct pt_query_decoder *);
 
-	/* Decoder function flags. */
-	int flags;
+    /* Decoder function flags. */
+    int flags;
 };
 
 
@@ -92,7 +92,7 @@ struct pt_decoder_function {
  * Returns -pte_eos if the opcode is incomplete or missing.
  */
 extern int pt_df_fetch(const struct pt_decoder_function **dfun,
-		       const uint8_t *pos, const struct pt_config *config);
+               const uint8_t *pos, const struct pt_config *config);
 
 
 /* Decoder functions for the various packet types.
@@ -126,4 +126,4 @@ extern const struct pt_decoder_function pt_decode_pwre;
 extern const struct pt_decoder_function pt_decode_pwrx;
 extern const struct pt_decoder_function pt_decode_ptw;
 
-#endif /* PT_DECODER_FUNCTION_H */
+#endif /* PT_DECODER_FUNCTION_HPP */

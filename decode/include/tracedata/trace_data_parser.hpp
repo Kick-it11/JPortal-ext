@@ -134,4 +134,4 @@ public:
     void init_pt_config_from_trace(struct pt_config &config);
 };
 
-#endif // TRACE_DATA_PARSER_HPP
+#endif /* TRACE_DATA_PARSER_HPP */

@@ -12,7 +12,7 @@
 #include <vector>
 
 struct ExecInfo {
-    const JitSection* section; // jit_section, nullptr indicates a segment of inter codes
+    const JitSection* section;
     std::vector<std::pair<const Method*, Block*>> prev_frame;
     ExecInfo(): section(nullptr) { }
     ExecInfo(const JitSection* s): section(s) { }
@@ -206,12 +206,9 @@ public:
 };
 
 static bool output_bytecode(FILE* fp, const uint8_t* codes, uint64_t size) {
-    // output bytecode
-    for (int i = 0; i < size; i++) {
-        // fwrite(codes+i, 1, 1, fp);
+    /* output bytecode */
+    for (int i = 0; i < size; i++)
         fprintf(fp, "%hhu\n", *(codes+i));
-        // fprintf(fp, "%s\n", Bytecodes::name_for(Bytecodes::cast(*(codes+i))));
-    }
     return true;
 }
 
@@ -221,11 +218,8 @@ static void output_jitcode(FILE* fp, std::vector<std::pair<const Method*, Block*
         Block* blc = block.second;
         assert(method && method->is_jportal() && blc);
         const uint8_t* codes = method->get_bg()->bctcode();
-        for (int i = blc->get_bct_codebegin(); i < blc->get_bct_codeend(); ++i) {
-            // fwrite(codes+i, 1, 1, fp);
+        for (int i = blc->get_bct_codebegin(); i < blc->get_bct_codeend(); ++i)
             fprintf(fp, "%hhu\n", *(codes+i));
-            // fprintf(fp, "%s\n", Bytecodes::name_for(Bytecodes::cast(*(codes+i))));
-        }
     }
 }
 
@@ -315,7 +309,6 @@ static void output_trace(TraceData* trace, uint64_t start, uint64_t end, FILE* f
             }
             case CodeletsEntry::_deopt:
             case CodeletsEntry::_deopt_reexecute_return: {
-                // deopt
                 if (!exec_st.empty() && exec_st.top()->section) {
                     delete exec_st.top();
                     exec_st.pop();
@@ -325,12 +318,12 @@ static void output_trace(TraceData* trace, uint64_t start, uint64_t end, FILE* f
                 break;
             }
             case CodeletsEntry::_throw_exception: {
-                // exception handling or throw
+                /* exception handling or throw */
                 break;
             }
             case CodeletsEntry::_remove_activation:
             case CodeletsEntry::_remove_activation_preserving_args: {
-                // after throw exception or deoptimize
+                /* after throw exception or deoptimize */
                 break;
             }
             case CodeletsEntry::_invoke_return:
@@ -385,7 +378,7 @@ static void output_trace(TraceData* trace, uint64_t start, uint64_t end, FILE* f
     }
 }
 
-// per thread output
+/* per thread output */
 void output_decode(std::list<TraceData*> &traces) {
     std::map<uint32_t, std::vector<std::pair<ThreadSplit, TraceData*>>> threads_data;
     for (auto && trace : traces)
@@ -405,7 +398,6 @@ void output_decode(std::list<TraceData*> &traces) {
     for (auto iter1 = threads_data.begin(); iter1 != threads_data.end(); ++iter1) {
         char name[32];
         sprintf(name, "thrd%ld", iter1->first);
-        // FILE *fp = fopen(name, "wb");
         FILE *fp = fopen(name, "w");
         if (!fp) {
             fprintf(stderr, "Decode output: open decode file(%s) error\n", name);

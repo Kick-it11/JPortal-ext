@@ -14,7 +14,7 @@ class Method {
   private:
     const u2 ACC_JPORTAL = 0x2000;
     u2 _flags;
-    const std::string _name_signature; // name+signature
+    const std::string _name_signature;
     BlockGraph *_bg;
     const Klass *_klass;
   public:
@@ -29,4 +29,4 @@ class Method {
     void print_bctlist() const;
     bool is_jportal() const { return (_flags & ACC_JPORTAL) == ACC_JPORTAL; }
 };
-#endif // METHOD_HPP
+#endif /* METHOD_HPP */

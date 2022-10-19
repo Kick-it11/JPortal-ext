@@ -38,25 +38,25 @@
  * There are only two ways to fill up a 64bit work with such a pattern.
  */
 static const uint64_t psb_pattern[] = {
-	((uint64_t) pt_psb_lohi		| (uint64_t) pt_psb_lohi << 16 |
-	 (uint64_t) pt_psb_lohi << 32	| (uint64_t) pt_psb_lohi << 48),
-	((uint64_t) pt_psb_hilo		| (uint64_t) pt_psb_hilo << 16 |
-	 (uint64_t) pt_psb_hilo << 32	| (uint64_t) pt_psb_hilo << 48)
+    ((uint64_t) pt_psb_lohi        | (uint64_t) pt_psb_lohi << 16 |
+     (uint64_t) pt_psb_lohi << 32    | (uint64_t) pt_psb_lohi << 48),
+    ((uint64_t) pt_psb_hilo        | (uint64_t) pt_psb_hilo << 16 |
+     (uint64_t) pt_psb_hilo << 32    | (uint64_t) pt_psb_hilo << 48)
 };
 
 static const uint8_t *truncate(const uint8_t *pointer, size_t alignment)
 {
-	uintptr_t raw = (uintptr_t) pointer;
+    uintptr_t raw = (uintptr_t) pointer;
 
-	raw /= alignment;
-	raw *= alignment;
+    raw /= alignment;
+    raw *= alignment;
 
-	return (const uint8_t *) raw;
+    return (const uint8_t *) raw;
 }
 
 static const uint8_t *align(const uint8_t *pointer, size_t alignment)
 {
-	return truncate(pointer + alignment - 1, alignment);
+    return truncate(pointer + alignment - 1, alignment);
 }
 
 /* Find a psb packet given a position somewhere in the payload.
@@ -65,184 +65,184 @@ static const uint8_t *align(const uint8_t *pointer, size_t alignment)
  * Return NULL, if this is not a psb packet.
  */
 static const uint8_t *pt_find_psb(const uint8_t *pos,
-				  const struct pt_config *config)
+                  const struct pt_config *config)
 {
-	const uint8_t *begin, *end;
-	int errcode;
+    const uint8_t *begin, *end;
+    int errcode;
 
-	if (!pos || !config)
-		return NULL;
+    if (!pos || !config)
+        return NULL;
 
-	begin = config->begin;
-	end = config->end;
+    begin = config->begin;
+    end = config->end;
 
-	/* Navigate to the end of the psb payload pattern.
-	 *
-	 * Beware that PSB is an extended opcode. We must not confuse the extend
-	 * opcode of the following packet as belonging to the PSB.
-	 */
-	if (*pos != pt_psb_hi)
-		pos++;
+    /* Navigate to the end of the psb payload pattern.
+     *
+     * Beware that PSB is an extended opcode. We must not confuse the extend
+     * opcode of the following packet as belonging to the PSB.
+     */
+    if (*pos != pt_psb_hi)
+        pos++;
 
-	for (; (pos + 1) < end; pos += 2) {
-		uint8_t hi, lo;
+    for (; (pos + 1) < end; pos += 2) {
+        uint8_t hi, lo;
 
-		hi = pos[0];
-		lo = pos[1];
+        hi = pos[0];
+        lo = pos[1];
 
-		if (hi != pt_psb_hi)
-			break;
+        if (hi != pt_psb_hi)
+            break;
 
-		if (lo != pt_psb_lo)
-			break;
-	}
-	/*
-	 * We're right after the psb payload and within the buffer.
-	 * Navigate to the expected beginning of the psb packet.
-	 */
-	pos -= ptps_psb;
+        if (lo != pt_psb_lo)
+            break;
+    }
+    /*
+     * We're right after the psb payload and within the buffer.
+     * Navigate to the expected beginning of the psb packet.
+     */
+    pos -= ptps_psb;
 
-	/* Check if we're still inside the buffer. */
-	if (pos < begin)
-		return NULL;
+    /* Check if we're still inside the buffer. */
+    if (pos < begin)
+        return NULL;
 
-	/* Check that this is indeed a psb packet we're at. */
-	if (pos[0] != pt_opc_psb || pos[1] != pt_ext_psb)
-		return NULL;
+    /* Check that this is indeed a psb packet we're at. */
+    if (pos[0] != pt_opc_psb || pos[1] != pt_ext_psb)
+        return NULL;
 
-	errcode = pt_pkt_read_psb(pos, config);
-	if (errcode < 0)
-		return NULL;
+    errcode = pt_pkt_read_psb(pos, config);
+    if (errcode < 0)
+        return NULL;
 
-	return pos;
+    return pos;
 }
 
 static int pt_sync_within_bounds(const uint8_t *pos, const uint8_t *begin,
-				 const uint8_t *end)
+                 const uint8_t *end)
 {
-	/* We allow @pos == @end representing the very end of the trace.
-	 *
-	 * This will result in -pte_eos when we actually try to read from @pos.
-	 */
-	return (begin <= pos) && (pos <= end);
+    /* We allow @pos == @end representing the very end of the trace.
+     *
+     * This will result in -pte_eos when we actually try to read from @pos.
+     */
+    return (begin <= pos) && (pos <= end);
 }
 
 int pt_sync_set(const uint8_t **sync, const uint8_t *pos,
-		const struct pt_config *config)
+        const struct pt_config *config)
 {
-	const uint8_t *begin, *end;
-	int errcode;
+    const uint8_t *begin, *end;
+    int errcode;
 
-	if (!sync || !pos || !config)
-		return -pte_internal;
+    if (!sync || !pos || !config)
+        return -pte_internal;
 
-	begin = config->begin;
-	end = config->end;
+    begin = config->begin;
+    end = config->end;
 
-	if (!pt_sync_within_bounds(pos, begin, end))
-		return -pte_eos;
+    if (!pt_sync_within_bounds(pos, begin, end))
+        return -pte_eos;
 
-	if (end < pos + 2)
-		return -pte_eos;
+    if (end < pos + 2)
+        return -pte_eos;
 
-	/* Check that this is indeed a psb packet we're at. */
-	if (pos[0] != pt_opc_psb || pos[1] != pt_ext_psb)
-		return -pte_nosync;
+    /* Check that this is indeed a psb packet we're at. */
+    if (pos[0] != pt_opc_psb || pos[1] != pt_ext_psb)
+        return -pte_nosync;
 
-	errcode = pt_pkt_read_psb(pos, config);
-	if (errcode < 0)
-		return errcode;
+    errcode = pt_pkt_read_psb(pos, config);
+    if (errcode < 0)
+        return errcode;
 
-	*sync = pos;
+    *sync = pos;
 
-	return 0;
+    return 0;
 }
 
 int pt_sync_forward(const uint8_t **sync, const uint8_t *pos,
-		    const struct pt_config *config)
+            const struct pt_config *config)
 {
-	const uint8_t *begin, *end, *start;
+    const uint8_t *begin, *end, *start;
 
-	if (!sync || !pos || !config)
-		return -pte_internal;
+    if (!sync || !pos || !config)
+        return -pte_internal;
 
-	start = pos;
-	begin = config->begin;
-	end = config->end;
+    start = pos;
+    begin = config->begin;
+    end = config->end;
 
-	if (!pt_sync_within_bounds(pos, begin, end))
-		return -pte_internal;
+    if (!pt_sync_within_bounds(pos, begin, end))
+        return -pte_internal;
 
-	/* We search for a full 64bit word. It's OK to skip the current one. */
-	pos = align(pos, sizeof(*psb_pattern));
+    /* We search for a full 64bit word. It's OK to skip the current one. */
+    pos = align(pos, sizeof(*psb_pattern));
 
-	/* Search for the psb payload pattern in the buffer. */
-	for (;;) {
-		const uint8_t *current = pos;
-		uint64_t val;
+    /* Search for the psb payload pattern in the buffer. */
+    for (;;) {
+        const uint8_t *current = pos;
+        uint64_t val;
 
-		pos += sizeof(uint64_t);
-		if (end < pos)
-			return -pte_eos;
+        pos += sizeof(uint64_t);
+        if (end < pos)
+            return -pte_eos;
 
-		val = * (const uint64_t *) current;
+        val = * (const uint64_t *) current;
 
-		if ((val != psb_pattern[0]) && (val != psb_pattern[1]))
-			continue;
+        if ((val != psb_pattern[0]) && (val != psb_pattern[1]))
+            continue;
 
-		/* We found a 64bit word's worth of psb payload pattern. */
-		current = pt_find_psb(pos, config);
-		if (!current)
-			continue;
+        /* We found a 64bit word's worth of psb payload pattern. */
+        current = pt_find_psb(pos, config);
+        if (!current)
+            continue;
 
-		/* If @start points inside a PSB, we may find that one.  Ignore
-		 * it unless @start points to its beginning.
-		 */
-		if (current < start)
-			continue;
+        /* If @start points inside a PSB, we may find that one.  Ignore
+         * it unless @start points to its beginning.
+         */
+        if (current < start)
+            continue;
 
-		*sync = current;
-		return 0;
-	}
+        *sync = current;
+        return 0;
+    }
 }
 
 int pt_sync_backward(const uint8_t **sync, const uint8_t *pos,
-		    const struct pt_config *config)
+            const struct pt_config *config)
 {
-	const uint8_t *begin, *end;
+    const uint8_t *begin, *end;
 
-	if (!sync || !pos || !config)
-		return -pte_internal;
+    if (!sync || !pos || !config)
+        return -pte_internal;
 
-	begin = config->begin;
-	end = config->end;
+    begin = config->begin;
+    end = config->end;
 
-	if (!pt_sync_within_bounds(pos, begin, end))
-		return -pte_internal;
+    if (!pt_sync_within_bounds(pos, begin, end))
+        return -pte_internal;
 
-	/* We search for a full 64bit word. It's OK to skip the current one. */
-	pos = truncate(pos, sizeof(*psb_pattern));
+    /* We search for a full 64bit word. It's OK to skip the current one. */
+    pos = truncate(pos, sizeof(*psb_pattern));
 
-	/* Search for the psb payload pattern in the buffer. */
-	for (;;) {
-		const uint8_t *next = pos;
-		uint64_t val;
+    /* Search for the psb payload pattern in the buffer. */
+    for (;;) {
+        const uint8_t *next = pos;
+        uint64_t val;
 
-		pos -= sizeof(uint64_t);
-		if (pos < begin)
-			return -pte_eos;
+        pos -= sizeof(uint64_t);
+        if (pos < begin)
+            return -pte_eos;
 
-		val = * (const uint64_t *) pos;
+        val = * (const uint64_t *) pos;
 
-		if ((val != psb_pattern[0]) && (val != psb_pattern[1]))
-			continue;
+        if ((val != psb_pattern[0]) && (val != psb_pattern[1]))
+            continue;
 
-		/* We found a 64bit word's worth of psb payload pattern. */
-		next = pt_find_psb(next, config);
-		if (!next)
-			continue;
+        /* We found a 64bit word's worth of psb payload pattern. */
+        next = pt_find_psb(next, config);
+        if (!next)
+            continue;
 
-		*sync = next;
-		return 0;
-	}
+        *sync = next;
+        return 0;
+    }
 }

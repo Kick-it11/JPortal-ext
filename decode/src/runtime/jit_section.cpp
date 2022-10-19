@@ -80,7 +80,7 @@ JitSection::~JitSection() {
     delete _cmd;
 }
 
-bool JitSection::read(uint8_t *buffer, uint16_t *size, uint64_t vaddr) {
+bool JitSection::read(uint8_t *buffer, uint8_t *size, uint64_t vaddr) {
     uint64_t offset = vaddr - _code_begin;
     uint64_t limit = _code_size;
     if (limit <= offset || !buffer || !size)

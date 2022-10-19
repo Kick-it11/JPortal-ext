@@ -56,4 +56,4 @@ public:
     static void destroy();
 };
 
-#endif // SIDEBAND_HPP
+#endif /* SIDEBAND_HPP */

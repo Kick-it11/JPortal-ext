@@ -1213,6 +1213,8 @@ bool nmethod::make_not_entrant_or_zombie(int state) {
   // This flag is used to remember whether we need to later lock and unregister.
   bool nmethod_needs_unregister = false;
 
+  bool ic_dump = false;
+  address ic_src, ic_dest;
   {
     // invalidate osr nmethod before acquiring the patching lock since
     // they both acquire leaf locks and we don't want a deadlock.
@@ -1241,8 +1243,9 @@ bool nmethod::make_not_entrant_or_zombie(int state) {
 
       // JPortal
       if (JPortal && CodeCache::is_jportal((address)this)) {
-        JPortalEnable::dump_inline_cache_add(verified_entry_point(),
-                  SharedRuntime::get_handle_wrong_method_stub());
+        ic_dump = true;
+        ic_src = verified_entry_point(),
+        ic_dest = SharedRuntime::get_handle_wrong_method_stub();
       }
     }
 
@@ -1280,6 +1283,10 @@ bool nmethod::make_not_entrant_or_zombie(int state) {
     // Remove nmethod from method.
     unlink_from_method(false /* already owns Patching_lock */);
   } // leave critical region under Patching_lock
+
+  // JPortal
+  if (ic_dump)
+    JPortalEnable::dump_inline_cache_add(ic_src, ic_dest);
 
 #ifdef ASSERT
   if (is_osr_method() && method() != NULL) {

@@ -1044,7 +1044,8 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* thread, Runtime1::StubID stub_i
   }
 
   // Now copy code back
-
+  bool ic_dump = false;
+  address ic_src, ic_dest;
   {
     MutexLockerEx ml_patch (Patching_lock, Mutex::_no_safepoint_check_flag);
     //
@@ -1224,7 +1225,9 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* thread, Runtime1::StubID stub_i
 
           // JPortal
           if (JPortal && CodeCache::is_jportal(instr_pc)) {
-            JPortalEnable::dump_inline_cache_add(instr_pc, instr_pc + *byte_count);
+            ic_dump = true;
+            ic_src = instr_pc;
+            ic_dest = instr_pc + *byte_count;
           }
 
           if (load_klass_or_mirror_patch_id ||
@@ -1265,12 +1268,18 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* thread, Runtime1::StubID stub_i
 
           // JPortal
           if (JPortal && CodeCache::is_jportal(instr_pc)) {
-            JPortalEnable::dump_inline_cache_add(instr_pc, being_initialized_entry);
+            ic_dump = true;
+            ic_src = instr_pc;
+            ic_dest = being_initialized_entry;
           }
         }
       }
     }
   }
+
+  // JPortal
+  if (ic_dump)
+    JPortalEnable::dump_inline_cache_add(ic_src, ic_dest);
 
   // If we are patching in a non-perm oop, make sure the nmethod
   // is on the right list.

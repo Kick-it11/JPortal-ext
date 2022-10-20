@@ -326,117 +326,117 @@ void JPortalEnable::destroy() {
 
 void JPortalEnable::init() {
 #ifdef JPORTAL_ENABLE
-  JPortalEnable_lock->lock_without_safepoint_check();
+  {
+    MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
 
-  // initialized
-  if (_initialized)
-    return;
+    // initialized
+    if (_initialized)
+      return;
 
-  // open pipe
-  int pipe_fd[2];
-  if (pipe(pipe_fd) < 0) {
-    fprintf(stderr, "JPortal error: Failt to open trace pipe\n");
-    FLAG_SET_ERGO(bool, JPortal, false);
-    return;
-  }
+    // open pipe
+    int pipe_fd[2];
+    if (pipe(pipe_fd) < 0) {
+      fprintf(stderr, "JPortal error: Failt to open trace pipe\n");
+      FLAG_SET_ERGO(bool, JPortal, false);
+      return;
+    }
 
-  // open shared memory
-  if (JPortalShmVolume <= sizeof(CodeletsInfo)) {
-    fprintf(stderr, "JPortal error: JPortalShmVolume too small\n");
-    FLAG_SET_ERGO(bool, JPortal, false);
-    return;
-  }
-  _shm_id = shmget(IPC_PRIVATE, JPortalShmVolume, IPC_CREAT|0600);
-  if (_shm_id < 0) {
-    fprintf(stderr, "JPortal error: Fail to get shared memory.\n");
-    FLAG_SET_ERGO(bool, JPortal, false);
-    return;
-  }
-  // initialize
-  _shm_addr = (address)shmat(_shm_id, NULL, 0);
+    // open shared memory
+    if (JPortalShmVolume <= sizeof(CodeletsInfo)) {
+      fprintf(stderr, "JPortal error: JPortalShmVolume too small\n");
+      FLAG_SET_ERGO(bool, JPortal, false);
+      return;
+    }
+    _shm_id = shmget(IPC_PRIVATE, JPortalShmVolume, IPC_CREAT|0600);
+    if (_shm_id < 0) {
+      fprintf(stderr, "JPortal error: Fail to get shared memory.\n");
+      FLAG_SET_ERGO(bool, JPortal, false);
+      return;
+    }
+    // initialize
+    _shm_addr = (address)shmat(_shm_id, NULL, 0);
 
-  struct ShmHeader *header = (ShmHeader *)_shm_addr;
-  header->data_head = 0;
-  header->data_tail = 0;
-  header->data_size = JPortalShmVolume - sizeof(ShmHeader);
+    struct ShmHeader *header = (ShmHeader *)_shm_addr;
+    header->data_head = 0;
+    header->data_tail = 0;
+    header->data_size = JPortalShmVolume - sizeof(ShmHeader);
 
-  // write JPortalTrace arguments
-  char java_pid[20], write_pipe[20], _low_bound[20], _high_bound[20];
-  char mmap_pages[20], aux_pages[20], shmid[20];
-  if (sprintf(java_pid, "%ld", syscall(SYS_gettid)) < 0 ||
-      sprintf(write_pipe, "%d", pipe_fd[1]) < 0 ||
-      sprintf(_low_bound, "%p", CodeCache::low_bound(true)) < 0 ||
-      sprintf(_high_bound, "%p", CodeCache::high_bound(true)) < 0 ||
-      sprintf(mmap_pages, "%lu", JPortalMMAPPages) < 0 ||
-      sprintf(aux_pages, "%lu", JPortalAUXPages) < 0 || 
-      sprintf(shmid, "%d", _shm_id) < 0) {
-    fprintf(stderr, "JPortal error: Fail to write JPortalTrace Arguments\n");
+    // write JPortalTrace arguments
+    char java_pid[20], write_pipe[20], _low_bound[20], _high_bound[20];
+    char mmap_pages[20], aux_pages[20], shmid[20];
+    if (sprintf(java_pid, "%ld", syscall(SYS_gettid)) < 0 ||
+        sprintf(write_pipe, "%d", pipe_fd[1]) < 0 ||
+        sprintf(_low_bound, "%p", CodeCache::low_bound(true)) < 0 ||
+        sprintf(_high_bound, "%p", CodeCache::high_bound(true)) < 0 ||
+        sprintf(mmap_pages, "%lu", JPortalMMAPPages) < 0 ||
+        sprintf(aux_pages, "%lu", JPortalAUXPages) < 0 || 
+        sprintf(shmid, "%d", _shm_id) < 0) {
+      fprintf(stderr, "JPortal error: Fail to write JPortalTrace Arguments\n");
 
-    close(pipe_fd[0]);
-    close(pipe_fd[1]);
+      close(pipe_fd[0]);
+      close(pipe_fd[1]);
 
-    shmdt(_shm_addr);
-    shmctl(_shm_id, IPC_RMID, NULL);
-    _shm_id = -1;
-    _shm_addr = NULL;
-    FLAG_SET_ERGO(bool, JPortal, false);
+      shmdt(_shm_addr);
+      shmctl(_shm_id, IPC_RMID, NULL);
+      _shm_id = -1;
+      _shm_addr = NULL;
+      FLAG_SET_ERGO(bool, JPortal, false);
 
-    return;
-  }
+      return;
+    }
 
-  // load JPortalTrace program to begin tracing
-  pid_t pid = fork();
-  if (pid == 0) {
-    // sub process
-    prctl(PR_SET_PDEATHSIG, SIGTERM);
-    close(pipe_fd[0]);
+    // load JPortalTrace program to begin tracing
+    pid_t pid = fork();
+    if (pid == 0) {
+      // sub process
+      prctl(PR_SET_PDEATHSIG, SIGTERM);
+      close(pipe_fd[0]);
 
-    execl("/home/jake/codes/JPortal-ext/build/trace/JPortalTrace",
+      execl("/home/jake/codes/JPortal-ext/build/trace/JPortalTrace",
             "./JPortalTrace", java_pid, write_pipe, _low_bound, _high_bound,
             mmap_pages, aux_pages, shmid, NULL);      
 
-    // fail to load subprocess
-    fprintf(stderr, "JPortal error: Fail to load JPortalTrace process\n");
+      // fail to load subprocess
+      fprintf(stderr, "JPortal error: Fail to load JPortalTrace process\n");
 
+      close(pipe_fd[1]);
+      exit(-1);
+    } else if (pid < 0) {
+      // fail to fork process
+      fprintf(stderr, "JPortal error: Fail to fork new process\n");
+
+      close(pipe_fd[0]);
+      close(pipe_fd[1]);
+
+      shmdt(_shm_addr);
+      shmctl(_shm_id, IPC_RMID, NULL);
+      _shm_id = -1;
+      _shm_addr = NULL;
+
+      FLAG_SET_ERGO(bool, JPortal, false);
+      return;
+    }
+
+    // Succeed to load JPortalTrace and this is in JVM process
+    char bf;
     close(pipe_fd[1]);
-    exit(-1);
-  } else if (pid < 0) {
-    // fail to fork process
-    fprintf(stderr, "JPortal error: Fail to fork new process\n");
-
+    if (read(pipe_fd[0], &bf, 1) != 1) {
+      fprintf(stderr, "JPortal error: Fail to read pipe from child process.\n");
+      close(pipe_fd[0]);
+      shmctl(_shm_id, IPC_RMID, NULL);
+      shmctl(_shm_id, IPC_RMID, NULL);
+      _shm_id = -1;
+      _shm_addr = NULL;
+      FLAG_SET_ERGO(bool, JPortal, false);
+      return;
+    }
     close(pipe_fd[0]);
-    close(pipe_fd[1]);
 
-    shmdt(_shm_addr);
-    shmctl(_shm_id, IPC_RMID, NULL);
-    _shm_id = -1;
-    _shm_addr = NULL;
+    _method_array = new(ResourceObj::C_HEAP, mtInternal) GrowableArray<Method*> (10, true);
 
-    FLAG_SET_ERGO(bool, JPortal, false);
-    return;
+    // Succeed
+    _initialized = true;
   }
-
-  // Succeed to load JPortalTrace and this is in JVM process
-  char bf;
-  close(pipe_fd[1]);
-  if (read(pipe_fd[0], &bf, 1) != 1) {
-    fprintf(stderr, "JPortal error: Fail to read pipe from child process.\n");
-    close(pipe_fd[0]);
-    shmctl(_shm_id, IPC_RMID, NULL);
-    shmctl(_shm_id, IPC_RMID, NULL);
-    _shm_id = -1;
-    _shm_addr = NULL;
-    FLAG_SET_ERGO(bool, JPortal, false);
-    return;
-  }
-  close(pipe_fd[0]);
-
-  _method_array = new(ResourceObj::C_HEAP, mtInternal) GrowableArray<Method*> (10, true);
-
-  // Succeed
-  _initialized = true;
-
-  JPortalEnable_lock->unlock();
 
   dump_codelets();
 

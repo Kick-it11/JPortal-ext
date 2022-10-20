@@ -30,7 +30,6 @@
 
 #include <string.h>
 
-
 static inline uint8_t pt_evq_inc(uint8_t idx)
 {
     idx += 1;
@@ -191,7 +190,8 @@ struct pt_event *pt_evq_find(struct pt_event_queue *evq,
     if (evq_max <= end)
         return NULL;
 
-    for (; begin != end; begin = pt_evq_inc(begin)) {
+    for (; begin != end; begin = pt_evq_inc(begin))
+    {
         struct pt_event *ev;
 
         ev = &evq->queue[evb][begin];

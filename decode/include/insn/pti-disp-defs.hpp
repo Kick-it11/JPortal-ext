@@ -30,11 +30,11 @@
 #ifndef PTI_DISP_DEFS_HPP
 #define PTI_DISP_DEFS_HPP
 
-#define PTI_DISP_NONE                                 0
-#define PTI_PRESERVE_DEFAULT                          1
-#define PTI_BRDISP8                                   2
-#define PTI_DISP_BUCKET_0_l1                          3
-#define PTI_MEMDISPv_DISP_WIDTH_ASZ_NONTERM_EASZ_l2   4
-#define PTI_BRDISPz_BRDISP_WIDTH_OSZ_NONTERM_EOSZ_l2  5
-#define PTI_RESOLVE_BYREG_DISP_map0x0_op0xc7_l1       6
+#define PTI_DISP_NONE 0
+#define PTI_PRESERVE_DEFAULT 1
+#define PTI_BRDISP8 2
+#define PTI_DISP_BUCKET_0_l1 3
+#define PTI_MEMDISPv_DISP_WIDTH_ASZ_NONTERM_EASZ_l2 4
+#define PTI_BRDISPz_BRDISP_WIDTH_OSZ_NONTERM_EOSZ_l2 5
+#define PTI_RESOLVE_BYREG_DISP_map0x0_op0xc7_l1 6
 #endif /* PTI_DISP_DEFS_HPP */

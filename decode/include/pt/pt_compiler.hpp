@@ -29,19 +29,17 @@
 #ifndef PT_COMPILER_HPP
 #define PT_COMPILER_HPP
 
-
 /* Both the relevant Clang and GCC versions support this. */
 #if !defined(__has_attribute)
-#  define __has_attribute(attr) 0
+#define __has_attribute(attr) 0
 #endif
 
 #if !defined(fallthrough)
-#  if (__has_attribute(fallthrough))
-#    define fallthrough __attribute__((fallthrough))
-#  else
-#    define fallthrough /* Fall through. */
-#  endif
+#if (__has_attribute(fallthrough))
+#define fallthrough __attribute__((fallthrough))
+#else
+#define fallthrough /* Fall through. */
+#endif
 #endif /* !defined(fallthrough) */
-
 
 #endif /* PT_COMPILER_HPP */

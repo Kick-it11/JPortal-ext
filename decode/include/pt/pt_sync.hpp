@@ -33,7 +33,6 @@
 
 struct pt_config;
 
-
 /* Synchronize onto the trace stream.
  *
  * Search for the next synchronization point in forward or backward direction

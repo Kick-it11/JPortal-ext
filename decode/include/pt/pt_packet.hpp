@@ -50,7 +50,6 @@ struct pt_packet_pwre;
 struct pt_packet_pwrx;
 struct pt_packet_ptw;
 
-
 /* Read the payload of an Intel PT packet.
  *
  * Reads the payload of the packet starting at @pos into @packet.

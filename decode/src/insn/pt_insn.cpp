@@ -33,12 +33,13 @@
 int pt_insn_changes_cpl(const struct pt_insn *insn,
                         const struct pt_insn_ext *iext)
 {
-    (void) insn;
+    (void)insn;
 
     if (!iext)
         return 0;
 
-    switch (iext->iclass) {
+    switch (iext->iclass)
+    {
     default:
         return 0;
 
@@ -58,12 +59,13 @@ int pt_insn_changes_cpl(const struct pt_insn *insn,
 int pt_insn_changes_cr3(const struct pt_insn *insn,
                         const struct pt_insn_ext *iext)
 {
-    (void) insn;
+    (void)insn;
 
     if (!iext)
         return 0;
 
-    switch (iext->iclass) {
+    switch (iext->iclass)
+    {
     default:
         return 0;
 
@@ -75,12 +77,13 @@ int pt_insn_changes_cr3(const struct pt_insn *insn,
 int pt_insn_is_branch(const struct pt_insn *insn,
                       const struct pt_insn_ext *iext)
 {
-    (void) iext;
+    (void)iext;
 
     if (!insn)
         return 0;
 
-    switch (insn->iclass) {
+    switch (insn->iclass)
+    {
     default:
         return 0;
 
@@ -99,12 +102,13 @@ int pt_insn_is_branch(const struct pt_insn *insn,
 int pt_insn_is_far_branch(const struct pt_insn *insn,
                           const struct pt_insn_ext *iext)
 {
-    (void) iext;
+    (void)iext;
 
     if (!insn)
         return 0;
 
-    switch (insn->iclass) {
+    switch (insn->iclass)
+    {
     default:
         return 0;
 
@@ -121,7 +125,8 @@ int pt_insn_binds_to_pip(const struct pt_insn *insn,
     if (!iext)
         return 0;
 
-    switch (iext->iclass) {
+    switch (iext->iclass)
+    {
     default:
         return pt_insn_is_far_branch(insn, iext);
 
@@ -138,7 +143,8 @@ int pt_insn_binds_to_vmcs(const struct pt_insn *insn,
     if (!iext)
         return 0;
 
-    switch (iext->iclass) {
+    switch (iext->iclass)
+    {
     default:
         return pt_insn_is_far_branch(insn, iext);
 
@@ -152,12 +158,13 @@ int pt_insn_binds_to_vmcs(const struct pt_insn *insn,
 int pt_insn_is_ptwrite(const struct pt_insn *insn,
                        const struct pt_insn_ext *iext)
 {
-    (void) iext;
+    (void)iext;
 
     if (!insn)
         return 0;
 
-    switch (insn->iclass) {
+    switch (insn->iclass)
+    {
     default:
         return 0;
 
@@ -176,16 +183,18 @@ int pt_insn_next_ip(uint64_t *pip, const struct pt_insn *insn,
 
     ip = insn->ip + insn->size;
 
-    switch (insn->iclass) {
+    switch (insn->iclass)
+    {
     case ptic_ptwrite:
     case ptic_other:
         break;
 
     case ptic_call:
     case ptic_jump:
-        if (iext->variant.branch.is_direct) {
-            ip += (uint64_t) (int64_t)
-                iext->variant.branch.displacement;
+        if (iext->variant.branch.is_direct)
+        {
+            ip += (uint64_t)(int64_t)
+                      iext->variant.branch.displacement;
             break;
         }
 

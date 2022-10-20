@@ -36,36 +36,37 @@ struct pt_packet_decoder;
 struct pt_packet;
 struct pt_config;
 
-
 /* Intel(R) Processor Trace decoder function flags. */
-enum pt_decoder_function_flag {
+enum pt_decoder_function_flag
+{
     /* The decoded packet contains an unconditional branch destination. */
-    pdff_tip    = 1 << 0,
+    pdff_tip = 1 << 0,
 
     /* The decode packet contains unconditional branch destinations. */
-    pdff_tnt    = 1 << 1,
+    pdff_tnt = 1 << 1,
 
     /* The decoded packet contains an event. */
-    pdff_event    = 1 << 2,
+    pdff_event = 1 << 2,
 
     /* The decoded packet marks the end of a PSB header. */
-    pdff_psbend    = 1 << 3,
+    pdff_psbend = 1 << 3,
 
     /* The decoded packet contains a non-branch IP update. */
-    pdff_fup    = 1 << 4,
+    pdff_fup = 1 << 4,
 
     /* The decoded packet is unknown to the decoder. */
-    pdff_unknown    = 1 << 5,
+    pdff_unknown = 1 << 5,
 
     /* The decoded packet contains timing information. */
-    pdff_timing    = 1 << 6,
+    pdff_timing = 1 << 6,
 
     /* The decoded packet contains padding. */
-    pdff_pad    = 1 << 7
+    pdff_pad = 1 << 7
 };
 
 /* An Intel(R) Processor Trace decoder function. */
-struct pt_decoder_function {
+struct pt_decoder_function
+{
     /* The function to analyze the next packet. */
     int (*packet)(struct pt_packet_decoder *, struct pt_packet *);
 
@@ -81,7 +82,6 @@ struct pt_decoder_function {
     int flags;
 };
 
-
 /* Fetch the decoder function.
  *
  * Sets @dfun to the decoder function for decoding the packet at @pos.
@@ -92,8 +92,7 @@ struct pt_decoder_function {
  * Returns -pte_eos if the opcode is incomplete or missing.
  */
 extern int pt_df_fetch(const struct pt_decoder_function **dfun,
-               const uint8_t *pos, const struct pt_config *config);
-
+                       const uint8_t *pos, const struct pt_config *config);
 
 /* Decoder functions for the various packet types.
  *

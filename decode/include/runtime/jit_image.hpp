@@ -9,7 +9,8 @@
 class JitSection;
 
 /* A traced image consisting of a collection of sections. */
-class JitImage {
+class JitImage
+{
 private:
     /* The optional image name. */
     const std::string _name;
@@ -52,7 +53,7 @@ public:
      * Validate that a lookup of @vaddr in @image.
      *
      * Validation may fail sporadically.
-     * 
+     *
      * Returns false if validation failed.
      */
     bool validate(JitSection *section, uint64_t vaddr);

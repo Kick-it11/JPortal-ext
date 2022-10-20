@@ -31,9 +31,9 @@
 
 #include "pt/pt.hpp"
 
-
 /* An Intel PT packet decoder. */
-struct pt_packet_decoder {
+struct pt_packet_decoder
+{
     /* The decoder configuration. */
     struct pt_config config;
 
@@ -44,7 +44,6 @@ struct pt_packet_decoder {
     const uint8_t *sync;
 };
 
-
 /* Initialize the packet decoder.
  *
  * Returns zero on success, a negative error code otherwise.
@@ -54,7 +53,6 @@ extern int pt_pkt_decoder_init(struct pt_packet_decoder *,
 
 /* Finalize the packet decoder. */
 extern void pt_pkt_decoder_fini(struct pt_packet_decoder *);
-
 
 /* Decoder functions for the packet decoder. */
 extern int pt_pkt_decode_unknown(struct pt_packet_decoder *,

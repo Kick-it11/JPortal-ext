@@ -10,13 +10,15 @@ const char *Bytecodes::_name[number_of_codes];
 u_char Bytecodes::_lengths[number_of_codes];
 
 void Bytecodes::def(Code code, bool is_block_end, const char *name,
-                    const char *format, const char *wide_format) {
+                    const char *format, const char *wide_format)
+{
     def(code, is_block_end, name, format, wide_format, code);
 }
 
 void Bytecodes::def(Code code, bool is_block_end, const char *name,
                     const char *format, const char *wide_format,
-                    Code java_code) {
+                    Code java_code)
+{
     assert(wide_format == nullptr || format != nullptr);
     int len = (format != nullptr ? (int)strlen(format) : 0);
     int wlen = (wide_format != nullptr ? (int)strlen(wide_format) : 0);
@@ -26,7 +28,8 @@ void Bytecodes::def(Code code, bool is_block_end, const char *name,
     _lengths[code] = (wlen << 4) | (len & 0xF);
 }
 
-static inline u4 get_u4(const u1 *buffer) {
+static inline u4 get_u4(const u1 *buffer)
+{
     u1 ui[4];
     ui[3] = *buffer++;
     ui[2] = *buffer++;
@@ -35,15 +38,20 @@ static inline u4 get_u4(const u1 *buffer) {
     return *(u4 *)ui;
 }
 
-int Bytecodes::special_length_at(Code code, const u1 *buffer, const u4 offset) {
-    switch (code) {
-    case _breakpoint: {
+int Bytecodes::special_length_at(Code code, const u1 *buffer, const u4 offset)
+{
+    switch (code)
+    {
+    case _breakpoint:
+    {
         return 1;
     }
-    case _wide: {
+    case _wide:
+    {
         return wide_length_for((Code) * (buffer + 1));
     }
-    case _tableswitch: {
+    case _tableswitch:
+    {
         jlong jintSize = sizeof(jint);
         jint alup = 1 + alignup(offset);
         buffer += alup;
@@ -53,26 +61,30 @@ int Bytecodes::special_length_at(Code code, const u1 *buffer, const u4 offset) {
     }
     case _lookupswitch:
     case _fast_linearswitch:
-    case _fast_binaryswitch: {
+    case _fast_binaryswitch:
+    {
         long jintSize = sizeof(jint);
         jint alup = 1 + alignup(offset);
         buffer += alup;
         jlong npairs = get_u4(buffer + jintSize);
         return alup + (2 + 2 * npairs) * jintSize;
     }
-    default: {
+    default:
+    {
         /* should not reach here */
         return -1;
     }
     }
 }
 
-void Bytecodes::java_bytecode(Code &code, Code &follow_code) {
+void Bytecodes::java_bytecode(Code &code, Code &follow_code)
+{
     follow_code = _illegal;
     if (code < number_of_java_codes)
         return;
 
-    switch (code) {
+    switch (code)
+    {
     case (_fast_agetfield):
     case (_fast_bgetfield):
     case (_fast_cgetfield):
@@ -178,7 +190,8 @@ void Bytecodes::java_bytecode(Code &code, Code &follow_code) {
     }
     return;
 }
-void Bytecodes::initialize() {
+void Bytecodes::initialize()
+{
     if (_is_initialized)
         return;
     assert(number_of_codes <= 256);
@@ -193,7 +206,7 @@ void Bytecodes::initialize() {
      * Note 2: The result type is T_ILLEGAL for bytecodes where the top of stack
      *         type after execution is not only determined by the bytecode
      *         itself.
-     * 
+     *
      * Java bytecodes
      *  bytecode, is_block_end, bytecode_name, format, wide f.
      */

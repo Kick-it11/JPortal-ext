@@ -34,7 +34,6 @@
 #include <string.h>
 #include <limits.h>
 
-
 void pt_time_init(struct pt_time *time)
 {
     if (!time)
@@ -90,7 +89,8 @@ static int pt_time_ctc_delta(uint32_t *ctc_delta, uint32_t ctc,
     /* Correct a single wrap-around.  If we lost enough MTCs to wrap
      * around twice, timing will be wrong until the next TSC.
      */
-    if (ctc < last_ctc) {
+    if (ctc < last_ctc)
+    {
         ctc += 1u << (config->mtc_freq + pt_pl_mtc_bit_size);
 
         /* Since we only store the CTC between TMA/MTC or MTC/TMC a
@@ -131,7 +131,7 @@ int pt_time_update_tsc(struct pt_time *time,
                        const struct pt_packet_tsc *packet,
                        const struct pt_config *config)
 {
-    (void) config;
+    (void)config;
 
     if (!time || !packet)
         return -pte_internal;
@@ -156,7 +156,7 @@ int pt_time_update_cbr(struct pt_time *time,
 {
     uint8_t cbr;
 
-    (void) config;
+    (void)config;
 
     if (!time || !packet)
         return -pte_internal;
@@ -260,7 +260,7 @@ int pt_time_update_mtc(struct pt_time *time,
     last_ctc = time->ctc;
     mtc_freq = config->mtc_freq;
 
-    ctc = (uint32_t) packet->ctc << mtc_freq;
+    ctc = (uint32_t)packet->ctc << mtc_freq;
 
     /* Store our CTC value if we have or would have reset FC. */
     if (time->fc || time->lost_cyc || !have_mtc)
@@ -277,7 +277,8 @@ int pt_time_update_mtc(struct pt_time *time,
     /* Avoid a big jump when we see the first MTC with an arbitrary CTC
      * payload.
      */
-    if (!have_mtc) {
+    if (!have_mtc)
+    {
         uint32_t ctc_lo, ctc_hi;
 
         /* If we have not seen a TMA, we ignore this first MTC.
@@ -294,14 +295,14 @@ int pt_time_update_mtc(struct pt_time *time,
         /* The TMA's CTC value didn't provide enough bits - otherwise,
          * we would have treated the TMA as an MTC.
          */
-        if (last_ctc & ~(uint32_t) pt_pl_tma_ctc_mask)
+        if (last_ctc & ~(uint32_t)pt_pl_tma_ctc_mask)
             return -pte_internal;
 
         /* Split this MTC's CTC value into low and high parts with
          * respect to the bits provided by TMA.
          */
-        ctc_lo = ctc & (uint32_t) pt_pl_tma_ctc_mask;
-        ctc_hi = ctc & ~(uint32_t) pt_pl_tma_ctc_mask;
+        ctc_lo = ctc & (uint32_t)pt_pl_tma_ctc_mask;
+        ctc_hi = ctc & ~(uint32_t)pt_pl_tma_ctc_mask;
 
         /* We estimate the high-order CTC bits that are not provided by
          * TMA based on the CTC bits provided by this MTC.
@@ -314,16 +315,18 @@ int pt_time_update_mtc(struct pt_time *time,
          * Note that we may underflow which results in more bits to be
          * set than MTC packets may provide.  Drop those extra bits.
          */
-        if (ctc_lo < last_ctc) {
+        if (ctc_lo < last_ctc)
+        {
             ctc_hi -= 1u << pt_pl_tma_ctc_bit_size;
-            ctc_hi &= (uint32_t) pt_pl_mtc_mask << mtc_freq;
+            ctc_hi &= (uint32_t)pt_pl_mtc_mask << mtc_freq;
         }
 
         last_ctc |= ctc_hi;
     }
 
     errcode = pt_time_ctc_delta(&ctc_delta, ctc, last_ctc, config);
-    if (errcode < 0) {
+    if (errcode < 0)
+    {
         time->lost_mtc += 1;
         return errcode;
     }
@@ -414,14 +417,16 @@ int pt_time_update_cyc(struct pt_time *time,
     if (!time || !packet || !config)
         return -pte_internal;
 
-    if (!fcr) {
+    if (!fcr)
+    {
         time->lost_cyc += 1;
         return 0;
     }
 
     cyc = packet->value;
     fc = time->fc;
-    if (!fc) {
+    if (!fc)
+    {
         int errcode;
 
         errcode = pt_time_adjust_cyc(&cyc, time, config, fcr);
@@ -500,7 +505,7 @@ int pt_tcal_update_tsc(struct pt_time_cal *tcal,
                        const struct pt_packet_tsc *packet,
                        const struct pt_config *config)
 {
-    (void) config;
+    (void)config;
 
     if (!tcal || !packet)
         return -pte_internal;
@@ -521,7 +526,7 @@ int pt_tcal_header_tsc(struct pt_time_cal *tcal,
 {
     uint64_t tsc, last_tsc, tsc_delta, cyc, fcr;
 
-    (void) config;
+    (void)config;
 
     if (!tcal || !packet)
         return -pte_internal;
@@ -542,7 +547,8 @@ int pt_tcal_header_tsc(struct pt_time_cal *tcal,
         return 0;
 
     /* Correct a single wrap-around. */
-    if (tsc < last_tsc) {
+    if (tsc < last_tsc)
+    {
         tsc += 1ull << pt_pl_tsc_bit_size;
 
         if (tsc < last_tsc)
@@ -603,9 +609,9 @@ int pt_tcal_update_tma(struct pt_time_cal *tcal,
                        const struct pt_packet_tma *packet,
                        const struct pt_config *config)
 {
-    (void) tcal;
-    (void) packet;
-    (void) config;
+    (void)tcal;
+    (void)packet;
+    (void)config;
 
     /* Nothing to do. */
     return 0;
@@ -630,10 +636,11 @@ int pt_tcal_update_mtc(struct pt_time_cal *tcal,
     /* This only affects the first MTC after PSB. */
     tcal->check_skl168 = 0;
 
-    ctc = (uint32_t) packet->ctc << config->mtc_freq;
+    ctc = (uint32_t)packet->ctc << config->mtc_freq;
 
     /* We need at least two MTC (including this). */
-    if (!have_mtc) {
+    if (!have_mtc)
+    {
         tcal->cyc_mtc = 0ull;
         tcal->ctc = ctc;
         tcal->have_mtc = 1;
@@ -681,7 +688,8 @@ int pt_tcal_update_mtc(struct pt_time_cal *tcal,
      *
      * This is not an error but we count that MTC as lost.
      */
-    if (check_skl168) {
+    if (check_skl168)
+    {
         /* If we lost one or more MTC, the case is clear. */
         if ((1u << config->mtc_freq) < ctc_delta)
             return 0;
@@ -699,7 +707,8 @@ int pt_tcal_update_mtc(struct pt_time_cal *tcal,
          * We also need a previous FCR so we know how many cycles to
          * expect.
          */
-        if ((config->mtc_freq < 10) && pt_tcal_have_fcr(tcal)) {
+        if ((config->mtc_freq < 10) && pt_tcal_have_fcr(tcal))
+        {
             uint64_t dfc;
 
             /* We choose a slightly lower adjustment to account for
@@ -732,7 +741,7 @@ int pt_tcal_update_cyc(struct pt_time_cal *tcal,
 {
     uint64_t cyc;
 
-    (void) config;
+    (void)config;
 
     if (!tcal || !packet)
         return -pte_internal;

@@ -38,9 +38,9 @@ struct pt_packet_tma;
 struct pt_packet_mtc;
 struct pt_packet_cyc;
 
-
 /* Intel(R) Processor Trace timing. */
-struct pt_time {
+struct pt_time
+{
     /* The estimated Time Stamp Count. */
     uint64_t tsc;
 
@@ -66,16 +66,16 @@ struct pt_time {
     uint8_t cbr;
 
     /* A flag saying whether we have seen a TSC packet. */
-    uint32_t have_tsc:1;
+    uint32_t have_tsc : 1;
 
     /* A flag saying whether we have seen a CBR packet. */
-    uint32_t have_cbr:1;
+    uint32_t have_cbr : 1;
 
     /* A flag saying whether we have seen a TMA packet. */
-    uint32_t have_tma:1;
+    uint32_t have_tma : 1;
 
     /* A flag saying whether we have seen a MTC packet. */
-    uint32_t have_mtc:1;
+    uint32_t have_mtc : 1;
 };
 
 /* Initialize (or reset) the time. */
@@ -122,7 +122,6 @@ extern int pt_time_update_mtc(struct pt_time *, const struct pt_packet_mtc *,
 extern int pt_time_update_cyc(struct pt_time *, const struct pt_packet_cyc *,
                               const struct pt_config *, uint64_t fcr);
 
-
 /* Timing calibration.
  *
  * Used for estimating the Fast-Counter:Cycles ratio.
@@ -130,7 +129,8 @@ extern int pt_time_update_cyc(struct pt_time *, const struct pt_packet_cyc *,
  * Ideally, we calibrate by counting CYCs between MTCs.  Lacking MTCs, we
  * use TSC, instead.
  */
-struct pt_time_cal {
+struct pt_time_cal
+{
     /* The estimated fast-counter:cycles ratio. */
     uint64_t fcr;
 
@@ -165,20 +165,21 @@ struct pt_time_cal {
     uint32_t lost_mtc;
 
     /* A flag saying whether we have seen a MTC packet. */
-    uint32_t have_mtc:1;
+    uint32_t have_mtc : 1;
 
     /* A flag saying whether we need to check for erratum SKL168. */
-    uint32_t check_skl168:1;
+    uint32_t check_skl168 : 1;
 };
 
-enum {
+enum
+{
     /* The amount by which the fcr value is right-shifted.
      *
      * Do not shift the value obtained by pt_tcal_fcr() when passing it to
      * pt_time_update_cyc().
      * Do shift the value passed to pt_tcal_set_fcr().
      */
-    pt_tcal_fcr_shr    = 8
+    pt_tcal_fcr_shr = 8
 };
 
 /* Initialize of reset timing calibration. */

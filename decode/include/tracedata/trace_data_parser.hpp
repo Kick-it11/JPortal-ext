@@ -124,11 +124,11 @@ public:
     void resplit_pt_data();
 
     /** get next splitted pt data, return true if we can still get */
-    bool next_pt_data(std::pair<uint8_t*, uint64_t>& part_data, uint32_t &cpu);
+    bool next_pt_data(std::pair<uint8_t *, uint64_t> &part_data, uint32_t &cpu);
 
-    uint16_t time_shift()  { return _trace_header.time_shift;  }
-    uint32_t time_mult()   { return _trace_header.time_mult;   }
-    uint64_t time_zero()   { return _trace_header.time_zero;   }
+    uint16_t time_shift() { return _trace_header.time_shift; }
+    uint32_t time_mult() { return _trace_header.time_mult; }
+    uint64_t time_zero() { return _trace_header.time_zero; }
     uint64_t sample_type() { return _trace_header.sample_type; }
 
     void init_pt_config_from_trace(struct pt_config &config);

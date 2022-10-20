@@ -12,11 +12,12 @@ class Analyser;
 
 /* This class records JVM runtime information.
  * It is initialized by analysing dump file: usually named JPortalDump
- * 
+ *
  * DumpType defines different types of information
  */
 
-class JVMRuntime {
+class JVMRuntime
+{
 public:
     const static int number_of_states = 10;
     const static int number_of_return_entries = 6;
@@ -28,9 +29,10 @@ public:
     const static int number_of_codes = 239;
 
     /* JPortalDump files */
-    enum DumpType {
+    enum DumpType
+    {
         _illegal = -1,
-        
+
         /* First method entry: map between idx to method signature */
         _method_entry_initial,
 
@@ -56,13 +58,15 @@ public:
         _inline_cache_clear,
     };
 
-    struct DumpInfo {
+    struct DumpInfo
+    {
         uint32_t type;
         uint32_t size;
         uint64_t time;
     };
 
-    struct MethodEntryInitial {
+    struct MethodEntryInitial
+    {
         uint32_t idx;
         uint32_t klass_name_length;
         uint32_t method_name_length;
@@ -71,12 +75,14 @@ public:
         uint32_t _pending;
     };
 
-    struct MethodEntryInfo {
+    struct MethodEntryInfo
+    {
         uint32_t idx;
         uint32_t tid;
     };
 
-    struct CompiledMethodLoadInfo {
+    struct CompiledMethodLoadInfo
+    {
         uint64_t code_begin;
         uint64_t entry_point;
         uint64_t verified_entry_point;
@@ -87,32 +93,38 @@ public:
         uint32_t scopes_data_size;
     };
 
-    struct CompiledMethodUnloadInfo {
+    struct CompiledMethodUnloadInfo
+    {
         uint64_t code_begin;
     };
 
-    struct InlineMethodInfo {
+    struct InlineMethodInfo
+    {
         uint32_t klass_name_length;
         uint32_t method_name_length;
         uint32_t method_signature_length;
         uint32_t method_index;
     };
 
-    struct ThreadStartInfo {
+    struct ThreadStartInfo
+    {
         uint32_t java_tid;
         uint32_t sys_tid;
     };
 
-    struct InlineCacheAdd {
+    struct InlineCacheAdd
+    {
         uint64_t src;
         uint64_t dest;
     };
 
-    struct InlineCacheClear {
+    struct InlineCacheClear
+    {
         uint64_t src;
     };
 
-    struct CodeletsInfo {
+    struct CodeletsInfo
+    {
         uint64_t _low_bound;
         uint64_t _high_bound;
 
@@ -148,23 +160,24 @@ public:
 
         uint64_t _deopt_entry[number_of_deopt_entries][number_of_states];
         uint64_t _deopt_reexecute_return_entry;
-
     };
 
     JVMRuntime();
 
     void move_on(uint64_t time);
     uint32_t get_java_tid(uint32_t tid);
-    JitImage* image() { return _image; }
-    bool get_ic(uint64_t &ip, JitSection* section) {
-        if (_ics.count({ip, section})) {
+    JitImage *image() { return _image; }
+    bool get_ic(uint64_t &ip, JitSection *section)
+    {
+        if (_ics.count({ip, section}))
+        {
             ip = _ics[{ip, section}];
             return true;
         }
         return false;
     }
 
-    static void initialize(uint8_t *buffer, uint64_t size, Analyser* analyser);
+    static void initialize(uint8_t *buffer, uint64_t size, Analyser *analyser);
     static void destroy();
 
 private:
@@ -176,7 +189,7 @@ private:
     static uint8_t *end;
     /* map between system thread id & java thread id */
     static std::map<uint32_t, uint32_t> thread_map;
-    static std::map<int, const Method*> md_map;
+    static std::map<int, const Method *> md_map;
     static std::map<const uint8_t *, JitSection *> section_map;
     static bool _initialized;
 };

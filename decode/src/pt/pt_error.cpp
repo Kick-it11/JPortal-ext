@@ -28,10 +28,10 @@
 
 #include "pt/pt.hpp"
 
-
 const char *pt_errstr(enum pt_error_code errcode)
 {
-    switch (errcode) {
+    switch (errcode)
+    {
     case pte_ok:
         return "OK";
 

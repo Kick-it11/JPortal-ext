@@ -39,7 +39,8 @@
  *   * We provide only a very coarse classification suitable for reconstructing
  *    * the execution flow.
  *     */
-enum pt_insn_class {
+enum pt_insn_class
+{
     /* The instruction has not been classified. */
     ptic_unknown,
 
@@ -59,18 +60,18 @@ enum pt_insn_class {
     ptic_cond_jump,
 
     /* The instruction is a call-like far transfer.
- *      * E.g. SYSCALL, SYSENTER, or FAR CALL.
- *           */
+     *      * E.g. SYSCALL, SYSENTER, or FAR CALL.
+     *           */
     ptic_far_call,
 
     /* The instruction is a return-like far transfer.
- *      * E.g. SYSRET, SYSEXIT, IRET, or FAR RET.
- *           */
+     *      * E.g. SYSRET, SYSEXIT, IRET, or FAR RET.
+     *           */
     ptic_far_return,
 
     /* The instruction is a jump-like far transfer.
- *      * E.g. FAR JMP.
- *           */
+     *      * E.g. FAR JMP.
+     *           */
     ptic_far_jump,
 
     /* The instruction is a PTWRITE. */
@@ -81,22 +82,24 @@ enum pt_insn_class {
 };
 
 /** The maximal size of an instruction. */
-enum {
-    pt_max_insn_size    = 15
+enum
+{
+    pt_max_insn_size = 15
 };
 
 /** A single traced instruction. */
-struct pt_insn {
+struct pt_insn
+{
     /** The virtual address in its process. */
     uint64_t ip;
 
     /** The image section identifier for the section containing this
- *      * instruction.
- *           *
- *                * A value of zero means that the section did not have an identifier.
- *                     * The section was not added via an image section cache or the memory
- *                          * was read via the read memory callback.
- *                               */
+     *      * instruction.
+     *           *
+     *                * A value of zero means that the section did not have an identifier.
+     *                     * The section was not added via an image section cache or the memory
+     *                          * was read via the read memory callback.
+     *                               */
     int isid;
 
     /** The execution mode. */
@@ -112,21 +115,22 @@ struct pt_insn {
     uint8_t size;
 
     /** A collection of flags giving additional information:
- *      *
- *           * - the instruction was executed speculatively.
- *                */
-    uint32_t speculative:1;
+     *      *
+     *           * - the instruction was executed speculatively.
+     *                */
+    uint32_t speculative : 1;
 
     /** - this instruction is truncated in its image section.
- *      *
- *           *    It starts in the image section identified by \@isid and continues
- *                *    in one or more other sections.
- *                     */
-    uint32_t truncated:1;
+     *      *
+     *           *    It starts in the image section identified by \@isid and continues
+     *                *    in one or more other sections.
+     *                     */
+    uint32_t truncated : 1;
 };
 
 /* A finer-grain classification of instructions used internally. */
-typedef enum {
+typedef enum
+{
     PTI_INST_INVALID,
 
     PTI_INST_CALL_9A,
@@ -138,18 +142,18 @@ typedef enum {
     PTI_INST_INT3,
     PTI_INST_INT1,
     PTI_INST_INTO,
-    PTI_INST_IRET,    /* includes IRETD and IRETQ (EOSZ determines) */
+    PTI_INST_IRET, /* includes IRETD and IRETQ (EOSZ determines) */
 
     PTI_INST_JMP_E9,
     PTI_INST_JMP_EB,
     PTI_INST_JMP_EA,
-    PTI_INST_JMP_FFr5,    /* REXW? */
+    PTI_INST_JMP_FFr5, /* REXW? */
     PTI_INST_JMP_FFr4,
     PTI_INST_JCC,
     PTI_INST_JrCXZ,
     PTI_INST_LOOP,
-    PTI_INST_LOOPE,    /* aka Z */
-    PTI_INST_LOOPNE,    /* aka NE */
+    PTI_INST_LOOPE,  /* aka Z */
+    PTI_INST_LOOPNE, /* aka NE */
 
     PTI_INST_MOV_CR3,
 
@@ -178,14 +182,17 @@ typedef enum {
 /* Information about an instruction we need internally in addition to the
  * information provided in struct pt_insn.
  */
-struct pt_insn_ext {
+struct pt_insn_ext
+{
     /* A more detailed instruction class. */
     pti_inst_enum_t iclass;
 
     /* Instruction-specific information. */
-    union {
+    union
+    {
         /* For branch instructions. */
-        struct {
+        struct
+        {
             /* The branch displacement.
              *
              * This is only valid for direct calls/jumps.
@@ -208,7 +215,6 @@ struct pt_insn_ext {
         } branch;
     } variant;
 };
-
 
 /* Check if the instruction @insn/@iext changes the current privilege level.
  *

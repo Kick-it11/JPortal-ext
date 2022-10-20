@@ -13,7 +13,8 @@ int PTJVMDecoder::decoder_process_enabled()
     ev = &_event;
 
     /* Use status update events to diagnose inconsistencies. */
-    if (ev->status_update) {
+    if (ev->status_update)
+    {
         if (!_enabled)
             return -pte_bad_status_update;
 
@@ -26,7 +27,7 @@ int PTJVMDecoder::decoder_process_enabled()
 
     /* We must currently be disabled. */
     if (_enabled)
-      return -pte_bad_context;
+        return -pte_bad_context;
 
     _ip = ev->variant.enabled.ip;
     _enabled = 1;
@@ -41,7 +42,8 @@ int PTJVMDecoder::decoder_process_disabled()
     ev = &_event;
 
     /* Use status update events to diagnose inconsistencies. */
-    if (ev->status_update) {
+    if (ev->status_update)
+    {
         if (_enabled)
             return -pte_bad_status_update;
 
@@ -50,7 +52,7 @@ int PTJVMDecoder::decoder_process_disabled()
 
     /* We must currently be enabled. */
     if (!_enabled)
-      return -pte_bad_context;
+        return -pte_bad_context;
 
     /* We preserve @_ip.  This is where we expect tracing to resume
      * and we'll indicate that on the subsequent enabled event if tracing
@@ -73,7 +75,7 @@ int PTJVMDecoder::decoder_process_async_branch()
 
     /* Tracing must be enabled in order to make sense of the event. */
     if (!_enabled)
-      return -pte_bad_context;
+        return -pte_bad_context;
 
     _ip = ev->variant.async_branch.to;
 
@@ -182,7 +184,7 @@ int PTJVMDecoder::decoder_process_stop()
 
     /* Tracing is always disabled before it is stopped. */
     if (_enabled)
-      return -pte_bad_context;
+        return -pte_bad_context;
 
     return 0;
 }
@@ -246,7 +248,8 @@ int PTJVMDecoder::decoder_cond_branch(int *taken)
 }
 
 /* Move forward to next synchronized point */
-int PTJVMDecoder::decoder_sync_forward() {
+int PTJVMDecoder::decoder_sync_forward()
+{
     int status;
 
     pt_insn_reset();
@@ -304,14 +307,16 @@ void PTJVMDecoder::decoder_time_change()
     bool loss = false;
 
     /** iterate all sideband ( perf event )*/
-    while (_sideband->event(_time)) {
+    while (_sideband->event(_time))
+    {
         uint32_t sideband_tid = _sideband->tid();
         if (_sideband->loss())
             loss = true;
 
         uint32_t java_tid = _jvm->get_java_tid(sideband_tid);
 
-        if (loss || _tid != java_tid) {
+        if (loss || _tid != java_tid)
+        {
             _tid = java_tid;
             _record.switch_out(loss);
             _record.switch_in(_tid, _time, loss);
@@ -357,11 +362,12 @@ int PTJVMDecoder::pt_insn_decode_retry(struct pt_insn *insn, struct pt_insn_ext 
         return -pte_bad_insn;
 
     /* Read the remaining bytes from the image. */
-    JitSection* section = _jvm->image()->find(insn->ip + isize);
+    JitSection *section = _jvm->image()->find(insn->ip + isize);
     if (!section)
         return -pte_bad_insn;
 
-    if (!section->read(&insn->raw[isize], &remaining, insn->ip + isize)) {
+    if (!section->read(&insn->raw[isize], &remaining, insn->ip + isize))
+    {
         /* We should have gotten an error if we were not able to read at
          * least one byte.  Check this to guarantee termination.
          */
@@ -384,14 +390,15 @@ int PTJVMDecoder::pt_insn_decode_retry(struct pt_insn *insn, struct pt_insn_ext 
      * instruction.
      */
     errcode = pt_ild_decode(insn, iext);
-    if (errcode < 0) {
+    if (errcode < 0)
+    {
         if (errcode != -pte_bad_insn)
             return errcode;
 
         /* If instruction length decode already determined the size,
          * there's no point in reading more bytes.
          */
-        if (insn->size != (uint8_t) size)
+        if (insn->size != (uint8_t)size)
             return errcode;
 
         return pt_insn_decode_retry(insn, iext);
@@ -422,11 +429,12 @@ int PTJVMDecoder::pt_insn_decode(struct pt_insn *insn, struct pt_insn_ext *iext)
     if (!insn)
         return -pte_internal;
 
-    JitSection* section = _jvm->image()->find(insn->ip);
+    JitSection *section = _jvm->image()->find(insn->ip);
     if (!section)
         return -pte_bad_insn;
 
-    if (!section->read(insn->raw, &size, insn->ip)) {
+    if (!section->read(insn->raw, &size, insn->ip))
+    {
         /* We should have gotten an error if we were not able to read at
          * least one byte.  Check this to guarantee termination.
          */
@@ -435,17 +443,18 @@ int PTJVMDecoder::pt_insn_decode(struct pt_insn *insn, struct pt_insn_ext *iext)
     /* We initialize @insn->size to the maximal possible size.  It will be
      * set to the actual size during instruction decode.
      */
-    insn->size = (uint8_t) size;
+    insn->size = (uint8_t)size;
 
     errcode = pt_ild_decode(insn, iext);
-    if (errcode < 0) {
+    if (errcode < 0)
+    {
         if (errcode != -pte_bad_insn)
             return errcode;
 
         /* If instruction length decode already determined the size,
          * there's no point in reading more bytes.
          */
-        if (insn->size != (uint8_t) size)
+        if (insn->size != (uint8_t)size)
             return errcode;
 
         return pt_insn_decode_retry(insn, iext);
@@ -465,7 +474,8 @@ int PTJVMDecoder::pt_insn_range_is_contiguous(uint64_t begin, uint64_t end,
     insn.mode = mode;
     insn.ip = begin;
 
-    while (insn.ip != end) {
+    while (insn.ip != end)
+    {
         int errcode;
 
         if (!steps--)
@@ -631,12 +641,14 @@ int PTJVMDecoder::pt_insn_proceed(const struct pt_insn *insn,
 
         break;
 
-    case ptic_return: {
+    case ptic_return:
+    {
         int taken, status;
 
         /* Check for a compressed return. */
         status = decoder_cond_branch(&taken);
-        if (status >= 0) {
+        if (status >= 0)
+        {
             /* A compressed return is indicated by a taken
              * conditional branch.
              */
@@ -1061,7 +1073,8 @@ int PTJVMDecoder::pt_insn_postpone_tsx(const struct pt_insn *insn,
 
     if (insn && iext)
     {
-        if (_config.errata.bdm64) {
+        if (_config.errata.bdm64)
+        {
             status = pt_insn_handle_erratum_bdm64(ev, insn, iext);
             if (status < 0)
                 return status;
@@ -1109,7 +1122,8 @@ int PTJVMDecoder::pt_insn_check_ip_event(const struct pt_insn *insn,
     case ptev_enabled:
         return pt_insn_status(pts_event_pending);
 
-    case ptev_async_disabled: {
+    case ptev_async_disabled:
+    {
         int errcode;
 
         if (ev->variant.async_disabled.at != _ip)
@@ -1235,7 +1249,8 @@ int PTJVMDecoder::pt_insn_drain_events()
 {
     int errcode = _status;
 
-    while (_status & pts_event_pending) {
+    while (_status & pts_event_pending)
+    {
 
         /* We must currently process an event. */
         if (!_process_event)
@@ -1400,7 +1415,7 @@ int PTJVMDecoder::pt_insn_drain_events()
     return _status;
 }
 
-int PTJVMDecoder::decoder_record_jitcode(JitSection *section, PCStackInfo* &info, bool &tow)
+int PTJVMDecoder::decoder_record_jitcode(JitSection *section, PCStackInfo *&info, bool &tow)
 {
     if (!section)
         return -pte_internal;
@@ -1411,7 +1426,8 @@ int PTJVMDecoder::decoder_record_jitcode(JitSection *section, PCStackInfo* &info
         return 0;
     else if (cur != info)
     {
-        if (idx == 0) _record.add_jitcode(_time, section, cur, _ip);
+        if (idx == 0)
+            _record.add_jitcode(_time, section, cur, _ip);
         else if (_ip == section->record()->pcinfo[idx - 1].pc)
             tow = true;
     }
@@ -1424,7 +1440,8 @@ int PTJVMDecoder::decoder_record_jitcode(JitSection *section, PCStackInfo* &info
     return 0;
 }
 
-int PTJVMDecoder::pt_insn_next(JitSection* &section, struct pt_insn &insn) {
+int PTJVMDecoder::pt_insn_next(JitSection *&section, struct pt_insn &insn)
+{
     struct pt_insn_ext iext;
     int status, isid;
     uint8_t insn_size;
@@ -1434,7 +1451,8 @@ int PTJVMDecoder::pt_insn_next(JitSection* &section, struct pt_insn &insn) {
      * If it isn't we should be processing events until we either run out of
      * trace or process a tracing enabled event.
      */
-    if (!_enabled) {
+    if (!_enabled)
+    {
         if (_status & pts_eos)
             return -pte_eos;
 
@@ -1455,7 +1473,8 @@ int PTJVMDecoder::pt_insn_next(JitSection* &section, struct pt_insn &insn) {
     insn.mode = _mode;
     insn_size = sizeof(insn.raw);
 
-    if (!section || !section->read(insn.raw, &insn_size, _ip)) {
+    if (!section || !section->read(insn.raw, &insn_size, _ip))
+    {
         if (!(section = _jvm->image()->find(_ip)))
             return -pte_nomap;
 
@@ -1469,7 +1488,7 @@ int PTJVMDecoder::pt_insn_next(JitSection* &section, struct pt_insn &insn) {
 
     if (pt_ild_decode(&insn, &iext) < 0)
     {
-        std::cerr << "PTJVMDecoder error: compiled code's ild" << std::endl; 
+        std::cerr << "PTJVMDecoder error: compiled code's ild" << std::endl;
         return -pte_bad_insn;
     }
 
@@ -1478,7 +1497,8 @@ int PTJVMDecoder::pt_insn_next(JitSection* &section, struct pt_insn &insn) {
      * If an event is indicated, we're done.
      */
     status = pt_insn_check_insn_event(&insn, &iext);
-    if (status != 0) {
+    if (status != 0)
+    {
         if (status < 0)
             return status;
 
@@ -1488,9 +1508,12 @@ int PTJVMDecoder::pt_insn_next(JitSection* &section, struct pt_insn &insn) {
 
     /* Determine the next instruction's IP. */
     uint64_t ip_from_ic = _ip;
-    if (_jvm->get_ic(ip_from_ic, section)) {
+    if (_jvm->get_ic(ip_from_ic, section))
+    {
         _ip = ip_from_ic;
-    } else {
+    }
+    else
+    {
         status = pt_insn_proceed(&insn, &iext);
         if (status < 0)
             return status;
@@ -1509,7 +1532,7 @@ int PTJVMDecoder::decoder_process_jitcode()
     int errcode;
     struct pt_insn insn;
     JitSection *section = nullptr;
-    PCStackInfo* info = nullptr;
+    PCStackInfo *info = nullptr;
     bool tow = false;
 
     errcode = pt_insn_reset();
@@ -1529,7 +1552,8 @@ int PTJVMDecoder::decoder_process_jitcode()
     for (;;)
     {
         errcode = pt_insn_next(section, insn);
-        if (errcode < 0) {
+        if (errcode < 0)
+        {
             if (errcode = -pte_eos)
                 break;
 
@@ -1545,7 +1569,8 @@ int PTJVMDecoder::decoder_process_jitcode()
         }
 
         errcode = pt_insn_drain_events();
-        if (errcode < 0) {
+        if (errcode < 0)
+        {
             if (errcode = -pte_eos)
                 break;
 
@@ -1630,7 +1655,7 @@ int PTJVMDecoder::decoder_drain_events()
             /** If tracing was disabled asynchronously, ignore */
             if (_ip != async_disabled_ip)
                 unresolved = true;
-            
+
             break;
 
         case ptev_async_disabled:
@@ -1711,7 +1736,8 @@ int PTJVMDecoder::decoder_drain_events()
         }
 
         /* This completes processing of the current event. */
-        if (unresolved) {
+        if (unresolved)
+        {
             errcode = decoder_process_ip();
             if (errcode < 0)
                 return errcode;
@@ -1771,7 +1797,7 @@ void PTJVMDecoder::decode()
 }
 
 PTJVMDecoder::PTJVMDecoder(const struct pt_config &config, TraceData &trace, uint32_t cpu)
-        : _record(trace), _tid(-1)
+    : _record(trace), _tid(-1)
 {
     pt_config_from_user(&_config, &config);
 
@@ -1786,7 +1812,8 @@ PTJVMDecoder::PTJVMDecoder(const struct pt_config &config, TraceData &trace, uin
     }
 }
 
-PTJVMDecoder::~PTJVMDecoder() {
+PTJVMDecoder::~PTJVMDecoder()
+{
     delete _sideband;
     _sideband = nullptr;
 

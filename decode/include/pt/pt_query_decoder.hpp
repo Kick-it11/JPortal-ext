@@ -38,9 +38,9 @@
 
 struct pt_decoder_function;
 
-
 /* An Intel PT query decoder. */
-struct pt_query_decoder {
+struct pt_query_decoder
+{
     /* The decoder configuration. */
     struct pt_config config;
 
@@ -78,10 +78,10 @@ struct pt_query_decoder {
      *
      * - tracing is enabled.
      */
-    uint32_t enabled:1;
+    uint32_t enabled : 1;
 
     /* - consume the current packet. */
-    uint32_t consume_packet:1;
+    uint32_t consume_packet : 1;
 };
 
 /* Initialize the query decoder.

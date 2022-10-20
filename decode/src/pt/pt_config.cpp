@@ -33,7 +33,6 @@
 #include <string.h>
 #include <stddef.h>
 
-
 int pt_cpu_errata(struct pt_errata *errata, const struct pt_cpu *cpu)
 {
     if (!errata || !cpu)
@@ -45,9 +44,11 @@ int pt_cpu_errata(struct pt_errata *errata, const struct pt_cpu *cpu)
     if (cpu->vendor != pcv_intel)
         return -pte_bad_cpu;
 
-    switch (cpu->family) {
+    switch (cpu->family)
+    {
     case 0x6:
-        switch (cpu->model) {
+        switch (cpu->model)
+        {
         case 0x3d:
         case 0x47:
         case 0x4f:
@@ -135,7 +136,7 @@ int pt_config_from_user(struct pt_config *config,
     if (sizeof(*config) <= size)
         size = sizeof(*config);
     else
-        memset(((uint8_t *) config) + size, 0, sizeof(*config) - size);
+        memset(((uint8_t *)config) + size, 0, sizeof(*config) - size);
 
     /* Copy (portions of) the user's configuration. */
     memcpy(config, uconfig, size);
@@ -150,8 +151,8 @@ int pt_config_from_user(struct pt_config *config,
 static inline size_t pt_filter_addr_ncfg(void)
 {
     return (sizeof(struct pt_conf_addr_filter) -
-        offsetof(struct pt_conf_addr_filter, addr0_a)) /
-        (2 * sizeof(uint64_t));
+            offsetof(struct pt_conf_addr_filter, addr0_a)) /
+           (2 * sizeof(uint64_t));
 }
 
 uint32_t pt_filter_addr_cfg(const struct pt_conf_addr_filter *filter, uint8_t n)
@@ -201,7 +202,8 @@ static int pt_filter_check_cfg_filter(const struct pt_conf_addr_filter *filter,
     if (!filter)
         return -pte_internal;
 
-    for (n = 0; n < pt_filter_addr_ncfg(); ++n) {
+    for (n = 0; n < pt_filter_addr_ncfg(); ++n)
+    {
         uint64_t addr_a, addr_b;
         uint32_t addr_cfg;
 
@@ -220,7 +222,8 @@ static int pt_filter_check_cfg_filter(const struct pt_conf_addr_filter *filter,
     /* No filter hit.  If we have at least one FilterEn filter, this means
      * that tracing is disabled; otherwise, tracing is enabled.
      */
-    for (n = 0; n < pt_filter_addr_ncfg(); ++n) {
+    for (n = 0; n < pt_filter_addr_ncfg(); ++n)
+    {
         uint32_t addr_cfg;
 
         addr_cfg = pt_filter_addr_cfg(filter, n);
@@ -239,7 +242,8 @@ static int pt_filter_check_cfg_stop(const struct pt_conf_addr_filter *filter,
     if (!filter)
         return -pte_internal;
 
-    for (n = 0; n < pt_filter_addr_ncfg(); ++n) {
+    for (n = 0; n < pt_filter_addr_ncfg(); ++n)
+    {
         uint64_t addr_a, addr_b;
         uint32_t addr_cfg;
 

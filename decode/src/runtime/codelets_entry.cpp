@@ -4,43 +4,59 @@
 
 JVMRuntime::CodeletsInfo CodeletsEntry::_entries;
 
-void CodeletsEntry::initialize(JVMRuntime::CodeletsInfo *entries) {
+void CodeletsEntry::initialize(JVMRuntime::CodeletsInfo *entries)
+{
     _entries = *entries;
 }
 
-CodeletsEntry::Codelet CodeletsEntry::entry_match(uint64_t ip, Bytecodes::Code &code) {
+CodeletsEntry::Codelet CodeletsEntry::entry_match(uint64_t ip, Bytecodes::Code &code)
+{
     if (ip < _entries._low_bound || ip >= _entries._high_bound)
         return _illegal;
 
-    if (ip >= _entries._normal_table[0][0] && ip < _entries._wentry_point[0]) {
-        int low = 0, high = JVMRuntime::dispatch_length*JVMRuntime::number_of_states-1;
-        while (low <= high) {
-            int mid = (low+high)/2;
-            uint64_t addr = _entries._normal_table[mid/JVMRuntime::number_of_states][mid%JVMRuntime::number_of_states];
-            if (addr == ip) {
-                code = Bytecodes::cast(mid/JVMRuntime::number_of_states);
+    if (ip >= _entries._normal_table[0][0] && ip < _entries._wentry_point[0])
+    {
+        int low = 0, high = JVMRuntime::dispatch_length * JVMRuntime::number_of_states - 1;
+        while (low <= high)
+        {
+            int mid = (low + high) / 2;
+            uint64_t addr = _entries._normal_table[mid / JVMRuntime::number_of_states][mid % JVMRuntime::number_of_states];
+            if (addr == ip)
+            {
+                code = Bytecodes::cast(mid / JVMRuntime::number_of_states);
                 return _bytecode;
-            } else if (addr > ip) {
-                high = mid-1;
-            } else {
-                low = mid+1;
+            }
+            else if (addr > ip)
+            {
+                high = mid - 1;
+            }
+            else
+            {
+                low = mid + 1;
             }
         }
         return _illegal;
     }
 
-    if (ip >= _entries._wentry_point[0] && ip < _entries._deopt_entry[0][0]) {
-        int low = 0, high = JVMRuntime::dispatch_length-1;
-        while (low <= high) {
-            int mid = (low+high)/2;
+    if (ip >= _entries._wentry_point[0] && ip < _entries._deopt_entry[0][0])
+    {
+        int low = 0, high = JVMRuntime::dispatch_length - 1;
+        while (low <= high)
+        {
+            int mid = (low + high) / 2;
             uint64_t addr = _entries._wentry_point[mid];
-            if (addr == ip) {
+            if (addr == ip)
+            {
                 code = Bytecodes::cast(mid);
                 return _bytecode;
-            } else if (addr > ip) {
-                high = mid-1;
-            } else {
-                low = mid+1;
+            }
+            else if (addr > ip)
+            {
+                high = mid - 1;
+            }
+            else
+            {
+                low = mid + 1;
             }
         }
         return _illegal;

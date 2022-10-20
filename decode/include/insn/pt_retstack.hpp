@@ -32,14 +32,15 @@
 
 #include <stdint.h>
 
-
 /* The size of the call/return stack in number of entries. */
-enum {
-    pt_retstack_size    = 64
+enum
+{
+    pt_retstack_size = 64
 };
 
 /* A stack of return addresses used for return compression. */
-struct pt_retstack {
+struct pt_retstack
+{
     /* The stack of return addresses.
      *
      * We use one additional entry in order to distinguish a full from

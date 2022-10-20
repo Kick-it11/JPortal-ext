@@ -33,9 +33,9 @@
 
 #include <stdint.h>
 
-
 /* Events are grouped by the packet the event binds to. */
-enum pt_event_binding {
+enum pt_event_binding
+{
     evb_psbend,
     evb_tip,
     evb_fup,
@@ -44,13 +44,15 @@ enum pt_event_binding {
     evb_max
 };
 
-enum {
+enum
+{
     /* The maximal number of pending events - should be a power of two. */
     evq_max = 8
 };
 
 /* A queue of events. */
-struct pt_event_queue {
+struct pt_event_queue
+{
     /* A collection of event queues, one per binding. */
     struct pt_event queue[evb_max][evq_max];
 
@@ -61,7 +63,6 @@ struct pt_event_queue {
     /* A standalone event to be published immediately. */
     struct pt_event standalone;
 };
-
 
 /* Initialize (or reset) an event queue. */
 extern void pt_evq_init(struct pt_event_queue *);
@@ -83,7 +84,6 @@ extern struct pt_event *pt_evq_standalone(struct pt_event_queue *evq);
  */
 extern struct pt_event *pt_evq_enqueue(struct pt_event_queue *evq,
                                        enum pt_event_binding evb);
-
 
 /* Dequeue an event.
  *

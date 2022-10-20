@@ -3,9 +3,11 @@
 
 #include "java/definitions.hpp"
 
-class Bytecodes {
+class Bytecodes
+{
 public:
-    enum Code {
+    enum Code
+    {
         _illegal = -1,
 
         /* Java bytecodes */
@@ -278,7 +280,8 @@ public:
         number_of_codes,
     };
 
-    enum class JmpType {
+    enum class JmpType
+    {
         _no_jmp = 0,
         _if_jmp = 1,
         _switch_jmp = 2,
@@ -304,50 +307,61 @@ private:
 
 public:
     static Code cast(int code) { return (Code)code; }
-    static bool is_valid(int code) {
+    static bool is_valid(int code)
+    {
         return 0 <= code && code < number_of_codes;
     }
     static bool is_block_end(Code code) { return _is_block_end[code]; }
 
-    static int length_for(Code code) {
+    static int length_for(Code code)
+    {
         return is_valid(code) ? _lengths[code] & 0xF : -1;
     }
-    static int wide_length_for(Code code) {
+    static int wide_length_for(Code code)
+    {
         return is_valid(code) ? _lengths[code] >> 4 : -1;
     }
-    static const char * name_for(Code code) {
+    static const char *name_for(Code code)
+    {
         return is_valid(code) ? _name[code] : "unknown";
     }
     static int special_length_at(Code code, const u1 *buffer, const u4 offset);
 
-    static bool is_aload(Code code) {
+    static bool is_aload(Code code)
+    {
         return (code == _aload || code == _aload_0 || code == _aload_1 ||
                 code == _aload_2 || code == _aload_3);
     }
-    static bool is_astore(Code code) {
+    static bool is_astore(Code code)
+    {
         return (code == _astore || code == _astore_0 || code == _astore_1 ||
                 code == _astore_2 || code == _astore_3);
     }
 
-    static bool is_store_into_local(Code code) {
+    static bool is_store_into_local(Code code)
+    {
         return (_istore <= code && code <= _astore_3);
     }
-    static bool is_const(Code code) {
+    static bool is_const(Code code)
+    {
         return (_aconst_null <= code && code <= _ldc2_w);
     }
-    static bool is_zero_const(Code code) {
+    static bool is_zero_const(Code code)
+    {
         return (code == _aconst_null || code == _iconst_0 ||
                 code == _fconst_0 || code == _dconst_0);
     }
-    static bool is_return(Code code) {
+    static bool is_return(Code code)
+    {
         return (_ireturn <= code && code <= _return);
     }
-    static bool is_invoke(Code code) {
+    static bool is_invoke(Code code)
+    {
         return (_invokevirtual <= code && code <= _invokedynamic);
     }
-    static int is_branch(Code code){
-        return (code >= _ifeq && code <= _if_acmpne) 
-                || code == _ifnull || code == _ifnonnull;
+    static int is_branch(Code code)
+    {
+        return (code >= _ifeq && code <= _if_acmpne) || code == _ifnull || code == _ifnonnull;
     }
     /* return false if it has a follow code */
     static void java_bytecode(Code &code, Code &follow_code);

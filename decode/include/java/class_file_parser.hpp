@@ -11,7 +11,8 @@ class Method;
 class ConstantPool;
 class Analyser;
 
-class ClassFileParser {
+class ClassFileParser
+{
 private:
     Analyser *_analyser = nullptr;
     Klass *_klass = nullptr;
@@ -21,7 +22,6 @@ private:
     u2 _minor_version;
     u2 _this_class_index;
     u2 _super_class_index;
-
 
     /* Constant pool parsing */
     void parse_constant_pool(const ClassFileStream *const stream,
@@ -41,7 +41,7 @@ private:
     void parse_class(const ClassFileStream *const stream);
 
 public:
-    ClassFileParser(std::string &file_path, Analyser* analyser, Klass* klass);
+    ClassFileParser(std::string &file_path, Analyser *analyser, Klass *klass);
     ~ClassFileParser();
 };
 

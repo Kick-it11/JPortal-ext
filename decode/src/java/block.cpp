@@ -6,31 +6,39 @@
 #include <iomanip>
 #include <iostream>
 
-Block *BlockGraph::offset2block(int offset) {
+Block *BlockGraph::offset2block(int offset)
+{
     auto iter = _offset2block.find(offset);
-    if (iter != _offset2block.end()) {
+    if (iter != _offset2block.end())
+    {
         return iter->second;
-    } else {
+    }
+    else
+    {
         return nullptr;
     }
 }
 
-Block *BlockGraph::make_block_at(int offset, Block *current) {
+Block *BlockGraph::make_block_at(int offset, Block *current)
+{
     Block *block = offset2block(offset);
-    if (block == nullptr) {
+    if (block == nullptr)
+    {
         int id = _blocks.size();
         _blocks.push_back(new Block(id, offset, _bct_offset[offset]));
         block = _blocks[id];
         _offset2block[offset] = block;
     }
-    if (current != nullptr) {
+    if (current != nullptr)
+    {
         current->add_succs(block);
         block->add_preds(current);
     }
     return block;
 }
 
-void BlockGraph::build_graph() {
+void BlockGraph::build_graph()
+{
     if (_is_build_graph)
         return;
     int current_offset = 0;
@@ -41,7 +49,8 @@ void BlockGraph::build_graph() {
     std::unordered_set<int> block_start;
     block_start.insert(0);
     std::unordered_set<int> jsr_following;
-    while (!bs.at_eos()) {
+    while (!bs.at_eos())
+    {
         _bct_offset[bs.get_offset()] = _code_count;
         Bytecodes::Code bc = Bytecodes::cast(bs.get_u1());
         ++_code_count;
@@ -49,13 +58,15 @@ void BlockGraph::build_graph() {
         int ls = bc & 31;
 
         _bc_set[index] = _bc_set[index] | (1 << ls);
-        if (Bytecodes::is_block_end(bc)) {
-            switch (bc) {
+        if (Bytecodes::is_block_end(bc))
+        {
+            switch (bc)
+            {
             /* track bytecodes that affect the control flow */
-            case Bytecodes::_athrow:  /* fall through */
+            case Bytecodes::_athrow: /* fall through */
                 block_start.insert(bs.get_offset());
                 break;
-            case Bytecodes::_ret:     /* fall through */
+            case Bytecodes::_ret: /* fall through */
                 bs.get_u1();
                 block_start.insert(bs.get_offset());
                 break;
@@ -83,40 +94,46 @@ void BlockGraph::build_graph() {
             case Bytecodes::_if_acmpeq: /* fall through */
             case Bytecodes::_if_acmpne: /* fall through */
             case Bytecodes::_ifnull:    /* fall through */
-            case Bytecodes::_ifnonnull: {
+            case Bytecodes::_ifnonnull:
+            {
                 int jmp_offset = (short)bs.get_u2();
                 current_offset = bs.get_offset();
                 block_start.insert(current_offset + jmp_offset - 3);
                 block_start.insert(current_offset);
                 break;
             }
-            case Bytecodes::_goto: {
+            case Bytecodes::_goto:
+            {
                 int jmp_offset = (short)bs.get_u2();
                 current_offset = bs.get_offset();
                 block_start.insert(current_offset + jmp_offset - 3);
                 break;
             }
-            case Bytecodes::_goto_w: {
+            case Bytecodes::_goto_w:
+            {
                 int jmp_offset = bs.get_u4();
                 current_offset = bs.get_offset();
                 block_start.insert(current_offset + jmp_offset - 5);
                 break;
             }
-            case Bytecodes::_jsr: {
+            case Bytecodes::_jsr:
+            {
                 int jmp_offset = (short)bs.get_u2();
                 current_offset = bs.get_offset();
                 block_start.insert(current_offset + jmp_offset - 3);
                 jsr_following.insert(current_offset);
                 break;
             }
-            case Bytecodes::_jsr_w: {
+            case Bytecodes::_jsr_w:
+            {
                 int jmp_offset = bs.get_u4();
                 current_offset = bs.get_offset();
                 block_start.insert(current_offset + jmp_offset - 5);
                 jsr_following.insert(current_offset);
                 break;
             }
-            case Bytecodes::_tableswitch: {
+            case Bytecodes::_tableswitch:
+            {
                 jint offset = bs.get_offset();
                 int bc_len =
                     Bytecodes::special_length_at(bc, bs.current() - 1, offset);
@@ -124,7 +141,8 @@ void BlockGraph::build_graph() {
                 break;
             }
 
-            case Bytecodes::_lookupswitch: {
+            case Bytecodes::_lookupswitch:
+            {
                 jint offset = bs.get_offset();
                 int bc_len =
                     Bytecodes::special_length_at(bc, bs.current() - 1, offset);
@@ -132,9 +150,11 @@ void BlockGraph::build_graph() {
                 break;
             }
 
-            default: {
+            default:
+            {
                 bc_size = Bytecodes::length_for(bc);
-                if (bc_size == 0) {
+                if (bc_size == 0)
+                {
                     jint offset = bs.get_offset();
                     bc_size = Bytecodes::special_length_at(bc, bs.current() - 1,
                                                            offset);
@@ -143,25 +163,34 @@ void BlockGraph::build_graph() {
                 break;
             }
             }
-        } else if (bc == Bytecodes::_invokevirtual ||
-                    bc == Bytecodes::_invokespecial ||
-                    bc == Bytecodes::_invokestatic) {
+        }
+        else if (bc == Bytecodes::_invokevirtual ||
+                 bc == Bytecodes::_invokespecial ||
+                 bc == Bytecodes::_invokestatic)
+        {
             u2 methodref_index = bs.get_u2();
             _method_site[_code_count] = {bc, methodref_index};
             block_start.insert(bs.get_offset());
-        } else if (bc == Bytecodes::_invokeinterface) {
+        }
+        else if (bc == Bytecodes::_invokeinterface)
+        {
             u2 interface_methodref_index = bs.get_u2();
             _method_site[_code_count] = {bc, interface_methodref_index};
             bs.get_u2();
             block_start.insert(bs.get_offset());
-        } else if (bc == Bytecodes::_invokedynamic) {
+        }
+        else if (bc == Bytecodes::_invokedynamic)
+        {
             u2 dynamic_method_index = bs.get_u2();
             _method_site[_code_count] = {bc, dynamic_method_index};
             bs.get_u2();
             block_start.insert(bs.get_offset());
-        } else {
+        }
+        else
+        {
             bc_size = Bytecodes::length_for(bc);
-            if (bc_size == 0) {
+            if (bc_size == 0)
+            {
                 jint offset = bs.get_offset();
                 bc_size =
                     Bytecodes::special_length_at(bc, bs.current() - 1, offset);
@@ -171,15 +200,20 @@ void BlockGraph::build_graph() {
     }
     _code_count = 0;
     bs.set_current();
-    while (!bs.at_eos()) {
-        if (current == nullptr) {
+    while (!bs.at_eos())
+    {
+        if (current == nullptr)
+        {
             current_offset = bs.get_offset();
             current = make_block_at(current_offset, current);
             _block_id.push_back(current->get_id());
-        } else {
+        }
+        else
+        {
             current_offset = bs.get_offset();
             auto exist = block_start.find(current_offset);
-            if (exist != block_start.end()) {
+            if (exist != block_start.end())
+            {
                 Block *temp = make_block_at(current_offset, current);
                 current->set_end_offset(current_offset);
                 current = temp;
@@ -188,13 +222,16 @@ void BlockGraph::build_graph() {
         }
         Bytecodes::Code bc = Bytecodes::cast(bs.get_u1());
         ++_code_count;
-        if (Bytecodes::is_block_end(bc)) {
-            switch (bc) {
+        if (Bytecodes::is_block_end(bc))
+        {
+            switch (bc)
+            {
             /* track bytecodes that affect the control flow */
-            case Bytecodes::_ret:     /* fall through */
+            case Bytecodes::_ret: /* fall through */
                 bs.get_u1();
                 current_offset = bs.get_offset();
-                for (auto jsr_off : jsr_following) {
+                for (auto jsr_off : jsr_following)
+                {
                     make_block_at(jsr_off, current);
                 }
                 current->set_end_offset(current_offset);
@@ -227,7 +264,8 @@ void BlockGraph::build_graph() {
             case Bytecodes::_if_acmpeq: /* fall through */
             case Bytecodes::_if_acmpne: /* fall through */
             case Bytecodes::_ifnull:    /* fall through */
-            case Bytecodes::_ifnonnull: {
+            case Bytecodes::_ifnonnull:
+            {
                 int jmp_offset = (short)bs.get_u2();
                 current_offset = bs.get_offset();
                 make_block_at(current_offset + jmp_offset - 3, current);
@@ -236,7 +274,8 @@ void BlockGraph::build_graph() {
                 current = nullptr;
                 break;
             }
-            case Bytecodes::_goto: {
+            case Bytecodes::_goto:
+            {
                 int jmp_offset = (short)bs.get_u2();
                 current_offset = bs.get_offset();
                 make_block_at(current_offset + jmp_offset - 3, current);
@@ -244,7 +283,8 @@ void BlockGraph::build_graph() {
                 current = nullptr;
                 break;
             }
-            case Bytecodes::_goto_w: {
+            case Bytecodes::_goto_w:
+            {
                 int jmp_offset = bs.get_u4();
                 current_offset = bs.get_offset();
                 make_block_at(current_offset + jmp_offset - 5, current);
@@ -252,7 +292,8 @@ void BlockGraph::build_graph() {
                 current = nullptr;
                 break;
             }
-            case Bytecodes::_jsr: {
+            case Bytecodes::_jsr:
+            {
                 int jmp_offset = (short)bs.get_u2();
                 current_offset = bs.get_offset();
                 make_block_at(current_offset + jmp_offset - 3, current);
@@ -260,7 +301,8 @@ void BlockGraph::build_graph() {
                 current = nullptr;
                 break;
             }
-            case Bytecodes::_jsr_w: {
+            case Bytecodes::_jsr_w:
+            {
                 int jmp_offset = bs.get_u4();
                 current_offset = bs.get_offset();
                 make_block_at(current_offset + jmp_offset - 5, current);
@@ -268,7 +310,8 @@ void BlockGraph::build_graph() {
                 current = nullptr;
                 break;
             }
-            case Bytecodes::_tableswitch: {
+            case Bytecodes::_tableswitch:
+            {
                 current_offset = bs.get_offset();
                 int bc_addr = current_offset - 1;
                 bs.skip_u1(alignup(current_offset));
@@ -277,7 +320,8 @@ void BlockGraph::build_graph() {
                 jlong lo = bs.get_u4();
                 jlong hi = bs.get_u4();
                 int case_count = hi - lo + 1;
-                for (int i = 0; i < case_count; i++) {
+                for (int i = 0; i < case_count; i++)
+                {
                     int case_offset = bs.get_u4();
                     make_block_at(bc_addr + case_offset, current);
                 }
@@ -287,14 +331,16 @@ void BlockGraph::build_graph() {
                 break;
             }
 
-            case Bytecodes::_lookupswitch: {
+            case Bytecodes::_lookupswitch:
+            {
                 current_offset = bs.get_offset();
                 int bc_addr = current_offset - 1;
                 bs.skip_u1(alignup(current_offset));
                 int default_offset = bs.get_u4();
                 make_block_at(bc_addr + default_offset, current);
                 jlong npairs = bs.get_u4();
-                for (int i = 0; i < npairs; i++) {
+                for (int i = 0; i < npairs; i++)
+                {
                     int case_key = bs.get_u4();
                     int case_offset = bs.get_u4();
                     make_block_at(bc_addr + case_offset, current);
@@ -308,28 +354,37 @@ void BlockGraph::build_graph() {
             default:
                 break;
             }
-        } else if (bc == Bytecodes::_invokevirtual ||
-                    bc == Bytecodes::_invokespecial ||
-                    bc == Bytecodes::_invokestatic) {
+        }
+        else if (bc == Bytecodes::_invokevirtual ||
+                 bc == Bytecodes::_invokespecial ||
+                 bc == Bytecodes::_invokestatic)
+        {
             bs.get_u2();
             make_block_at(bs.get_offset(), current);
             current->set_end_offset(bs.get_offset());
             current = nullptr;
-        } else if (bc == Bytecodes::_invokeinterface) {
+        }
+        else if (bc == Bytecodes::_invokeinterface)
+        {
             bs.get_u2();
             bs.get_u2();
             make_block_at(bs.get_offset(), current);
             current->set_end_offset(bs.get_offset());
             current = nullptr;
-        } else if (bc == Bytecodes::_invokedynamic) {
+        }
+        else if (bc == Bytecodes::_invokedynamic)
+        {
             bs.get_u2();
             bs.get_u2();
             make_block_at(bs.get_offset(), current);
             current->set_end_offset(bs.get_offset());
             current = nullptr;
-        } else {
+        }
+        else
+        {
             bc_size = Bytecodes::length_for(bc);
-            if (bc_size == 0) {
+            if (bc_size == 0)
+            {
                 jint offset = bs.get_offset();
                 bc_size =
                     Bytecodes::special_length_at(bc, bs.current() - 1, offset);
@@ -338,8 +393,9 @@ void BlockGraph::build_graph() {
         }
     }
     ClassFileStream excep_bs(_exception_table,
-                          _exception_table_length * 4 * sizeof(u2));
-    for (int i = 0; i < _exception_table_length; ++i) {
+                             _exception_table_length * 4 * sizeof(u2));
+    for (int i = 0; i < _exception_table_length; ++i)
+    {
         u2 a1 = excep_bs.get_u2();
         u2 a2 = excep_bs.get_u2();
         u2 a3 = excep_bs.get_u2();
@@ -350,63 +406,76 @@ void BlockGraph::build_graph() {
     _is_build_graph = true;
 }
 
-void BlockGraph::print_graph() {
+void BlockGraph::print_graph()
+{
     if (!_is_build_graph)
         build_graph();
 
-    for (auto block : _blocks) {
+    for (auto block : _blocks)
+    {
         std::cout << "[B" << block->get_id() << "]: [" << block->get_begin_offset()
-             << ", " << block->get_end_offset() << ")" << std::endl;
+                  << ", " << block->get_end_offset() << ")" << std::endl;
         int preds_size = block->get_preds_size();
         int succs_size = block->get_succs_size();
-        if (preds_size) {
+        if (preds_size)
+        {
             std::cout << " Preds (" << preds_size << "):";
             auto iter = block->get_preds_begin();
             auto end = block->get_preds_end();
-            while (iter != end) {
+            while (iter != end)
+            {
                 std::cout << " B" << (*iter)->get_id();
                 ++iter;
             }
             std::cout << std::endl;
         }
-        if (succs_size) {
+        if (succs_size)
+        {
             std::cout << " Succs (" << succs_size << "):";
             auto iter = block->get_succs_begin();
             auto end = block->get_succs_end();
-            while (iter != end) {
+            while (iter != end)
+            {
                 std::cout << " B" << (*iter)->get_id();
                 ++iter;
             }
             std::cout << std::endl;
         }
     }
-    if (_exception_table_length) {
+    if (_exception_table_length)
+    {
         std::cout << "Exception table:" << std::endl;
         std::cout << "\tfrom\tto\ttarget" << std::endl;
     }
-    for (auto ecp : _exceps) {
+    for (auto ecp : _exceps)
+    {
         std::cout << "\t" << ecp.from << "\t" << ecp.to << "\t" << ecp.target << std::endl;
     }
-    if (_method_site.size()) {
+    if (_method_site.size())
+    {
         std::cout << "call_site:" << std::endl;
-        for (auto call : _method_site) {
+        for (auto call : _method_site)
+        {
             std::cout << std::setw(6) << call.first << ": #" << call.second.second << std::endl;
         }
     }
 
     std::cout << "bc_set:" << std::endl;
     int start = 0;
-    for (int i = 0; i < 7; ++i) {
+    for (int i = 0; i < 7; ++i)
+    {
         std::cout << std::setw(3) << start + 31 << "~" << std::setw(3) << start << ": "
-             << std::bitset<sizeof(u4) * 8>(_bc_set[i]) << std::endl;
+                  << std::bitset<sizeof(u4) * 8>(_bc_set[i]) << std::endl;
         start += 32;
     }
 }
 
-void BlockGraph::build_bctlist() {
+void BlockGraph::build_bctlist()
+{
     if (_is_build_bctlist)
         return;
-    if (!_is_build_graph) {
+    if (!_is_build_graph)
+    {
         build_graph();
     }
     _bctcode = new u1[(_code_count * sizeof(u1))];
@@ -416,9 +485,11 @@ void BlockGraph::build_bctlist() {
     BCTBlock *pred_bctbk = nullptr;
     Block *bk;
     Block *current_bk;
-    for (u4 i = 0; i < _code_length;) {
+    for (u4 i = 0; i < _code_length;)
+    {
         bk = offset2block(i);
-        if (bk != nullptr) {
+        if (bk != nullptr)
+        {
             current_bk = bk;
             if (pred_bctbk != nullptr)
                 pred_bctbk->set_end(_bytes_index);
@@ -432,7 +503,8 @@ void BlockGraph::build_bctlist() {
         *_bytes_index = ins;
         ++_bytes_index;
         int len = Bytecodes::length_for((Bytecodes::Code)ins);
-        if (len == 0) {
+        if (len == 0)
+        {
             len = Bytecodes::special_length_at((Bytecodes::Code)ins, _code + i,
                                                i + 1);
         }
@@ -443,42 +515,50 @@ void BlockGraph::build_bctlist() {
     _is_build_bctlist = true;
 }
 
-void BlockGraph::print_bctlist() {
+void BlockGraph::print_bctlist()
+{
     if (!_is_build_bctlist)
         build_bctlist();
-    for (auto block : _bctblocks) {
+    for (auto block : _bctblocks)
+    {
         std::cout << "[B" << block->get_id() << "]: ["
-             << block->get_begin() - _bctcode << ", "
-             << block->get_end() - _bctcode << ")" << std::endl;
+                  << block->get_begin() - _bctcode << ", "
+                  << block->get_end() - _bctcode << ")" << std::endl;
         for (const u1 *ttt = block->get_begin(); ttt != block->get_end();
-             ttt++) {
+             ttt++)
+        {
             std::cout << Bytecodes::name_for(Bytecodes::Code(*ttt)) << " ";
         }
         std::cout << std::endl;
     }
 }
 
-BCTBlock *BCTBlockList::make_block_at(const u1 *addr) {
+BCTBlock *BCTBlockList::make_block_at(const u1 *addr)
+{
     int id = _blocks.size();
     _blocks.push_back(new BCTBlock(id, addr));
     return _blocks[id];
 }
 
-void BCTBlockList::build_list() {
+void BCTBlockList::build_list()
+{
     if (_is_build_list)
         return;
     BCTBlock *current = nullptr;
     ClassFileStream bs(_code, _code_length);
     int bc_size = 0;
-    if (!bs.at_eos()) {
+    if (!bs.at_eos())
+    {
         /* exception handling indication */
         Bytecodes::Code bc = Bytecodes::cast(*_code);
-        if (!Bytecodes::is_valid(bc)) {
+        if (!Bytecodes::is_valid(bc))
+        {
             _is_exception = true;
             bs.get_u1();
         }
     }
-    while (!bs.at_eos()) {
+    while (!bs.at_eos())
+    {
         if (current == nullptr)
             current = make_block_at(bs.current());
         Bytecodes::Code bc = Bytecodes::cast(bs.get_u1());
@@ -489,8 +569,10 @@ void BCTBlockList::build_list() {
         /* not end with a return, end of a section */
         if (bs.at_eos() && !Bytecodes::is_return(bc) && bc != Bytecodes::_athrow)
             current->set_branch(-1);
-        if (Bytecodes::is_block_end(bc)) {
-            switch (bc) {
+        if (Bytecodes::is_block_end(bc))
+        {
+            switch (bc)
+            {
             /* track bytecodes that affect the control flow */
             case Bytecodes::_athrow:  /* fall through */
             case Bytecodes::_ret:     /* fall through */
@@ -521,7 +603,8 @@ void BCTBlockList::build_list() {
             case Bytecodes::_ifnull:    /* fall through */
             case Bytecodes::_ifnonnull:
                 current->set_end(bs.current());
-                if (!bs.at_eos()) {
+                if (!bs.at_eos())
+                {
                     u1 branch = bs.get_u1();
                     current->set_branch(branch);
                 }
@@ -548,14 +631,16 @@ void BCTBlockList::build_list() {
                 current = nullptr;
                 break;
 
-            case Bytecodes::_tableswitch: {
+            case Bytecodes::_tableswitch:
+            {
                 current->set_end(bs.current());
                 current->set_branch(2);
                 current = nullptr;
                 break;
             }
 
-            case Bytecodes::_lookupswitch: {
+            case Bytecodes::_lookupswitch:
+            {
                 current->set_end(bs.current());
                 current->set_branch(2);
                 current = nullptr;
@@ -572,12 +657,14 @@ void BCTBlockList::build_list() {
     _is_build_list = true;
 }
 
-void BCTBlockList::print() {
+void BCTBlockList::print()
+{
     if (!_is_build_list)
         build_list();
 
     /* print */
-    for (auto block : _blocks) {
+    for (auto block : _blocks)
+    {
         std::cout << "[B" << block->get_id() << "]";
         const u1 *begin = block->get_begin();
         const u1 *end = block->get_end();
@@ -585,7 +672,8 @@ void BCTBlockList::print() {
         std::cout << ": " << end - _code << std::endl;
         std::cout << "    ";
         const u1 *buffer;
-        for (buffer = begin; buffer < end; buffer++) {
+        for (buffer = begin; buffer < end; buffer++)
+        {
             std::cout << Bytecodes::name_for((Bytecodes::Code)*buffer) << " ";
         }
         std::cout << "branch " << block->get_branch() << std::endl;

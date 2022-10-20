@@ -34,9 +34,9 @@
 struct pt_packet_ip;
 struct pt_config;
 
-
 /* Keeping track of the last-ip in Intel PT packets. */
-struct pt_last_ip {
+struct pt_last_ip
+{
     /* The last IP. */
     uint64_t ip;
 
@@ -44,11 +44,10 @@ struct pt_last_ip {
      *
      * - we have seen an IP update.
      */
-    uint32_t have_ip:1;
+    uint32_t have_ip : 1;
     /* - the IP has been suppressed in the last update. */
-    uint32_t suppressed:1;
+    uint32_t suppressed : 1;
 };
-
 
 /* Initialize (or reset) the last-ip. */
 extern void pt_last_ip_init(struct pt_last_ip *last_ip);

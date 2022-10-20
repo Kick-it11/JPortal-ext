@@ -32,26 +32,24 @@
 
 #include "pt/pt.hpp"
 
-
 /* A psb packet contains a unique 2-byte repeating pattern.
  *
  * There are only two ways to fill up a 64bit work with such a pattern.
  */
 static const uint64_t psb_pattern[] = {
-    ((uint64_t) pt_psb_lohi        | (uint64_t) pt_psb_lohi << 16 |
-     (uint64_t) pt_psb_lohi << 32    | (uint64_t) pt_psb_lohi << 48),
-    ((uint64_t) pt_psb_hilo        | (uint64_t) pt_psb_hilo << 16 |
-     (uint64_t) pt_psb_hilo << 32    | (uint64_t) pt_psb_hilo << 48)
-};
+    ((uint64_t)pt_psb_lohi | (uint64_t)pt_psb_lohi << 16 |
+     (uint64_t)pt_psb_lohi << 32 | (uint64_t)pt_psb_lohi << 48),
+    ((uint64_t)pt_psb_hilo | (uint64_t)pt_psb_hilo << 16 |
+     (uint64_t)pt_psb_hilo << 32 | (uint64_t)pt_psb_hilo << 48)};
 
 static const uint8_t *truncate(const uint8_t *pointer, size_t alignment)
 {
-    uintptr_t raw = (uintptr_t) pointer;
+    uintptr_t raw = (uintptr_t)pointer;
 
     raw /= alignment;
     raw *= alignment;
 
-    return (const uint8_t *) raw;
+    return (const uint8_t *)raw;
 }
 
 static const uint8_t *align(const uint8_t *pointer, size_t alignment)
@@ -84,7 +82,8 @@ static const uint8_t *pt_find_psb(const uint8_t *pos,
     if (*pos != pt_psb_hi)
         pos++;
 
-    for (; (pos + 1) < end; pos += 2) {
+    for (; (pos + 1) < end; pos += 2)
+    {
         uint8_t hi, lo;
 
         hi = pos[0];
@@ -118,7 +117,7 @@ static const uint8_t *pt_find_psb(const uint8_t *pos,
 }
 
 static int pt_sync_within_bounds(const uint8_t *pos, const uint8_t *begin,
-                 const uint8_t *end)
+                                 const uint8_t *end)
 {
     /* We allow @pos == @end representing the very end of the trace.
      *
@@ -177,7 +176,8 @@ int pt_sync_forward(const uint8_t **sync, const uint8_t *pos,
     pos = align(pos, sizeof(*psb_pattern));
 
     /* Search for the psb payload pattern in the buffer. */
-    for (;;) {
+    for (;;)
+    {
         const uint8_t *current = pos;
         uint64_t val;
 
@@ -185,7 +185,7 @@ int pt_sync_forward(const uint8_t **sync, const uint8_t *pos,
         if (end < pos)
             return -pte_eos;
 
-        val = * (const uint64_t *) current;
+        val = *(const uint64_t *)current;
 
         if ((val != psb_pattern[0]) && (val != psb_pattern[1]))
             continue;
@@ -224,7 +224,8 @@ int pt_sync_backward(const uint8_t **sync, const uint8_t *pos,
     pos = truncate(pos, sizeof(*psb_pattern));
 
     /* Search for the psb payload pattern in the buffer. */
-    for (;;) {
+    for (;;)
+    {
         const uint8_t *next = pos;
         uint64_t val;
 
@@ -232,7 +233,7 @@ int pt_sync_backward(const uint8_t **sync, const uint8_t *pos,
         if (pos < begin)
             return -pte_eos;
 
-        val = * (const uint64_t *) pos;
+        val = *(const uint64_t *)pos;
 
         if ((val != psb_pattern[0]) && (val != psb_pattern[1]))
             continue;

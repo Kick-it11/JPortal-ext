@@ -30,18 +30,18 @@
 #ifndef PTI_IMM_DEFS_HPP
 #define PTI_IMM_DEFS_HPP
 
-#define PTI_IMM_NONE                                  0
-#define PTI_0_IMM_WIDTH_CONST_l2                      1
-#define PTI_UIMM8_IMM_WIDTH_CONST_l2                  2
-#define PTI_SIMM8_IMM_WIDTH_CONST_l2                  3
-#define PTI_SIMMz_IMM_WIDTH_OSZ_NONTERM_EOSZ_l2       4
-#define PTI_UIMMv_IMM_WIDTH_OSZ_NONTERM_EOSZ_l2       5
-#define PTI_UIMM16_IMM_WIDTH_CONST_l2                 6
-#define PTI_RESOLVE_BYREG_IMM_WIDTH_map0x0_op0xf7_l1  7
-#define PTI_RESOLVE_BYREG_IMM_WIDTH_map0x0_op0xc7_l1  8
-#define PTI_SIMMz_IMM_WIDTH_OSZ_NONTERM_DF64_EOSZ_l2  9
+#define PTI_IMM_NONE 0
+#define PTI_0_IMM_WIDTH_CONST_l2 1
+#define PTI_UIMM8_IMM_WIDTH_CONST_l2 2
+#define PTI_SIMM8_IMM_WIDTH_CONST_l2 3
+#define PTI_SIMMz_IMM_WIDTH_OSZ_NONTERM_EOSZ_l2 4
+#define PTI_UIMMv_IMM_WIDTH_OSZ_NONTERM_EOSZ_l2 5
+#define PTI_UIMM16_IMM_WIDTH_CONST_l2 6
+#define PTI_RESOLVE_BYREG_IMM_WIDTH_map0x0_op0xf7_l1 7
+#define PTI_RESOLVE_BYREG_IMM_WIDTH_map0x0_op0xc7_l1 8
+#define PTI_SIMMz_IMM_WIDTH_OSZ_NONTERM_DF64_EOSZ_l2 9
 #define PTI_RESOLVE_BYREG_IMM_WIDTH_map0x0_op0xf6_l1 10
-#define PTI_IMM_hasimm_map0x0_op0xc8_l1              11
-#define PTI_IMM_hasimm_map0x0F_op0x78_l1             12
+#define PTI_IMM_hasimm_map0x0_op0xc8_l1 11
+#define PTI_IMM_hasimm_map0x0F_op0x78_l1 12
 
 #endif /* PTI_IMM_DEFS_HPP */

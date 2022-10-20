@@ -32,7 +32,6 @@
 #include <stdint.h>
 #include <string.h>
 
-
 /* Intel(R) Processor Trace (Intel PT) decoder library.
  *
  * This file is logically structured into the following sections:
@@ -43,8 +42,6 @@
  * - Query decoder
  */
 
-
-
 struct pt_encoder;
 struct pt_packet_decoder;
 struct pt_query_decoder;
@@ -52,18 +49,18 @@ struct pt_query_decoder;
 /* Errors. */
 
 #ifndef pt_export
-#  if defined(__GNUC__)
-#    define pt_export __attribute__((visibility("default")))
-#  elif defined(_MSC_VER)
-#    define pt_export __declspec(dllimport)
-#  else
-#    error "unknown compiler"
-#  endif
+#if defined(__GNUC__)
+#define pt_export __attribute__((visibility("default")))
+#elif defined(_MSC_VER)
+#define pt_export __declspec(dllimport)
+#else
+#error "unknown compiler"
+#endif
 #endif
 
-
 /** Error codes. */
-enum pt_error_code {
+enum pt_error_code
+{
     /* No error. Everything is OK. */
     pte_ok,
 
@@ -149,30 +146,27 @@ enum pt_error_code {
     pte_bad_cpu
 };
 
-
 /** Decode a function return value into an pt_error_code. */
 static inline enum pt_error_code pt_errcode(int status)
 {
-    return (status >= 0) ? pte_ok : (enum pt_error_code) -status;
+    return (status >= 0) ? pte_ok : (enum pt_error_code) - status;
 }
 
 /** Return a human readable error string. */
 extern pt_export const char *pt_errstr(enum pt_error_code);
 
-
-
 /* Configuration. */
 
-
-
 /** A cpu vendor. */
-enum pt_cpu_vendor {
+enum pt_cpu_vendor
+{
     pcv_unknown,
     pcv_intel
 };
 
 /** A cpu identifier. */
-struct pt_cpu {
+struct pt_cpu
+{
     /** The cpu vendor. */
     enum pt_cpu_vendor vendor;
 
@@ -187,7 +181,8 @@ struct pt_cpu {
 };
 
 /** A collection of Intel PT errata. */
-struct pt_errata {
+struct pt_errata
+{
     /** BDM70: Intel(R) Processor Trace PSB+ Packets May Contain
      *         Unexpected Packets.
      *
@@ -198,7 +193,7 @@ struct pt_errata {
      * packet is generated it may be preceded by a PSB+ that incorrectly
      * includes FUP and MODE.Exec packets.
      */
-    uint32_t bdm70:1;
+    uint32_t bdm70 : 1;
 
     /** BDM64: An Incorrect LBR or Intel(R) Processor Trace Packet May Be
      *         Recorded Following a Transactional Abort.
@@ -210,7 +205,7 @@ struct pt_errata {
      * Processor Trace (Intel(R) PT) packet before the LBR or Intel PT
      * packet produced by the abort.
      */
-    uint32_t bdm64:1;
+    uint32_t bdm64 : 1;
 
     /** SKD007: Intel(R) PT Buffer Overflow May Result in Incorrect Packets.
      *
@@ -221,7 +216,7 @@ struct pt_errata {
      * multi-byte CYC (Cycle Count) packet, instead of any remaining bytes
      * of the CYC.
      */
-    uint32_t skd007:1;
+    uint32_t skd007 : 1;
 
     /** SKD022: VM Entry That Clears TraceEn May Generate a FUP.
      *
@@ -233,7 +228,7 @@ struct pt_errata {
      * Packet Generation Disable).  VM entry can clear TraceEn if the
      * VM-entry MSR-load area includes an entry for the IA32_RTIT_CTL MSR.
      */
-    uint32_t skd022:1;
+    uint32_t skd022 : 1;
 
     /** SKD010: Intel(R) PT FUP May be Dropped After OVF.
      *
@@ -243,7 +238,7 @@ struct pt_errata {
      * be followed by a FUP (Flow Update Packet) or TIP.PGE (Target IP
      * Packet, Packet Generation Enable).
      */
-    uint32_t skd010:1;
+    uint32_t skd010 : 1;
 
     /** SKL014: Intel(R) PT TIP.PGD May Not Have Target IP Payload.
      *
@@ -255,7 +250,7 @@ struct pt_errata {
      * Packet Generation Disable) may not have an IP payload with the target
      * IP.
      */
-    uint32_t skl014:1;
+    uint32_t skl014 : 1;
 
     /** APL12: Intel(R) PT OVF May Be Followed By An Unexpected FUP Packet.
      *
@@ -267,7 +262,7 @@ struct pt_errata {
      * cleared, an OVF (Overflow) packet may be unexpectedly followed by a
      * FUP.
      */
-    uint32_t apl12:1;
+    uint32_t apl12 : 1;
 
     /** APL11: Intel(R) PT OVF Pakcet May Be Followed by TIP.PGD Packet
      *
@@ -278,7 +273,7 @@ struct pt_errata {
      * OVF may be followed by a TIP.PGD (Target Instruction Pointer - Packet
      * Generation Disable) packet.
      */
-    uint32_t apl11:1;
+    uint32_t apl11 : 1;
 
     /** SKL168: Intel(R) PT CYC Packets Can be Dropped When Immediately
      *          Preceding PSB
@@ -288,7 +283,7 @@ struct pt_errata {
      * single CYC (Cycle Count) packet, possibly along with an associated
      * MTC (Mini Time Counter) packet, to be dropped.
      */
-    uint32_t skl168:1;
+    uint32_t skl168 : 1;
 
     /** SKZ84: Use of VMX TSC Scaling or TSC Offsetting Will Result in
      *         Corrupted Intel PT Packets
@@ -303,44 +298,49 @@ struct pt_errata {
      * Copy) and FastCounter fields.  Additionally, the corrupted TMA
      * packet will be followed by a bogus data byte.
      */
-    uint32_t skz84:1;
+    uint32_t skz84 : 1;
 
     /* Reserve a few bytes for the future. */
     uint32_t reserved[15];
 };
 
 /** A collection of decoder-specific configuration flags. */
-struct pt_conf_flags {
+struct pt_conf_flags
+{
     /** The decoder variant. */
-    union {
+    union
+    {
         /** Flags for the block decoder. */
-        struct {
+        struct
+        {
             /** End a block after a call instruction. */
-            uint32_t end_on_call:1;
+            uint32_t end_on_call : 1;
 
             /** Enable tick events for timing updates. */
-            uint32_t enable_tick_events:1;
+            uint32_t enable_tick_events : 1;
 
             /** End a block after a jump instruction. */
-            uint32_t end_on_jump:1;
+            uint32_t end_on_jump : 1;
 
             /** Preserve timing calibration on overflow. */
-            uint32_t keep_tcal_on_ovf:1;
+            uint32_t keep_tcal_on_ovf : 1;
         } block;
 
         /** Flags for the instruction flow decoder. */
-        struct {
+        struct
+        {
             /** Enable tick events for timing updates. */
-            uint32_t enable_tick_events:1;
+            uint32_t enable_tick_events : 1;
 
             /** Preserve timing calibration on overflow. */
-            uint32_t keep_tcal_on_ovf:1;
+            uint32_t keep_tcal_on_ovf : 1;
         } insn;
 
         /** Flags for the query decoder. */
-        struct {
+        struct
+        {
             /** Preserve timing calibration on overflow. */
-            uint32_t keep_tcal_on_ovf:1;
+            uint32_t keep_tcal_on_ovf : 1;
         } query;
 
         /* Reserve a few bytes for future extensions. */
@@ -349,19 +349,22 @@ struct pt_conf_flags {
 };
 
 /** The address filter configuration. */
-struct pt_conf_addr_filter {
+struct pt_conf_addr_filter
+{
     /** The address filter configuration.
      *
      * This corresponds to the respective fields in IA32_RTIT_CTL MSR.
      */
-    union {
+    union
+    {
         uint64_t addr_cfg;
 
-        struct {
-            uint32_t addr0_cfg:4;
-            uint32_t addr1_cfg:4;
-            uint32_t addr2_cfg:4;
-            uint32_t addr3_cfg:4;
+        struct
+        {
+            uint32_t addr0_cfg : 4;
+            uint32_t addr1_cfg : 4;
+            uint32_t addr2_cfg : 4;
+            uint32_t addr3_cfg : 4;
         } ctl;
     } config;
 
@@ -387,7 +390,8 @@ struct pt_packet_unknown;
 
 /** An Intel PT decoder configuration.
  */
-struct pt_config {
+struct pt_config
+{
     /** The size of the config structure in bytes. */
     size_t size;
 
@@ -401,7 +405,8 @@ struct pt_config {
      *
      * If \@callback is not NULL, it is called for any unknown opcode.
      */
-    struct {
+    struct
+    {
         /** The callback function.
          *
          * It shall decode the packet at \@pos into \@unknown.
@@ -457,7 +462,6 @@ struct pt_config {
     struct pt_conf_addr_filter addr_filter;
 };
 
-
 /** Zero-initialize an Intel PT configuration. */
 static inline void pt_config_init(struct pt_config *config)
 {
@@ -479,7 +483,7 @@ static inline void pt_config_init(struct pt_config *config)
  */
 
 extern pt_export int pt_config_from_user(struct pt_config *config,
-            const struct pt_config *uconfig);
+                                         const struct pt_config *uconfig);
 
 /** Determine errata for a given cpu.
  *
@@ -508,7 +512,8 @@ extern pt_export int pt_filter_addr_check(const struct pt_conf_addr_filter *filt
 /* Packet decoder. */
 
 /** Intel PT packet types. */
-enum pt_packet_type {
+enum pt_packet_type
+{
     /* An invalid packet. */
     ppt_invalid,
 
@@ -544,31 +549,33 @@ enum pt_packet_type {
 };
 
 /** The IP compression. */
-enum pt_ip_compression {
+enum pt_ip_compression
+{
     /* The bits encode the payload size and the encoding scheme.
      *
      * No payload.  The IP has been suppressed.
      */
-    pt_ipc_suppressed    = 0x0,
+    pt_ipc_suppressed = 0x0,
 
     /* Payload: 16 bits.  Update last IP. */
-    pt_ipc_update_16    = 0x01,
+    pt_ipc_update_16 = 0x01,
 
     /* Payload: 32 bits.  Update last IP. */
-    pt_ipc_update_32    = 0x02,
+    pt_ipc_update_32 = 0x02,
 
     /* Payload: 48 bits.  Sign extend to full address. */
-    pt_ipc_sext_48        = 0x03,
+    pt_ipc_sext_48 = 0x03,
 
     /* Payload: 48 bits.  Update last IP. */
-    pt_ipc_update_48    = 0x04,
+    pt_ipc_update_48 = 0x04,
 
     /* Payload: 64 bits.  Full address. */
-    pt_ipc_full        = 0x06
+    pt_ipc_full = 0x06
 };
 
 /** An execution mode. */
-enum pt_exec_mode {
+enum pt_exec_mode
+{
     ptem_unknown,
     ptem_16bit,
     ptem_32bit,
@@ -576,13 +583,15 @@ enum pt_exec_mode {
 };
 
 /** Mode packet leaves. */
-enum pt_mode_leaf {
-    pt_mol_exec        = 0x00,
-    pt_mol_tsx        = 0x20
+enum pt_mode_leaf
+{
+    pt_mol_exec = 0x00,
+    pt_mol_tsx = 0x20
 };
 
 /** A TNT-8 or TNT-64 packet. */
-struct pt_packet_tnt {
+struct pt_packet_tnt
+{
     /** TNT payload bit size. */
     uint8_t bit_size;
 
@@ -591,7 +600,8 @@ struct pt_packet_tnt {
 };
 
 /** A packet with IP payload. */
-struct pt_packet_ip {
+struct pt_packet_ip
+{
     /** IP compression. */
     enum pt_ip_compression ipc;
 
@@ -600,12 +610,13 @@ struct pt_packet_ip {
 };
 
 /** A mode.exec packet. */
-struct pt_packet_mode_exec {
+struct pt_packet_mode_exec
+{
     /** The mode.exec csl bit. */
-    uint32_t csl:1;
+    uint32_t csl : 1;
 
     /** The mode.exec csd bit. */
-    uint32_t csd:1;
+    uint32_t csd : 1;
 };
 
 static inline enum pt_exec_mode
@@ -622,7 +633,8 @@ pt_set_exec_mode(enum pt_exec_mode mode)
 {
     struct pt_packet_mode_exec packet;
 
-    switch (mode) {
+    switch (mode)
+    {
     default:
         packet.csl = 1;
         packet.csd = 1;
@@ -648,21 +660,24 @@ pt_set_exec_mode(enum pt_exec_mode mode)
 }
 
 /** A mode.tsx packet. */
-struct pt_packet_mode_tsx {
+struct pt_packet_mode_tsx
+{
     /** The mode.tsx intx bit. */
-    uint32_t intx:1;
+    uint32_t intx : 1;
 
     /** The mode.tsx abrt bit. */
-    uint32_t abrt:1;
+    uint32_t abrt : 1;
 };
 
 /** A mode packet. */
-struct pt_packet_mode {
+struct pt_packet_mode
+{
     /** Mode leaf. */
     enum pt_mode_leaf leaf;
 
     /** Mode bits. */
-    union {
+    union
+    {
         /** Packet: mode.exec. */
         struct pt_packet_mode_exec exec;
 
@@ -672,28 +687,32 @@ struct pt_packet_mode {
 };
 
 /** A PIP packet. */
-struct pt_packet_pip {
+struct pt_packet_pip
+{
     /** The CR3 value. */
     uint64_t cr3;
 
     /** The non-root bit. */
-    uint32_t nr:1;
+    uint32_t nr : 1;
 };
 
 /** A TSC packet. */
-struct pt_packet_tsc {
+struct pt_packet_tsc
+{
     /** The TSC value. */
     uint64_t tsc;
 };
 
 /** A CBR packet. */
-struct pt_packet_cbr {
+struct pt_packet_cbr
+{
     /** The core/bus cycle ratio. */
     uint8_t ratio;
 };
 
 /** A TMA packet. */
-struct pt_packet_tma {
+struct pt_packet_tma
+{
     /** The crystal clock tick counter value. */
     uint16_t ctc;
 
@@ -702,41 +721,47 @@ struct pt_packet_tma {
 };
 
 /** A MTC packet. */
-struct pt_packet_mtc {
+struct pt_packet_mtc
+{
     /** The crystal clock tick counter value. */
     uint8_t ctc;
 };
 
 /** A CYC packet. */
-struct pt_packet_cyc {
+struct pt_packet_cyc
+{
     /** The cycle counter value. */
     uint64_t value;
 };
 
 /** A VMCS packet. */
-struct pt_packet_vmcs {
-       /* The VMCS Base Address (i.e. the shifted payload). */
+struct pt_packet_vmcs
+{
+    /* The VMCS Base Address (i.e. the shifted payload). */
     uint64_t base;
 };
 
 /** A MNT packet. */
-struct pt_packet_mnt {
+struct pt_packet_mnt
+{
     /** The raw payload. */
     uint64_t payload;
 };
 
 /** A EXSTOP packet. */
-struct pt_packet_exstop {
+struct pt_packet_exstop
+{
     /** A flag specifying the binding of the packet:
      *
      *   set:    binds to the next FUP.
      *   clear:  standalone.
      */
-    uint32_t ip:1;
+    uint32_t ip : 1;
 };
 
 /** A MWAIT packet. */
-struct pt_packet_mwait {
+struct pt_packet_mwait
+{
     /** The MWAIT hints (EAX). */
     uint32_t hints;
 
@@ -745,7 +770,8 @@ struct pt_packet_mwait {
 };
 
 /** A PWRE packet. */
-struct pt_packet_pwre {
+struct pt_packet_pwre
+{
     /** The resolved thread C-state. */
     uint8_t state;
 
@@ -753,11 +779,12 @@ struct pt_packet_pwre {
     uint8_t sub_state;
 
     /** A flag indicating whether the C-state entry was initiated by h/w. */
-    uint32_t hw:1;
+    uint32_t hw : 1;
 };
 
 /** A PWRX packet. */
-struct pt_packet_pwrx {
+struct pt_packet_pwrx
+{
     /** The core C-state at the time of the wake. */
     uint8_t last;
 
@@ -768,17 +795,18 @@ struct pt_packet_pwrx {
      *
      * - due to external interrupt received.
      */
-    uint32_t interrupt:1;
+    uint32_t interrupt : 1;
 
     /** - due to store to monitored address. */
-    uint32_t store:1;
+    uint32_t store : 1;
 
     /** - due to h/w autonomous condition such as HDC. */
-    uint32_t autonomous:1;
+    uint32_t autonomous : 1;
 };
 
 /** A PTW packet. */
-struct pt_packet_ptw {
+struct pt_packet_ptw
+{
     /** The raw payload. */
     uint64_t payload;
 
@@ -788,12 +816,13 @@ struct pt_packet_ptw {
     /** A flag saying whether a FUP is following PTW that provides
      * the IP of the corresponding PTWRITE instruction.
      */
-    uint32_t ip:1;
+    uint32_t ip : 1;
 };
 
 static inline int pt_ptw_size(uint8_t plc)
 {
-    switch (plc) {
+    switch (plc)
+    {
     case 0:
         return 4;
 
@@ -809,7 +838,8 @@ static inline int pt_ptw_size(uint8_t plc)
 }
 
 /** An unknown packet decodable by the optional decoder callback. */
-struct pt_packet_unknown {
+struct pt_packet_unknown
+{
     /** Pointer to the raw packet bytes. */
     const uint8_t *packet;
 
@@ -818,7 +848,8 @@ struct pt_packet_unknown {
 };
 
 /** An Intel PT packet. */
-struct pt_packet {
+struct pt_packet
+{
     /** The type of the packet.
      *
      * This also determines the \@payload field.
@@ -829,7 +860,8 @@ struct pt_packet {
     uint8_t size;
 
     /** Packet specific data. */
-    union {
+    union
+    {
         /** Packets: pad, ovf, psb, psbend, stop - no payload. */
 
         /** Packet: tnt-8, tnt-64. */
@@ -885,11 +917,7 @@ struct pt_packet {
     } payload;
 };
 
-
-
 /* Packet encoder. */
-
-
 
 /** Allocate an Intel PT packet encoder.
  *
@@ -960,11 +988,7 @@ pt_enc_get_config(const struct pt_encoder *encoder);
 extern pt_export int pt_enc_next(struct pt_encoder *encoder,
                                  const struct pt_packet *packet);
 
-
-
 /* Packet decoder. */
-
-
 
 /** Allocate an Intel PT packet decoder.
  *
@@ -1066,26 +1090,24 @@ pt_pkt_get_config(const struct pt_packet_decoder *decoder);
 extern pt_export int pt_pkt_next(struct pt_packet_decoder *decoder,
                                  struct pt_packet *packet, size_t size);
 
-
-
 /* Query decoder. */
 
-
-
 /** Decoder status flags. */
-enum pt_status_flag {
+enum pt_status_flag
+{
     /** There is an event pending. */
-    pts_event_pending    = 1 << 0,
+    pts_event_pending = 1 << 0,
 
     /** The address has been suppressed. */
-    pts_ip_suppressed    = 1 << 1,
+    pts_ip_suppressed = 1 << 1,
 
     /** There is no more trace data available. */
-    pts_eos            = 1 << 2
+    pts_eos = 1 << 2
 };
 
 /** Event types. */
-enum pt_event_type {
+enum pt_event_type
+{
     /* Tracing has been enabled/disabled. */
     ptev_enabled,
     ptev_disabled,
@@ -1146,18 +1168,19 @@ enum pt_event_type {
 };
 
 /** An event. */
-struct pt_event {
+struct pt_event
+{
     /** The type of the event. */
     enum pt_event_type type;
 
     /** A flag indicating that the event IP has been suppressed. */
-    uint32_t ip_suppressed:1;
+    uint32_t ip_suppressed : 1;
 
     /** A flag indicating that the event is for status update. */
-    uint32_t status_update:1;
+    uint32_t status_update : 1;
 
     /** A flag indicating that the event has timing information. */
-    uint32_t has_tsc:1;
+    uint32_t has_tsc : 1;
 
     /** The time stamp count of the event.
      *
@@ -1177,20 +1200,23 @@ struct pt_event {
     uint64_t reserved[2];
 
     /** Event specific data. */
-    union {
+    union
+    {
         /** Event: enabled. */
-        struct {
+        struct
+        {
             /** The address at which tracing resumes. */
             uint64_t ip;
 
             /** A flag indicating that tracing resumes from the IP
              * at which tracing had been disabled before.
              */
-            uint32_t resumed:1;
+            uint32_t resumed : 1;
         } enabled;
 
         /** Event: disabled. */
-        struct {
+        struct
+        {
             /** The destination of the first branch inside a
              * filtered area.
              *
@@ -1204,7 +1230,8 @@ struct pt_event {
         } disabled;
 
         /** Event: async disabled. */
-        struct {
+        struct
+        {
             /** The source address of the asynchronous branch that
              * disabled tracing.
              */
@@ -1219,7 +1246,8 @@ struct pt_event {
         } async_disabled;
 
         /** Event: async branch. */
-        struct {
+        struct
+        {
             /** The branch source address. */
             uint64_t from;
 
@@ -1231,7 +1259,8 @@ struct pt_event {
         } async_branch;
 
         /** Event: paging. */
-        struct {
+        struct
+        {
             /** The updated CR3 value.
              *
              * The lower 5 bit have been zeroed out.
@@ -1243,7 +1272,7 @@ struct pt_event {
             /** A flag indicating whether the cpu is operating in
              * vmx non-root (guest) mode.
              */
-            uint32_t non_root:1;
+            uint32_t non_root : 1;
 
             /* The address at which the event is effective is
              * obvious from the disassembly.
@@ -1251,7 +1280,8 @@ struct pt_event {
         } paging;
 
         /** Event: async paging. */
-        struct {
+        struct
+        {
             /** The updated CR3 value.
              *
              * The lower 5 bit have been zeroed out.
@@ -1263,14 +1293,15 @@ struct pt_event {
             /** A flag indicating whether the cpu is operating in
              * vmx non-root (guest) mode.
              */
-            uint32_t non_root:1;
+            uint32_t non_root : 1;
 
             /** The address at which the event is effective. */
             uint64_t ip;
         } async_paging;
 
         /** Event: overflow. */
-        struct {
+        struct
+        {
             /** The address at which tracing resumes after overflow.
              *
              * This field is not valid, if ip_suppressed is set.
@@ -1281,7 +1312,8 @@ struct pt_event {
         } overflow;
 
         /** Event: exec mode. */
-        struct {
+        struct
+        {
             /** The execution mode. */
             enum pt_exec_mode mode;
 
@@ -1290,7 +1322,8 @@ struct pt_event {
         } exec_mode;
 
         /** Event: tsx. */
-        struct {
+        struct
+        {
             /** The address at which the event is effective.
              *
              * This field is not valid if \@ip_suppressed is set.
@@ -1298,14 +1331,15 @@ struct pt_event {
             uint64_t ip;
 
             /** A flag indicating speculative execution mode. */
-            uint32_t speculative:1;
+            uint32_t speculative : 1;
 
             /** A flag indicating speculative execution aborts. */
-            uint32_t aborted:1;
+            uint32_t aborted : 1;
         } tsx;
 
         /** Event: vmcs. */
-        struct {
+        struct
+        {
             /** The VMCS base address.
              *
              * The address is zero-extended with the lower 12 bits
@@ -1319,7 +1353,8 @@ struct pt_event {
         } vmcs;
 
         /** Event: async vmcs. */
-        struct {
+        struct
+        {
             /** The VMCS base address.
              *
              * The address is zero-extended with the lower 12 bits
@@ -1336,7 +1371,8 @@ struct pt_event {
         } async_vmcs;
 
         /** Event: execution stopped. */
-        struct {
+        struct
+        {
             /** The address at which execution has stopped.  This is
              * the last instruction that did not complete.
              *
@@ -1346,7 +1382,8 @@ struct pt_event {
         } exstop;
 
         /** Event: mwait. */
-        struct {
+        struct
+        {
             /** The address of the instruction causing the mwait.
              *
              * This field is not valid, if \@ip_suppressed is set.
@@ -1367,7 +1404,8 @@ struct pt_event {
         } mwait;
 
         /** Event: power state entry. */
-        struct {
+        struct
+        {
             /** The resolved thread C-state. */
             uint8_t state;
 
@@ -1377,11 +1415,12 @@ struct pt_event {
             /** A flag indicating whether the C-state entry was
              * initiated by h/w.
              */
-            uint32_t hw:1;
+            uint32_t hw : 1;
         } pwre;
 
         /** Event: power state exit. */
-        struct {
+        struct
+        {
             /** The core C-state at the time of the wake. */
             uint8_t last;
 
@@ -1392,17 +1431,18 @@ struct pt_event {
              *
              * - due to external interrupt received.
              */
-            uint32_t interrupt:1;
+            uint32_t interrupt : 1;
 
             /** - due to store to monitored address. */
-            uint32_t store:1;
+            uint32_t store : 1;
 
             /** - due to h/w autonomous condition such as HDC. */
-            uint32_t autonomous:1;
+            uint32_t autonomous : 1;
         } pwrx;
 
         /** Event: ptwrite. */
-        struct {
+        struct
+        {
             /** The address of the ptwrite instruction.
              *
              * This field is not valid, if \@ip_suppressed is set.
@@ -1420,7 +1460,8 @@ struct pt_event {
         } ptwrite;
 
         /** Event: tick. */
-        struct {
+        struct
+        {
             /** The instruction address near which the tick occured.
              *
              * A timestamp can sometimes be attributed directly to
@@ -1433,19 +1474,20 @@ struct pt_event {
         } tick;
 
         /** Event: cbr. */
-        struct {
+        struct
+        {
             /** The core:bus ratio. */
             uint16_t ratio;
         } cbr;
 
         /** Event: mnt. */
-        struct {
+        struct
+        {
             /** The raw payload. */
             uint64_t payload;
         } mnt;
     } variant;
 };
-
 
 /** Allocate an Intel PT query decoder.
  *
@@ -1637,13 +1679,13 @@ extern pt_export int pt_qry_time(struct pt_query_decoder *decoder,
 extern pt_export int pt_qry_core_bus_ratio(struct pt_query_decoder *decoder,
                                            uint32_t *cbr);
 
-
 /** An Intel PT address space identifier.
  *  *
  *   * This identifies a particular address space when adding file sections or
  *    * when reading memory.
  *     */
-struct pt_asid {
+struct pt_asid
+{
     /** The size of this object - set to sizeof(struct pt_asid). */
     size_t size;
 
@@ -1669,10 +1711,11 @@ static inline void pt_asid_init(struct pt_asid *asid)
 }
 
 /* Supported address range configurations. */
-enum pt_addr_cfg {
-    pt_addr_cfg_disabled    = 0,
-    pt_addr_cfg_filter    = 1,
-    pt_addr_cfg_stop    = 2
+enum pt_addr_cfg
+{
+    pt_addr_cfg_disabled = 0,
+    pt_addr_cfg_filter = 1,
+    pt_addr_cfg_stop = 2
 };
 
 #endif /* PT_HPP */

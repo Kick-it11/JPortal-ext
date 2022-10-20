@@ -143,7 +143,7 @@ private:
 private:
     /* private functions from libipt/pt_insn_decoder(for jit)
      * Complete insn decoding for jitted codes
-     * 
+     *
      * For a instruction pointer, decoder will first do a codelet match.
      * If it does not match any codelet,
      * decoder will try to find it in a jit_section
@@ -173,7 +173,7 @@ private:
     int pt_insn_check_insn_event(const struct pt_insn *insn, const struct pt_insn_ext *iext);
 
     int pt_insn_handle_erratum_bdm64(const struct pt_event *ev, const struct pt_insn *insn,
-                             const struct pt_insn_ext *iext);
+                                     const struct pt_insn_ext *iext);
     int pt_insn_postpone_tsx(const struct pt_insn *insn, const struct pt_insn_ext *iext,
                              const struct pt_event *ev);
 
@@ -185,7 +185,7 @@ private:
 
     int pt_insn_drain_events();
 
-    int pt_insn_next(JitSection* &section, struct pt_insn &uinsn);
+    int pt_insn_next(JitSection *&section, struct pt_insn &uinsn);
 
 private:
     /* process all events before entering decoder_record_result */
@@ -193,7 +193,7 @@ private:
 
     int decoder_sync_forward();
 
-    int decoder_record_jitcode(JitSection *section, PCStackInfo* &info, bool &tow);
+    int decoder_record_jitcode(JitSection *section, PCStackInfo *&info, bool &tow);
 
     int decoder_process_jitcode();
 
@@ -207,12 +207,10 @@ private:
     void decoder_time_change();
 
 public:
-
     PTJVMDecoder(const struct pt_config &config, TraceData &trace, uint32_t cpu);
     ~PTJVMDecoder();
 
     void decode();
-
 };
 
 #endif /* PT_JVM_DECODER_HPP */

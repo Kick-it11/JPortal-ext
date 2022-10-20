@@ -36,7 +36,6 @@
 #include <stdlib.h>
 #include <stddef.h>
 
-
 int pt_pkt_decoder_init(struct pt_packet_decoder *decoder,
                         const struct pt_config *config)
 {
@@ -59,12 +58,13 @@ struct pt_packet_decoder *pt_pkt_alloc_decoder(const struct pt_config *config)
     struct pt_packet_decoder *decoder;
     int errcode;
 
-    decoder = (struct pt_packet_decoder*)malloc(sizeof(*decoder));
+    decoder = (struct pt_packet_decoder *)malloc(sizeof(*decoder));
     if (!decoder)
         return NULL;
 
     errcode = pt_pkt_decoder_init(decoder, config);
-    if (errcode < 0) {
+    if (errcode < 0)
+    {
         free(decoder);
         return NULL;
     }
@@ -74,7 +74,7 @@ struct pt_packet_decoder *pt_pkt_alloc_decoder(const struct pt_config *config)
 
 void pt_pkt_decoder_fini(struct pt_packet_decoder *decoder)
 {
-    (void) decoder;
+    (void)decoder;
 
     /* Nothing to do. */
 }
@@ -180,7 +180,7 @@ int pt_pkt_get_offset(const struct pt_packet_decoder *decoder, uint64_t *offset)
     if (!pos)
         return -pte_nosync;
 
-    *offset = (uint64_t) (int64_t) (pos - begin);
+    *offset = (uint64_t)(int64_t)(pos - begin);
     return 0;
 }
 
@@ -198,7 +198,7 @@ int pt_pkt_get_sync_offset(const struct pt_packet_decoder *decoder,
     if (!sync)
         return -pte_nosync;
 
-    *offset = (uint64_t) (int64_t) (sync - begin);
+    *offset = (uint64_t)(int64_t)(sync - begin);
     return 0;
 }
 
@@ -221,7 +221,8 @@ static inline int pkt_to_user(struct pt_packet *upkt, size_t size,
         return 0;
 
     /* Zero out any unknown bytes. */
-    if (sizeof(*pkt) < size) {
+    if (sizeof(*pkt) < size)
+    {
         memset(upkt + sizeof(*pkt), 0, size - sizeof(*pkt));
 
         size = sizeof(*pkt);
@@ -285,7 +286,7 @@ int pt_pkt_decode_unknown(struct pt_packet_decoder *decoder,
 int pt_pkt_decode_pad(struct pt_packet_decoder *decoder,
                       struct pt_packet *packet)
 {
-    (void) decoder;
+    (void)decoder;
 
     if (!packet)
         return -pte_internal;
@@ -309,7 +310,7 @@ int pt_pkt_decode_psb(struct pt_packet_decoder *decoder,
         return size;
 
     packet->type = ppt_psb;
-    packet->size = (uint8_t) size;
+    packet->size = (uint8_t)size;
 
     return size;
 }
@@ -323,12 +324,12 @@ int pt_pkt_decode_tip(struct pt_packet_decoder *decoder,
         return -pte_internal;
 
     size = pt_pkt_read_ip(&packet->payload.ip, decoder->pos,
-                  &decoder->config);
+                          &decoder->config);
     if (size < 0)
         return size;
 
     packet->type = ppt_tip;
-    packet->size = (uint8_t) size;
+    packet->size = (uint8_t)size;
 
     return size;
 }
@@ -342,12 +343,12 @@ int pt_pkt_decode_tnt_8(struct pt_packet_decoder *decoder,
         return -pte_internal;
 
     size = pt_pkt_read_tnt_8(&packet->payload.tnt, decoder->pos,
-                 &decoder->config);
+                             &decoder->config);
     if (size < 0)
         return size;
 
     packet->type = ppt_tnt_8;
-    packet->size = (uint8_t) size;
+    packet->size = (uint8_t)size;
 
     return size;
 }
@@ -361,12 +362,12 @@ int pt_pkt_decode_tnt_64(struct pt_packet_decoder *decoder,
         return -pte_internal;
 
     size = pt_pkt_read_tnt_64(&packet->payload.tnt, decoder->pos,
-                  &decoder->config);
+                              &decoder->config);
     if (size < 0)
         return size;
 
     packet->type = ppt_tnt_64;
-    packet->size = (uint8_t) size;
+    packet->size = (uint8_t)size;
 
     return size;
 }
@@ -380,12 +381,12 @@ int pt_pkt_decode_tip_pge(struct pt_packet_decoder *decoder,
         return -pte_internal;
 
     size = pt_pkt_read_ip(&packet->payload.ip, decoder->pos,
-                  &decoder->config);
+                          &decoder->config);
     if (size < 0)
         return size;
 
     packet->type = ppt_tip_pge;
-    packet->size = (uint8_t) size;
+    packet->size = (uint8_t)size;
 
     return size;
 }
@@ -399,12 +400,12 @@ int pt_pkt_decode_tip_pgd(struct pt_packet_decoder *decoder,
         return -pte_internal;
 
     size = pt_pkt_read_ip(&packet->payload.ip, decoder->pos,
-                  &decoder->config);
+                          &decoder->config);
     if (size < 0)
         return size;
 
     packet->type = ppt_tip_pgd;
-    packet->size = (uint8_t) size;
+    packet->size = (uint8_t)size;
 
     return size;
 }
@@ -418,12 +419,12 @@ int pt_pkt_decode_fup(struct pt_packet_decoder *decoder,
         return -pte_internal;
 
     size = pt_pkt_read_ip(&packet->payload.ip, decoder->pos,
-                  &decoder->config);
+                          &decoder->config);
     if (size < 0)
         return size;
 
     packet->type = ppt_fup;
-    packet->size = (uint8_t) size;
+    packet->size = (uint8_t)size;
 
     return size;
 }
@@ -437,12 +438,12 @@ int pt_pkt_decode_pip(struct pt_packet_decoder *decoder,
         return -pte_internal;
 
     size = pt_pkt_read_pip(&packet->payload.pip, decoder->pos,
-                   &decoder->config);
+                           &decoder->config);
     if (size < 0)
         return size;
 
     packet->type = ppt_pip;
-    packet->size = (uint8_t) size;
+    packet->size = (uint8_t)size;
 
     return size;
 }
@@ -450,7 +451,7 @@ int pt_pkt_decode_pip(struct pt_packet_decoder *decoder,
 int pt_pkt_decode_ovf(struct pt_packet_decoder *decoder,
                       struct pt_packet *packet)
 {
-    (void) decoder;
+    (void)decoder;
 
     if (!packet)
         return -pte_internal;
@@ -470,12 +471,12 @@ int pt_pkt_decode_mode(struct pt_packet_decoder *decoder,
         return -pte_internal;
 
     size = pt_pkt_read_mode(&packet->payload.mode, decoder->pos,
-                &decoder->config);
+                            &decoder->config);
     if (size < 0)
         return size;
 
     packet->type = ppt_mode;
-    packet->size = (uint8_t) size;
+    packet->size = (uint8_t)size;
 
     return size;
 }
@@ -483,7 +484,7 @@ int pt_pkt_decode_mode(struct pt_packet_decoder *decoder,
 int pt_pkt_decode_psbend(struct pt_packet_decoder *decoder,
                          struct pt_packet *packet)
 {
-    (void) decoder;
+    (void)decoder;
 
     if (!packet)
         return -pte_internal;
@@ -503,12 +504,12 @@ int pt_pkt_decode_tsc(struct pt_packet_decoder *decoder,
         return -pte_internal;
 
     size = pt_pkt_read_tsc(&packet->payload.tsc, decoder->pos,
-                   &decoder->config);
+                           &decoder->config);
     if (size < 0)
         return size;
 
     packet->type = ppt_tsc;
-    packet->size = (uint8_t) size;
+    packet->size = (uint8_t)size;
 
     return size;
 }
@@ -522,12 +523,12 @@ int pt_pkt_decode_cbr(struct pt_packet_decoder *decoder,
         return -pte_internal;
 
     size = pt_pkt_read_cbr(&packet->payload.cbr, decoder->pos,
-                   &decoder->config);
+                           &decoder->config);
     if (size < 0)
         return size;
 
     packet->type = ppt_cbr;
-    packet->size = (uint8_t) size;
+    packet->size = (uint8_t)size;
 
     return size;
 }
@@ -541,27 +542,28 @@ int pt_pkt_decode_tma(struct pt_packet_decoder *decoder,
         return -pte_internal;
 
     size = pt_pkt_read_tma(&packet->payload.tma, decoder->pos,
-                   &decoder->config);
-    if (size < 0) {
+                           &decoder->config);
+    if (size < 0)
+    {
         /** SKZ84: Use of VMX TSC Scaling or TSC Offsetting Will Result
          *         in Corrupted Intel PT Packets
          *
          * We cannot detect all kinds of corruption but we can detect
          * reserved bits being set.
          */
-        if (decoder->config.errata.skz84
-            && (size == -pte_bad_packet)) {
+        if (decoder->config.errata.skz84 && (size == -pte_bad_packet))
+        {
             size = ptps_tma + 1;
 
             packet->type = ppt_invalid;
-            packet->size = (uint8_t) size;
+            packet->size = (uint8_t)size;
         }
 
         return size;
     }
 
     packet->type = ppt_tma;
-    packet->size = (uint8_t) size;
+    packet->size = (uint8_t)size;
 
     return size;
 }
@@ -575,12 +577,12 @@ int pt_pkt_decode_mtc(struct pt_packet_decoder *decoder,
         return -pte_internal;
 
     size = pt_pkt_read_mtc(&packet->payload.mtc, decoder->pos,
-                   &decoder->config);
+                           &decoder->config);
     if (size < 0)
         return size;
 
     packet->type = ppt_mtc;
-    packet->size = (uint8_t) size;
+    packet->size = (uint8_t)size;
 
     return size;
 }
@@ -594,12 +596,12 @@ int pt_pkt_decode_cyc(struct pt_packet_decoder *decoder,
         return -pte_internal;
 
     size = pt_pkt_read_cyc(&packet->payload.cyc, decoder->pos,
-                   &decoder->config);
+                           &decoder->config);
     if (size < 0)
         return size;
 
     packet->type = ppt_cyc;
-    packet->size = (uint8_t) size;
+    packet->size = (uint8_t)size;
 
     return size;
 }
@@ -607,7 +609,7 @@ int pt_pkt_decode_cyc(struct pt_packet_decoder *decoder,
 int pt_pkt_decode_stop(struct pt_packet_decoder *decoder,
                        struct pt_packet *packet)
 {
-    (void) decoder;
+    (void)decoder;
 
     if (!packet)
         return -pte_internal;
@@ -627,12 +629,12 @@ int pt_pkt_decode_vmcs(struct pt_packet_decoder *decoder,
         return -pte_internal;
 
     size = pt_pkt_read_vmcs(&packet->payload.vmcs, decoder->pos,
-                   &decoder->config);
+                            &decoder->config);
     if (size < 0)
         return size;
 
     packet->type = ppt_vmcs;
-    packet->size = (uint8_t) size;
+    packet->size = (uint8_t)size;
 
     return size;
 }
@@ -646,12 +648,12 @@ int pt_pkt_decode_mnt(struct pt_packet_decoder *decoder,
         return -pte_internal;
 
     size = pt_pkt_read_mnt(&packet->payload.mnt, decoder->pos,
-                   &decoder->config);
+                           &decoder->config);
     if (size < 0)
         return size;
 
     packet->type = ppt_mnt;
-    packet->size = (uint8_t) size;
+    packet->size = (uint8_t)size;
 
     return size;
 }
@@ -665,12 +667,12 @@ int pt_pkt_decode_exstop(struct pt_packet_decoder *decoder,
         return -pte_internal;
 
     size = pt_pkt_read_exstop(&packet->payload.exstop, decoder->pos,
-                  &decoder->config);
+                              &decoder->config);
     if (size < 0)
         return size;
 
     packet->type = ppt_exstop;
-    packet->size = (uint8_t) size;
+    packet->size = (uint8_t)size;
 
     return size;
 }
@@ -684,12 +686,12 @@ int pt_pkt_decode_mwait(struct pt_packet_decoder *decoder,
         return -pte_internal;
 
     size = pt_pkt_read_mwait(&packet->payload.mwait, decoder->pos,
-                 &decoder->config);
+                             &decoder->config);
     if (size < 0)
         return size;
 
     packet->type = ppt_mwait;
-    packet->size = (uint8_t) size;
+    packet->size = (uint8_t)size;
 
     return size;
 }
@@ -703,12 +705,12 @@ int pt_pkt_decode_pwre(struct pt_packet_decoder *decoder,
         return -pte_internal;
 
     size = pt_pkt_read_pwre(&packet->payload.pwre, decoder->pos,
-                &decoder->config);
+                            &decoder->config);
     if (size < 0)
         return size;
 
     packet->type = ppt_pwre;
-    packet->size = (uint8_t) size;
+    packet->size = (uint8_t)size;
 
     return size;
 }
@@ -722,12 +724,12 @@ int pt_pkt_decode_pwrx(struct pt_packet_decoder *decoder,
         return -pte_internal;
 
     size = pt_pkt_read_pwrx(&packet->payload.pwrx, decoder->pos,
-                &decoder->config);
+                            &decoder->config);
     if (size < 0)
         return size;
 
     packet->type = ppt_pwrx;
-    packet->size = (uint8_t) size;
+    packet->size = (uint8_t)size;
 
     return size;
 }
@@ -741,12 +743,12 @@ int pt_pkt_decode_ptw(struct pt_packet_decoder *decoder,
         return -pte_internal;
 
     size = pt_pkt_read_ptw(&packet->payload.ptw, decoder->pos,
-                   &decoder->config);
+                           &decoder->config);
     if (size < 0)
         return size;
 
     packet->type = ppt_ptw;
-    packet->size = (uint8_t) size;
+    packet->size = (uint8_t)size;
 
     return size;
 }

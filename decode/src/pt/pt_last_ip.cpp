@@ -30,7 +30,6 @@
 
 #include "pt/pt.hpp"
 
-
 void pt_last_ip_init(struct pt_last_ip *last_ip)
 {
     if (!last_ip)
@@ -46,13 +45,15 @@ int pt_last_ip_query(uint64_t *ip, const struct pt_last_ip *last_ip)
     if (!last_ip)
         return -pte_internal;
 
-    if (!last_ip->have_ip) {
+    if (!last_ip->have_ip)
+    {
         if (ip)
             *ip = 0ull;
         return -pte_noip;
     }
 
-    if (last_ip->suppressed) {
+    if (last_ip->suppressed)
+    {
         if (ip)
             *ip = 0ull;
         return -pte_ip_suppressed;
@@ -79,12 +80,13 @@ int pt_last_ip_update_ip(struct pt_last_ip *last_ip,
                          const struct pt_packet_ip *packet,
                          const struct pt_config *config)
 {
-    (void) config;
+    (void)config;
 
     if (!last_ip || !packet)
         return -pte_internal;
 
-    switch (packet->ipc) {
+    switch (packet->ipc)
+    {
     case pt_ipc_suppressed:
         last_ip->suppressed = 1;
         return 0;
@@ -96,22 +98,19 @@ int pt_last_ip_update_ip(struct pt_last_ip *last_ip,
         return 0;
 
     case pt_ipc_update_16:
-        last_ip->ip = (last_ip->ip & ~0xffffull)
-            | (packet->ip & 0xffffull);
+        last_ip->ip = (last_ip->ip & ~0xffffull) | (packet->ip & 0xffffull);
         last_ip->have_ip = 1;
         last_ip->suppressed = 0;
         return 0;
 
     case pt_ipc_update_32:
-        last_ip->ip = (last_ip->ip & ~0xffffffffull)
-            | (packet->ip & 0xffffffffull);
+        last_ip->ip = (last_ip->ip & ~0xffffffffull) | (packet->ip & 0xffffffffull);
         last_ip->have_ip = 1;
         last_ip->suppressed = 0;
         return 0;
 
     case pt_ipc_update_48:
-        last_ip->ip = (last_ip->ip & ~0xffffffffffffull)
-            | (packet->ip & 0xffffffffffffull);
+        last_ip->ip = (last_ip->ip & ~0xffffffffffffull) | (packet->ip & 0xffffffffffffull);
         last_ip->have_ip = 1;
         last_ip->suppressed = 0;
         return 0;

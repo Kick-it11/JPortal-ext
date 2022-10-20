@@ -33,13 +33,13 @@
 
 #include <limits.h>
 
-
 static uint64_t pt_pkt_read_value(const uint8_t *pos, int size)
 {
     uint64_t val;
     int idx;
 
-    for (val = 0, idx = 0; idx < size; ++idx) {
+    for (val = 0, idx = 0; idx < size; ++idx)
+    {
         uint64_t byte = *pos++;
 
         byte <<= (idx * 8);
@@ -53,7 +53,7 @@ int pt_pkt_read_unknown(struct pt_packet *packet, const uint8_t *pos,
                         const struct pt_config *config)
 {
     int (*decode)(struct pt_packet_unknown *, const struct pt_config *,
-              const uint8_t *, void *);
+                  const uint8_t *, void *);
     int size;
 
     if (!packet || !pos || !config)
@@ -71,7 +71,7 @@ int pt_pkt_read_unknown(struct pt_packet *packet, const uint8_t *pos,
      * trace buffer and resume normal decoding.
      */
     size = (*decode)(&packet->payload.unknown, config, pos,
-             config->decode.context);
+                     config->decode.context);
     if (size < 0)
         return size;
 
@@ -79,7 +79,7 @@ int pt_pkt_read_unknown(struct pt_packet *packet, const uint8_t *pos,
         return -pte_invalid;
 
     packet->type = ppt_unknown;
-    packet->size = (uint8_t) size;
+    packet->size = (uint8_t)size;
 
     if (config->end < pos + size)
         return -pte_eos;
@@ -99,7 +99,8 @@ int pt_pkt_read_psb(const uint8_t *pos, const struct pt_config *config)
 
     pos += pt_opcs_psb;
 
-    for (count = 0; count < pt_psb_repeat_count; ++count) {
+    for (count = 0; count < pt_psb_repeat_count; ++count)
+    {
         if (*pos++ != pt_psb_hi)
             return -pte_bad_packet;
         if (*pos++ != pt_psb_lo)
@@ -111,7 +112,8 @@ int pt_pkt_read_psb(const uint8_t *pos, const struct pt_config *config)
 
 static int pt_pkt_ip_size(enum pt_ip_compression ipc)
 {
-    switch (ipc) {
+    switch (ipc)
+    {
     case pt_ipc_suppressed:
         return 0;
 
@@ -145,7 +147,7 @@ int pt_pkt_read_ip(struct pt_packet_ip *packet, const uint8_t *pos,
     ipc = (*pos++ >> pt_opm_ipc_shr) & pt_opm_ipc_shr_mask;
 
     ip = 0ull;
-    ipsize = pt_pkt_ip_size((enum pt_ip_compression) ipc);
+    ipsize = pt_pkt_ip_size((enum pt_ip_compression)ipc);
     if (ipsize < 0)
         return ipsize;
 
@@ -155,7 +157,7 @@ int pt_pkt_read_ip(struct pt_packet_ip *packet, const uint8_t *pos,
     if (ipsize)
         ip = pt_pkt_read_value(pos, ipsize);
 
-    packet->ipc = (enum pt_ip_compression) ipc;
+    packet->ipc = (enum pt_ip_compression)ipc;
     packet->ip = ip;
 
     return ipsize + 1;
@@ -168,7 +170,8 @@ static uint8_t pt_pkt_tnt_bit_size(uint64_t payload)
     /* The payload bit-size is the bit-index of the payload's stop-bit,
      * which itself is not part of the payload proper.
      */
-    for (size = 0; ; size += 1) {
+    for (size = 0;; size += 1)
+    {
         payload >>= 1;
         if (!payload)
             break;
@@ -202,7 +205,7 @@ int pt_pkt_read_tnt_8(struct pt_packet_tnt *packet, const uint8_t *pos,
 {
     int errcode;
 
-    (void) config;
+    (void)config;
 
     if (!pos)
         return -pte_internal;
@@ -253,8 +256,8 @@ int pt_pkt_read_pip(struct pt_packet_pip *packet, const uint8_t *pos,
     packet->nr = payload & pt_pl_pip_nr;
 
     /* Create the cr3 value. */
-    payload  >>= pt_pl_pip_shr;
-    payload  <<= pt_pl_pip_shl;
+    payload >>= pt_pl_pip_shr;
+    payload <<= pt_pl_pip_shl;
     packet->cr3 = payload;
 
     return ptps_pip;
@@ -273,7 +276,7 @@ static int pt_pkt_read_mode_exec(struct pt_packet_mode_exec *packet,
 }
 
 static int pt_pkt_read_mode_tsx(struct pt_packet_mode_tsx *packet,
-                uint8_t mode)
+                                uint8_t mode)
 {
     if (!packet)
         return -pte_internal;
@@ -299,8 +302,9 @@ int pt_pkt_read_mode(struct pt_packet_mode *packet, const uint8_t *pos,
     leaf = payload & pt_mom_leaf;
     mode = payload & pt_mom_bits;
 
-    packet->leaf = (enum pt_mode_leaf) leaf;
-    switch (leaf) {
+    packet->leaf = (enum pt_mode_leaf)leaf;
+    switch (leaf)
+    {
     default:
         return -pte_bad_packet;
 
@@ -407,7 +411,8 @@ int pt_pkt_read_cyc(struct pt_packet_cyc *packet, const uint8_t *pos,
     value = cyc;
     shl = (8 - pt_opm_cyc_shr);
 
-    while (ext) {
+    while (ext)
+    {
         uint64_t bits;
 
         if (end <= pos)
@@ -428,7 +433,7 @@ int pt_pkt_read_cyc(struct pt_packet_cyc *packet, const uint8_t *pos,
 
     packet->value = value;
 
-    return (int) (pos - begin);
+    return (int)(pos - begin);
 }
 
 int pt_pkt_read_vmcs(struct pt_packet_vmcs *packet, const uint8_t *pos,
@@ -486,11 +491,11 @@ int pt_pkt_read_mwait(struct pt_packet_mwait *packet, const uint8_t *pos,
     if (config->end < pos + ptps_mwait)
         return -pte_eos;
 
-    packet->hints = (uint32_t) pt_pkt_read_value(pos + pt_opcs_mwait,
-                             pt_pl_mwait_hints_size);
-    packet->ext = (uint32_t) pt_pkt_read_value(pos + pt_opcs_mwait +
-                           pt_pl_mwait_hints_size,
-                           pt_pl_mwait_ext_size);
+    packet->hints = (uint32_t)pt_pkt_read_value(pos + pt_opcs_mwait,
+                                                pt_pl_mwait_hints_size);
+    packet->ext = (uint32_t)pt_pkt_read_value(pos + pt_opcs_mwait +
+                                                  pt_pl_mwait_hints_size,
+                                              pt_pl_mwait_ext_size);
     return ptps_mwait;
 }
 
@@ -508,10 +513,10 @@ int pt_pkt_read_pwre(struct pt_packet_pwre *packet, const uint8_t *pos,
     payload = pt_pkt_read_value(pos + pt_opcs_pwre, pt_pl_pwre_size);
 
     memset(packet, 0, sizeof(*packet));
-    packet->state = (uint8_t) ((payload & pt_pl_pwre_state_mask) >>
-                   pt_pl_pwre_state_shr);
-    packet->sub_state = (uint8_t) ((payload & pt_pl_pwre_sub_state_mask) >>
-                       pt_pl_pwre_sub_state_shr);
+    packet->state = (uint8_t)((payload & pt_pl_pwre_state_mask) >>
+                              pt_pl_pwre_state_shr);
+    packet->sub_state = (uint8_t)((payload & pt_pl_pwre_sub_state_mask) >>
+                                  pt_pl_pwre_sub_state_shr);
     if (payload & pt_pl_pwre_hw_mask)
         packet->hw = 1;
 
@@ -532,10 +537,10 @@ int pt_pkt_read_pwrx(struct pt_packet_pwrx *packet, const uint8_t *pos,
     payload = pt_pkt_read_value(pos + pt_opcs_pwrx, pt_pl_pwrx_size);
 
     memset(packet, 0, sizeof(*packet));
-    packet->last = (uint8_t) ((payload & pt_pl_pwrx_last_mask) >>
-                  pt_pl_pwrx_last_shr);
-    packet->deepest = (uint8_t) ((payload & pt_pl_pwrx_deepest_mask) >>
-                     pt_pl_pwrx_deepest_shr);
+    packet->last = (uint8_t)((payload & pt_pl_pwrx_last_mask) >>
+                             pt_pl_pwrx_last_shr);
+    packet->deepest = (uint8_t)((payload & pt_pl_pwrx_deepest_mask) >>
+                                pt_pl_pwrx_deepest_shr);
     if (payload & pt_pl_pwrx_wr_int)
         packet->interrupt = 1;
     if (payload & pt_pl_pwrx_wr_store)

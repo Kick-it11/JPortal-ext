@@ -11,13 +11,14 @@
  * The caller is responsible for deallocating the buffer and for using
  * ResourceMarks appropriately when constructing streams.
  */
-class ClassFileStream {
-  private:
+class ClassFileStream
+{
+private:
     const u1 *const _buffer_begin;
     const u1 *const _buffer_end;
     mutable const u1 *_current;
 
-  public:
+public:
     ClassFileStream(const u1 *buffer, int length)
         : _buffer_begin(buffer), _buffer_end(buffer + length),
           _current(buffer) {}
@@ -25,7 +26,8 @@ class ClassFileStream {
 
     const u1 *current() const { return _current; }
     void set_current() const { _current = _buffer_begin; }
-    void set_current(const u1 *pos) const {
+    void set_current(const u1 *pos) const
+    {
         assert(pos >= _buffer_begin && pos <= _buffer_end);
         _current = pos;
     }
@@ -34,7 +36,8 @@ class ClassFileStream {
     u1 get_u1() const { return *_current++; }
 
     /* Read u2 from Big-Endian stream; */
-    u2 get_u2() const {
+    u2 get_u2() const
+    {
         u1 us[2];
         us[1] = *_current++;
         us[0] = *_current++;
@@ -42,7 +45,8 @@ class ClassFileStream {
     }
 
     /* Read u2 from Little-Endian stream; */
-    u2 get_u2_l() const {
+    u2 get_u2_l() const
+    {
         u1 us[2];
         us[0] = *_current++;
         us[1] = *_current++;
@@ -50,7 +54,8 @@ class ClassFileStream {
     }
 
     /* Read u4 from Big-Endian stream; */
-    u4 get_u4() const {
+    u4 get_u4() const
+    {
         u1 ui[4];
         ui[3] = *_current++;
         ui[2] = *_current++;
@@ -60,7 +65,8 @@ class ClassFileStream {
     }
 
     /* Read u8 from Big-Endian stream; */
-    u8 get_u8() const {
+    u8 get_u8() const
+    {
         u1 ul[8];
         ul[7] = *_current++;
         ul[6] = *_current++;

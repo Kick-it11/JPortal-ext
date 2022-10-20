@@ -31,7 +31,6 @@
 #include <limits.h>
 #include <stdlib.h>
 
-
 int pt_cpu_parse(struct pt_cpu *cpu, const char *s)
 {
     const char sep = '/';
@@ -61,7 +60,8 @@ int pt_cpu_parse(struct pt_cpu *cpu, const char *s)
     if (*endptr == '\0')
         /* stepping was omitted, it defaults to 0 */
         stepping = 0;
-    else {
+    else
+    {
         /* skip separator */
         s = endptr + 1;
 
@@ -74,9 +74,9 @@ int pt_cpu_parse(struct pt_cpu *cpu, const char *s)
     }
 
     cpu->vendor = pcv_intel;
-    cpu->family = (uint16_t) family;
-    cpu->model = (uint8_t) model;
-    cpu->stepping = (uint8_t) stepping;
+    cpu->family = (uint16_t)family;
+    cpu->model = (uint8_t)model;
+    cpu->stepping = (uint8_t)stepping;
 
     return 0;
 }

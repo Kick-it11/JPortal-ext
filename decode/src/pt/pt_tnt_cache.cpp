@@ -30,7 +30,6 @@
 
 #include "pt/pt.hpp"
 
-
 void pt_tnt_cache_init(struct pt_tnt_cache *cache)
 {
     if (!cache)
@@ -70,7 +69,7 @@ int pt_tnt_cache_update_tnt(struct pt_tnt_cache *cache,
 {
     uint8_t bit_size;
 
-    (void) config;
+    (void)config;
 
     if (!cache || !packet)
         return -pte_invalid;

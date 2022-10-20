@@ -31,17 +31,18 @@ typedef unsigned char u_char;
 /* ScopeDescs contain the information that makes source-level debugging of
  * nmethods possible; each scopeDesc describes a method activation
  */
-class ScopeDesc {
+class ScopeDesc
+{
 public:
     ScopeDesc(int decode_offset, int obj_decode_offset, bool reexecute, bool rethrow_exception, bool return_oop, const u_char *scopes_data);
 
-    int  method_index()     const {return _method_index; }
-    int          bci()      const { return _bci;    }
+    int method_index() const { return _method_index; }
+    int bci() const { return _bci; }
     bool should_reexecute() const { return _reexecute; }
     bool rethrow_exception() const { return _rethrow_exception; }
-    bool return_oop()       const { return _return_oop; }
+    bool return_oop() const { return _return_oop; }
 
-    ScopeDesc* sender() const;
+    ScopeDesc *sender() const;
 
     int decode_offset() const { return _decode_offset; }
 
@@ -50,15 +51,15 @@ public:
     bool is_top() const;
 
 private:
-    void initialize(const ScopeDesc* parent, int decode_offset);
+    void initialize(const ScopeDesc *parent, int decode_offset);
 
-    ScopeDesc(const ScopeDesc* parent);
+    ScopeDesc(const ScopeDesc *parent);
 
-    int           _method_index;
-    int           _bci;
-    bool          _reexecute;
-    bool          _rethrow_exception;
-    bool          _return_oop;
+    int _method_index;
+    int _bci;
+    bool _reexecute;
+    bool _rethrow_exception;
+    bool _return_oop;
 
     const u_char *_scopes_data;
 
@@ -71,7 +72,6 @@ private:
     int _obj_decode_offset;
 
     void decode_body();
-
 };
 
 #endif /* SCOPEDESC_HPP */

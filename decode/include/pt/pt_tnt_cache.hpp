@@ -34,9 +34,9 @@
 struct pt_packet_tnt;
 struct pt_config;
 
-
 /* Keeping track of tnt indicators. */
-struct pt_tnt_cache {
+struct pt_tnt_cache
+{
     /* The last tnt. */
     uint64_t tnt;
 
@@ -48,7 +48,6 @@ struct pt_tnt_cache {
      */
     uint64_t index;
 };
-
 
 /* Initialize (or reset) the tnt cache. */
 extern void pt_tnt_cache_init(struct pt_tnt_cache *cache);

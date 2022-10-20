@@ -192,7 +192,7 @@ void JPortalEnable::dump_compiled_method_load(Method *moop, nmethod *nm) {
     if (m == Universe::non_oop_word() || m == NULL ||
         !m->is_metaspace_object() || !m->is_method())
       continue;
-    
+
     inline_method_cnt++;
     size += (sizeof(InlineMethodInfo) + m->klass_name()->utf8_length() + m->name()->utf8_length() + m->signature()->utf8_length());
   }
@@ -201,8 +201,8 @@ void JPortalEnable::dump_compiled_method_load(Method *moop, nmethod *nm) {
   }
 
   CompiledMethodLoadInfo cm((u8)code_begin, (u8)entry_point, (u8)verified_entry_point, (u8)osr_entry_point,
-                            code_size,  scopes_pc_size, scopes_data_size,
-                            inline_method_cnt ? inline_method_cnt : 1, size);
+                            inline_method_cnt ? inline_method_cnt : 1, code_size,
+                            scopes_pc_size, scopes_data_size, size);
 
   if (JPortalShmVolume - sizeof(ShmHeader) <= size) {
     fprintf(stderr, "JPortalEnable error: ignore compiled code for size too big.\n");

@@ -1641,14 +1641,10 @@ int PTJVMDecoder::decoder_drain_events()
 
     uint64_t async_disabled_ip = 0ul;
 
-    while (_status & pts_event_pending)
+    while (decoder_event_pending())
     {
         if (!_process_event)
             return -pte_bad_query;
-
-        errcode = decoder_event_pending();
-        if (errcode < 0)
-            return errcode;
 
         switch (_event.type)
         {

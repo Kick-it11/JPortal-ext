@@ -89,7 +89,7 @@ public:
 
     void add_jitcode(uint64_t time, const JitSection *section, PCStackInfo *pc, uint64_t entry);
 
-    void add_codelet(CodeletsEntry::Codelet codelet);
+    void add_codelet(uint64_t time, CodeletsEntry::Codelet codelet);
 
     void add_method_info(const Method *method);
 

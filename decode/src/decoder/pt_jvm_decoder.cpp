@@ -214,7 +214,7 @@ int PTJVMDecoder::decoder_process_vmcs()
 int PTJVMDecoder::decoder_indirect_branch(uint64_t *ip)
 {
     uint64_t evip;
-    int status, errcode;
+    int status;
 
     status = pt_qry_indirect_branch(_qry, ip);
     if (status < 0)
@@ -234,7 +234,7 @@ int PTJVMDecoder::decoder_indirect_branch(uint64_t *ip)
  */
 int PTJVMDecoder::decoder_cond_branch(int *taken)
 {
-    int status, errcode;
+    int status;
 
     status = pt_qry_cond_branch(_qry, taken);
     if (status < 0)
@@ -1247,11 +1247,10 @@ int PTJVMDecoder::pt_insn_check_ip_event(const struct pt_insn *insn,
 
 int PTJVMDecoder::pt_insn_drain_events()
 {
-    int errcode = _status;
+    int status = _status;
 
-    while (_status & pts_event_pending)
+    while (status & pts_event_pending)
     {
-
         /* We must currently process an event. */
         if (!_process_event)
             return -pte_bad_query;
@@ -1274,9 +1273,9 @@ int PTJVMDecoder::pt_insn_drain_events()
             if (_ip == _event.variant.enabled.ip)
                 _event.variant.enabled.resumed = 1;
 
-            errcode = decoder_process_enabled();
-            if (errcode < 0)
-                return errcode;
+            status = decoder_process_enabled();
+            if (status < 0)
+                return status;
 
             break;
 
@@ -1287,9 +1286,9 @@ int PTJVMDecoder::pt_insn_drain_events()
             /* fallthrough */
 
         case ptev_disabled:
-            errcode = decoder_process_disabled();
-            if (errcode < 0)
-                return errcode;
+            status = decoder_process_disabled();
+            if (status < 0)
+                return status;
 
             break;
 
@@ -1297,9 +1296,9 @@ int PTJVMDecoder::pt_insn_drain_events()
             if (_ip != _event.variant.async_branch.from)
                 return -pte_bad_query;
 
-            errcode = decoder_process_async_branch();
-            if (errcode < 0)
-                return errcode;
+            status = decoder_process_async_branch();
+            if (status < 0)
+                return status;
 
             break;
 
@@ -1310,9 +1309,9 @@ int PTJVMDecoder::pt_insn_drain_events()
             /* faillthrough */
 
         case ptev_paging:
-            errcode = decoder_process_paging();
-            if (errcode < 0)
-                return errcode;
+            status = decoder_process_paging();
+            if (status < 0)
+                return status;
 
             break;
 
@@ -1321,37 +1320,37 @@ int PTJVMDecoder::pt_insn_drain_events()
                 return -pte_bad_query;
 
         case ptev_vmcs:
-            errcode = decoder_process_vmcs();
-            if (errcode < 0)
-                return errcode;
+            status = decoder_process_vmcs();
+            if (status < 0)
+                return status;
 
             break;
 
         case ptev_overflow:
-            errcode = decoder_process_overflow();
-            if (errcode < 0)
-                return errcode;
+            status = decoder_process_overflow();
+            if (status < 0)
+                return status;
 
             break;
 
         case ptev_exec_mode:
-            errcode = decoder_process_exec_mode();
-            if (errcode < 0)
-                return errcode;
+            status = decoder_process_exec_mode();
+            if (status < 0)
+                return status;
 
             break;
 
         case ptev_tsx:
-            errcode = decoder_process_tsx();
-            if (errcode < 0)
-                return errcode;
+            status = decoder_process_tsx();
+            if (status < 0)
+                return status;
 
             break;
 
         case ptev_stop:
-            errcode = decoder_process_stop();
-            if (errcode < 0)
-                return errcode;
+            status = decoder_process_stop();
+            if (status < 0)
+                return status;
 
             break;
 
@@ -1389,30 +1388,30 @@ int PTJVMDecoder::pt_insn_drain_events()
          */
         if (_process_insn)
         {
-            errcode = pt_insn_check_insn_event(&_insn, &_iext);
+            status = pt_insn_check_insn_event(&_insn, &_iext);
 
-            if (errcode != 0)
+            if (status != 0)
             {
-                if (errcode < 0)
-                    return errcode;
+                if (status < 0)
+                    return status;
 
-                if (_status & pts_event_pending)
+                if (status & pts_event_pending)
                     continue;
             }
 
             /* Proceed to the next instruction. */
-            errcode = pt_insn_proceed_postponed();
-            if (errcode < 0)
-                return errcode;
+            status = pt_insn_proceed_postponed();
+            if (status < 0)
+                return status;
         }
 
         /* Indicate further events that bind to the same IP. */
-        errcode = pt_insn_check_ip_event(NULL, NULL);
-        if (errcode < 0)
-            return errcode;
+        status = pt_insn_check_ip_event(NULL, NULL);
+        if (status < 0)
+            return status;
     }
 
-    return _status;
+    return status;
 }
 
 int PTJVMDecoder::decoder_record_jitcode(JitSection *section, PCStackInfo *&info, bool &tow)
@@ -1543,10 +1542,16 @@ int PTJVMDecoder::decoder_process_jitcode()
     if (errcode != 0)
     {
         /* errcode < 0 indicates error */
-        if (errcode < 0)
+        if (errcode < 0) {
+            std::cerr << "PTJVMDecoder error: insn start" << std::endl;
             return errcode;
+        }
 
         errcode = pt_insn_drain_events();
+        if (errcode < 0) {
+            std::cerr << "PTJVMDecoder error: drain events" << std::endl;
+            return errcode;
+        }
     }
 
     for (;;)
@@ -1606,8 +1611,11 @@ int PTJVMDecoder::decoder_process_ip()
     case (CodeletsEntry::_illegal):
     {
         errcode = decoder_process_jitcode();
-        if (errcode < 0)
-            return errcode;
+        if (errcode < 0) {
+            /* jitted code process error but do not let it affect ip processing */
+            _record.switch_out(true);
+            return 0;
+        }
 
         /* while processing jit, decoder might query a non-compiled-code ip */
         codelet = CodeletsEntry::entry_match(_ip, bytecode);
@@ -1621,7 +1629,7 @@ int PTJVMDecoder::decoder_process_ip()
         return decoder_record_bytecode(bytecode);
     }
     default:
-        _record.add_codelet(codelet);
+        _record.add_codelet(_time, codelet);
         return errcode;
     }
 }

@@ -88,6 +88,8 @@ bool TraceData::get_jit(uint64_t loc, const PCStackInfo **&codes, uint64_t &size
 
 void TraceDataRecord::add_bytecode(uint64_t time, Bytecodes::Code bytecode)
 {
+    if (!thread)
+        switch_in(-1, time, true);
     current_time = time;
     if (codelet_type != CodeletsEntry::_bytecode)
     {
@@ -105,6 +107,8 @@ void TraceDataRecord::add_bytecode(uint64_t time, Bytecodes::Code bytecode)
 void TraceDataRecord::add_jitcode(uint64_t time, const JitSection *section,
                                   PCStackInfo *pc, uint64_t entry)
 {
+    if (!thread)
+        switch_in(-1, time, true);
     current_time = time;
     if (codelet_type != CodeletsEntry::_jitcode && codelet_type != CodeletsEntry::_jitcode_entry && codelet_type != CodeletsEntry::_jitcode_osr_entry || last_section != section || entry == section->cmd()->entry_point() || entry == section->cmd()->verified_entry_point())
     {
@@ -125,8 +129,10 @@ void TraceDataRecord::add_jitcode(uint64_t time, const JitSection *section,
     return;
 }
 
-void TraceDataRecord::add_codelet(CodeletsEntry::Codelet codelet)
+void TraceDataRecord::add_codelet(uint64_t time, CodeletsEntry::Codelet codelet)
 {
+    if (!thread)
+        switch_in(-1, time, true);
     switch (codelet)
     {
     case CodeletsEntry::_method_entry:

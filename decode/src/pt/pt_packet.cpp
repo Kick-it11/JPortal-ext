@@ -50,7 +50,7 @@ static uint64_t pt_pkt_read_value(const uint8_t *pos, int size)
 }
 
 int pt_pkt_read_unknown(struct pt_packet *packet, const uint8_t *pos,
-            const struct pt_config *config)
+                        const struct pt_config *config)
 {
     int (*decode)(struct pt_packet_unknown *, const struct pt_config *,
               const uint8_t *, void *);
@@ -133,7 +133,7 @@ static int pt_pkt_ip_size(enum pt_ip_compression ipc)
 }
 
 int pt_pkt_read_ip(struct pt_packet_ip *packet, const uint8_t *pos,
-           const struct pt_config *config)
+                   const struct pt_config *config)
 {
     uint64_t ip;
     uint8_t ipc;
@@ -198,7 +198,7 @@ static int pt_pkt_read_tnt(struct pt_packet_tnt *packet, uint64_t payload)
 }
 
 int pt_pkt_read_tnt_8(struct pt_packet_tnt *packet, const uint8_t *pos,
-              const struct pt_config *config)
+                      const struct pt_config *config)
 {
     int errcode;
 
@@ -215,7 +215,7 @@ int pt_pkt_read_tnt_8(struct pt_packet_tnt *packet, const uint8_t *pos,
 }
 
 int pt_pkt_read_tnt_64(struct pt_packet_tnt *packet, const uint8_t *pos,
-               const struct pt_config *config)
+                       const struct pt_config *config)
 {
     uint64_t payload;
     int errcode;
@@ -236,7 +236,7 @@ int pt_pkt_read_tnt_64(struct pt_packet_tnt *packet, const uint8_t *pos,
 }
 
 int pt_pkt_read_pip(struct pt_packet_pip *packet, const uint8_t *pos,
-            const struct pt_config *config)
+                    const struct pt_config *config)
 {
     uint64_t payload;
 
@@ -261,7 +261,7 @@ int pt_pkt_read_pip(struct pt_packet_pip *packet, const uint8_t *pos,
 }
 
 static int pt_pkt_read_mode_exec(struct pt_packet_mode_exec *packet,
-                 uint8_t mode)
+                                 uint8_t mode)
 {
     if (!packet)
         return -pte_internal;
@@ -285,7 +285,7 @@ static int pt_pkt_read_mode_tsx(struct pt_packet_mode_tsx *packet,
 }
 
 int pt_pkt_read_mode(struct pt_packet_mode *packet, const uint8_t *pos,
-             const struct pt_config *config)
+                     const struct pt_config *config)
 {
     uint8_t payload, mode, leaf;
 
@@ -313,7 +313,7 @@ int pt_pkt_read_mode(struct pt_packet_mode *packet, const uint8_t *pos,
 }
 
 int pt_pkt_read_tsc(struct pt_packet_tsc *packet, const uint8_t *pos,
-            const struct pt_config *config)
+                    const struct pt_config *config)
 {
     if (!packet || !pos || !config)
         return -pte_internal;
@@ -327,7 +327,7 @@ int pt_pkt_read_tsc(struct pt_packet_tsc *packet, const uint8_t *pos,
 }
 
 int pt_pkt_read_cbr(struct pt_packet_cbr *packet, const uint8_t *pos,
-            const struct pt_config *config)
+                    const struct pt_config *config)
 {
     if (!packet || !pos || !config)
         return -pte_internal;
@@ -341,7 +341,7 @@ int pt_pkt_read_cbr(struct pt_packet_cbr *packet, const uint8_t *pos,
 }
 
 int pt_pkt_read_tma(struct pt_packet_tma *packet, const uint8_t *pos,
-            const struct pt_config *config)
+                    const struct pt_config *config)
 {
     uint16_t ctc, fc;
 
@@ -370,7 +370,7 @@ int pt_pkt_read_tma(struct pt_packet_tma *packet, const uint8_t *pos,
 }
 
 int pt_pkt_read_mtc(struct pt_packet_mtc *packet, const uint8_t *pos,
-            const struct pt_config *config)
+                    const struct pt_config *config)
 {
     if (!packet || !pos || !config)
         return -pte_internal;
@@ -384,7 +384,7 @@ int pt_pkt_read_mtc(struct pt_packet_mtc *packet, const uint8_t *pos,
 }
 
 int pt_pkt_read_cyc(struct pt_packet_cyc *packet, const uint8_t *pos,
-            const struct pt_config *config)
+                    const struct pt_config *config)
 {
     const uint8_t *begin, *end;
     uint64_t value;
@@ -432,7 +432,7 @@ int pt_pkt_read_cyc(struct pt_packet_cyc *packet, const uint8_t *pos,
 }
 
 int pt_pkt_read_vmcs(struct pt_packet_vmcs *packet, const uint8_t *pos,
-             const struct pt_config *config)
+                     const struct pt_config *config)
 {
     uint64_t payload;
 
@@ -450,7 +450,7 @@ int pt_pkt_read_vmcs(struct pt_packet_vmcs *packet, const uint8_t *pos,
 }
 
 int pt_pkt_read_mnt(struct pt_packet_mnt *packet, const uint8_t *pos,
-            const struct pt_config *config)
+                    const struct pt_config *config)
 {
     if (!packet || !pos || !config)
         return -pte_internal;
@@ -464,7 +464,7 @@ int pt_pkt_read_mnt(struct pt_packet_mnt *packet, const uint8_t *pos,
 }
 
 int pt_pkt_read_exstop(struct pt_packet_exstop *packet, const uint8_t *pos,
-               const struct pt_config *config)
+                       const struct pt_config *config)
 {
     if (!packet || !pos || !config)
         return -pte_internal;
@@ -478,7 +478,7 @@ int pt_pkt_read_exstop(struct pt_packet_exstop *packet, const uint8_t *pos,
 }
 
 int pt_pkt_read_mwait(struct pt_packet_mwait *packet, const uint8_t *pos,
-              const struct pt_config *config)
+                      const struct pt_config *config)
 {
     if (!packet || !pos || !config)
         return -pte_internal;
@@ -495,7 +495,7 @@ int pt_pkt_read_mwait(struct pt_packet_mwait *packet, const uint8_t *pos,
 }
 
 int pt_pkt_read_pwre(struct pt_packet_pwre *packet, const uint8_t *pos,
-             const struct pt_config *config)
+                     const struct pt_config *config)
 {
     uint64_t payload;
 
@@ -519,7 +519,7 @@ int pt_pkt_read_pwre(struct pt_packet_pwre *packet, const uint8_t *pos,
 }
 
 int pt_pkt_read_pwrx(struct pt_packet_pwrx *packet, const uint8_t *pos,
-             const struct pt_config *config)
+                     const struct pt_config *config)
 {
     uint64_t payload;
 
@@ -547,7 +547,7 @@ int pt_pkt_read_pwrx(struct pt_packet_pwrx *packet, const uint8_t *pos,
 }
 
 int pt_pkt_read_ptw(struct pt_packet_ptw *packet, const uint8_t *pos,
-            const struct pt_config *config)
+                    const struct pt_config *config)
 {
     uint8_t opc, plc;
     int size;

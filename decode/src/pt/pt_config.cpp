@@ -108,7 +108,7 @@ int pt_cpu_errata(struct pt_errata *errata, const struct pt_cpu *cpu)
 }
 
 int pt_config_from_user(struct pt_config *config,
-            const struct pt_config *uconfig)
+                        const struct pt_config *uconfig)
 {
     uint8_t *begin, *end;
     size_t size;
@@ -194,7 +194,7 @@ uint64_t pt_filter_addr_b(const struct pt_conf_addr_filter *filter, uint8_t n)
 }
 
 static int pt_filter_check_cfg_filter(const struct pt_conf_addr_filter *filter,
-                      uint64_t addr)
+                                      uint64_t addr)
 {
     uint8_t n;
 
@@ -232,7 +232,7 @@ static int pt_filter_check_cfg_filter(const struct pt_conf_addr_filter *filter,
 }
 
 static int pt_filter_check_cfg_stop(const struct pt_conf_addr_filter *filter,
-                    uint64_t addr)
+                                    uint64_t addr)
 {
     uint8_t n;
 
@@ -259,7 +259,7 @@ static int pt_filter_check_cfg_stop(const struct pt_conf_addr_filter *filter,
 }
 
 int pt_filter_addr_check(const struct pt_conf_addr_filter *filter,
-             uint64_t addr)
+                         uint64_t addr)
 {
     int status;
 

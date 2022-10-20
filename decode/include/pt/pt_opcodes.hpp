@@ -26,8 +26,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef PT_OPCODES_H
-#define PT_OPCODES_H
+#ifndef PT_OPCODES_HPP
+#define PT_OPCODES_HPP
 
 
 /* A one byte opcode. */

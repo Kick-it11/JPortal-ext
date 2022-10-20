@@ -26,8 +26,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef PT_TIME_H
-#define PT_TIME_H
+#ifndef PT_TIME_HPP
+#define PT_TIME_HPP
 
 #include <stdint.h>
 

@@ -234,18 +234,4 @@ extern int pev_time_from_tsc(uint64_t *time, uint64_t tsc,
 extern int pev_read(struct pev_event *event, const uint8_t *begin,
                     const uint8_t *end, const struct pev_config *config);
 
-/* Write a perf_event record.
- *
- * Writes @event into [@begin; @end[.
- *
- * Returns the number of bytes written on success, a negative error code
- * otherwise.
- * Returns -pte_bad_config if @config->size is too small.
- * Returns -pte_bad_opc if the event type is not known.
- * Returns -pte_eos if the event does not fit into [@begin; @end[.
- * Returns -pte_internal if @begin, @end, @event, or @config is NULL.
- */
-extern int pev_write(const struct pev_event *event, uint8_t *begin,
-                     uint8_t *end, const struct pev_config *config);
-
 #endif /* PEVENT_HPP */

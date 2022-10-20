@@ -26,8 +26,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef PT_QUERY_DECODER_H
-#define PT_QUERY_DECODER_H
+#ifndef PT_QUERY_DECODER_HPP
+#define PT_QUERY_DECODER_HPP
 
 #include "pt/pt_last_ip.hpp"
 #include "pt/pt_tnt_cache.hpp"

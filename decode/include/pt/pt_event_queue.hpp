@@ -26,8 +26,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef PT_EVENT_QUEUE_H
-#define PT_EVENT_QUEUE_H
+#ifndef PT_EVENT_QUEUE_HPP
+#define PT_EVENT_QUEUE_HPP
 
 #include "pt/pt.hpp"
 

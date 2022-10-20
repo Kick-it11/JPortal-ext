@@ -27,8 +27,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef PTI_DISP_DEFAULT_H
-#define PTI_DISP_DEFAULT_H
+#ifndef PTI_DISP_DEFAULT_HPP
+#define PTI_DISP_DEFAULT_HPP
 
 #include <stdint.h>
 

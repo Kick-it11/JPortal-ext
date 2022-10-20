@@ -65,7 +65,7 @@ static const uint8_t *align(const uint8_t *pointer, size_t alignment)
  * Return NULL, if this is not a psb packet.
  */
 static const uint8_t *pt_find_psb(const uint8_t *pos,
-                  const struct pt_config *config)
+                                  const struct pt_config *config)
 {
     const uint8_t *begin, *end;
     int errcode;
@@ -128,7 +128,7 @@ static int pt_sync_within_bounds(const uint8_t *pos, const uint8_t *begin,
 }
 
 int pt_sync_set(const uint8_t **sync, const uint8_t *pos,
-        const struct pt_config *config)
+                const struct pt_config *config)
 {
     const uint8_t *begin, *end;
     int errcode;
@@ -159,7 +159,7 @@ int pt_sync_set(const uint8_t **sync, const uint8_t *pos,
 }
 
 int pt_sync_forward(const uint8_t **sync, const uint8_t *pos,
-            const struct pt_config *config)
+                    const struct pt_config *config)
 {
     const uint8_t *begin, *end, *start;
 
@@ -207,7 +207,7 @@ int pt_sync_forward(const uint8_t **sync, const uint8_t *pos,
 }
 
 int pt_sync_backward(const uint8_t **sync, const uint8_t *pos,
-            const struct pt_config *config)
+                     const struct pt_config *config)
 {
     const uint8_t *begin, *end;
 

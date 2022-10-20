@@ -31,7 +31,7 @@
 #include "insn/pt_ild.hpp"
 
 int pt_insn_changes_cpl(const struct pt_insn *insn,
-            const struct pt_insn_ext *iext)
+                        const struct pt_insn_ext *iext)
 {
     (void) insn;
 
@@ -56,7 +56,7 @@ int pt_insn_changes_cpl(const struct pt_insn *insn,
 }
 
 int pt_insn_changes_cr3(const struct pt_insn *insn,
-            const struct pt_insn_ext *iext)
+                        const struct pt_insn_ext *iext)
 {
     (void) insn;
 
@@ -73,7 +73,7 @@ int pt_insn_changes_cr3(const struct pt_insn *insn,
 }
 
 int pt_insn_is_branch(const struct pt_insn *insn,
-              const struct pt_insn_ext *iext)
+                      const struct pt_insn_ext *iext)
 {
     (void) iext;
 
@@ -97,7 +97,7 @@ int pt_insn_is_branch(const struct pt_insn *insn,
 }
 
 int pt_insn_is_far_branch(const struct pt_insn *insn,
-              const struct pt_insn_ext *iext)
+                          const struct pt_insn_ext *iext)
 {
     (void) iext;
 
@@ -116,7 +116,7 @@ int pt_insn_is_far_branch(const struct pt_insn *insn,
 }
 
 int pt_insn_binds_to_pip(const struct pt_insn *insn,
-             const struct pt_insn_ext *iext)
+                         const struct pt_insn_ext *iext)
 {
     if (!iext)
         return 0;
@@ -133,7 +133,7 @@ int pt_insn_binds_to_pip(const struct pt_insn *insn,
 }
 
 int pt_insn_binds_to_vmcs(const struct pt_insn *insn,
-              const struct pt_insn_ext *iext)
+                          const struct pt_insn_ext *iext)
 {
     if (!iext)
         return 0;
@@ -150,7 +150,7 @@ int pt_insn_binds_to_vmcs(const struct pt_insn *insn,
 }
 
 int pt_insn_is_ptwrite(const struct pt_insn *insn,
-               const struct pt_insn_ext *iext)
+                       const struct pt_insn_ext *iext)
 {
     (void) iext;
 
@@ -167,7 +167,7 @@ int pt_insn_is_ptwrite(const struct pt_insn *insn,
 }
 
 int pt_insn_next_ip(uint64_t *pip, const struct pt_insn *insn,
-            const struct pt_insn_ext *iext)
+                    const struct pt_insn_ext *iext)
 {
     uint64_t ip;
 

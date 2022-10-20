@@ -26,8 +26,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef PT_SYNC_H
-#define PT_SYNC_H
+#ifndef PT_SYNC_HPP
+#define PT_SYNC_HPP
 
 #include <stdint.h>
 

@@ -1121,7 +1121,7 @@ static int pt_instruction_length_decode(struct pt_ild *ild)
 }
 
 static int pt_instruction_decode(struct pt_insn *insn, struct pt_insn_ext *iext,
-                 const struct pt_ild *ild)
+                                 const struct pt_ild *ild)
 {
     uint8_t opcode, map;
 

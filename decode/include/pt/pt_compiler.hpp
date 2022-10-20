@@ -26,8 +26,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef PT_COMPILER_H
-#define PT_COMPILER_H
+#ifndef PT_COMPILER_HPP
+#define PT_COMPILER_HPP
 
 
 /* Both the relevant Clang and GCC versions support this. */
@@ -44,4 +44,4 @@
 #endif /* !defined(fallthrough) */
 
 
-#endif /* PT_COMPILER_H */
+#endif /* PT_COMPILER_HPP */

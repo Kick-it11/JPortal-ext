@@ -38,7 +38,7 @@
 
 
 int pt_pkt_decoder_init(struct pt_packet_decoder *decoder,
-            const struct pt_config *config)
+                        const struct pt_config *config)
 {
     int errcode;
 
@@ -185,7 +185,7 @@ int pt_pkt_get_offset(const struct pt_packet_decoder *decoder, uint64_t *offset)
 }
 
 int pt_pkt_get_sync_offset(const struct pt_packet_decoder *decoder,
-               uint64_t *offset)
+                           uint64_t *offset)
 {
     const uint8_t *begin, *sync;
 
@@ -212,7 +212,7 @@ pt_pkt_get_config(const struct pt_packet_decoder *decoder)
 }
 
 static inline int pkt_to_user(struct pt_packet *upkt, size_t size,
-                  const struct pt_packet *pkt)
+                              const struct pt_packet *pkt)
 {
     if (!upkt || !pkt)
         return -pte_internal;
@@ -233,7 +233,7 @@ static inline int pkt_to_user(struct pt_packet *upkt, size_t size,
 }
 
 int pt_pkt_next(struct pt_packet_decoder *decoder, struct pt_packet *packet,
-        size_t psize)
+                size_t psize)
 {
     const struct pt_decoder_function *dfun;
     struct pt_packet pkt, *ppkt;
@@ -268,7 +268,7 @@ int pt_pkt_next(struct pt_packet_decoder *decoder, struct pt_packet *packet,
 }
 
 int pt_pkt_decode_unknown(struct pt_packet_decoder *decoder,
-              struct pt_packet *packet)
+                          struct pt_packet *packet)
 {
     int size;
 
@@ -283,7 +283,7 @@ int pt_pkt_decode_unknown(struct pt_packet_decoder *decoder,
 }
 
 int pt_pkt_decode_pad(struct pt_packet_decoder *decoder,
-              struct pt_packet *packet)
+                      struct pt_packet *packet)
 {
     (void) decoder;
 
@@ -297,7 +297,7 @@ int pt_pkt_decode_pad(struct pt_packet_decoder *decoder,
 }
 
 int pt_pkt_decode_psb(struct pt_packet_decoder *decoder,
-              struct pt_packet *packet)
+                      struct pt_packet *packet)
 {
     int size;
 
@@ -315,7 +315,7 @@ int pt_pkt_decode_psb(struct pt_packet_decoder *decoder,
 }
 
 int pt_pkt_decode_tip(struct pt_packet_decoder *decoder,
-              struct pt_packet *packet)
+                      struct pt_packet *packet)
 {
     int size;
 
@@ -334,7 +334,7 @@ int pt_pkt_decode_tip(struct pt_packet_decoder *decoder,
 }
 
 int pt_pkt_decode_tnt_8(struct pt_packet_decoder *decoder,
-            struct pt_packet *packet)
+                        struct pt_packet *packet)
 {
     int size;
 
@@ -353,7 +353,7 @@ int pt_pkt_decode_tnt_8(struct pt_packet_decoder *decoder,
 }
 
 int pt_pkt_decode_tnt_64(struct pt_packet_decoder *decoder,
-             struct pt_packet *packet)
+                         struct pt_packet *packet)
 {
     int size;
 
@@ -372,7 +372,7 @@ int pt_pkt_decode_tnt_64(struct pt_packet_decoder *decoder,
 }
 
 int pt_pkt_decode_tip_pge(struct pt_packet_decoder *decoder,
-              struct pt_packet *packet)
+                          struct pt_packet *packet)
 {
     int size;
 
@@ -391,7 +391,7 @@ int pt_pkt_decode_tip_pge(struct pt_packet_decoder *decoder,
 }
 
 int pt_pkt_decode_tip_pgd(struct pt_packet_decoder *decoder,
-              struct pt_packet *packet)
+                          struct pt_packet *packet)
 {
     int size;
 
@@ -410,7 +410,7 @@ int pt_pkt_decode_tip_pgd(struct pt_packet_decoder *decoder,
 }
 
 int pt_pkt_decode_fup(struct pt_packet_decoder *decoder,
-              struct pt_packet *packet)
+                      struct pt_packet *packet)
 {
     int size;
 
@@ -429,7 +429,7 @@ int pt_pkt_decode_fup(struct pt_packet_decoder *decoder,
 }
 
 int pt_pkt_decode_pip(struct pt_packet_decoder *decoder,
-              struct pt_packet *packet)
+                      struct pt_packet *packet)
 {
     int size;
 
@@ -448,7 +448,7 @@ int pt_pkt_decode_pip(struct pt_packet_decoder *decoder,
 }
 
 int pt_pkt_decode_ovf(struct pt_packet_decoder *decoder,
-              struct pt_packet *packet)
+                      struct pt_packet *packet)
 {
     (void) decoder;
 
@@ -462,7 +462,7 @@ int pt_pkt_decode_ovf(struct pt_packet_decoder *decoder,
 }
 
 int pt_pkt_decode_mode(struct pt_packet_decoder *decoder,
-               struct pt_packet *packet)
+                       struct pt_packet *packet)
 {
     int size;
 
@@ -481,7 +481,7 @@ int pt_pkt_decode_mode(struct pt_packet_decoder *decoder,
 }
 
 int pt_pkt_decode_psbend(struct pt_packet_decoder *decoder,
-             struct pt_packet *packet)
+                         struct pt_packet *packet)
 {
     (void) decoder;
 
@@ -495,7 +495,7 @@ int pt_pkt_decode_psbend(struct pt_packet_decoder *decoder,
 }
 
 int pt_pkt_decode_tsc(struct pt_packet_decoder *decoder,
-              struct pt_packet *packet)
+                      struct pt_packet *packet)
 {
     int size;
 
@@ -514,7 +514,7 @@ int pt_pkt_decode_tsc(struct pt_packet_decoder *decoder,
 }
 
 int pt_pkt_decode_cbr(struct pt_packet_decoder *decoder,
-              struct pt_packet *packet)
+                      struct pt_packet *packet)
 {
     int size;
 
@@ -533,7 +533,7 @@ int pt_pkt_decode_cbr(struct pt_packet_decoder *decoder,
 }
 
 int pt_pkt_decode_tma(struct pt_packet_decoder *decoder,
-              struct pt_packet *packet)
+                      struct pt_packet *packet)
 {
     int size;
 
@@ -567,7 +567,7 @@ int pt_pkt_decode_tma(struct pt_packet_decoder *decoder,
 }
 
 int pt_pkt_decode_mtc(struct pt_packet_decoder *decoder,
-              struct pt_packet *packet)
+                      struct pt_packet *packet)
 {
     int size;
 
@@ -586,7 +586,7 @@ int pt_pkt_decode_mtc(struct pt_packet_decoder *decoder,
 }
 
 int pt_pkt_decode_cyc(struct pt_packet_decoder *decoder,
-              struct pt_packet *packet)
+                      struct pt_packet *packet)
 {
     int size;
 
@@ -605,7 +605,7 @@ int pt_pkt_decode_cyc(struct pt_packet_decoder *decoder,
 }
 
 int pt_pkt_decode_stop(struct pt_packet_decoder *decoder,
-               struct pt_packet *packet)
+                       struct pt_packet *packet)
 {
     (void) decoder;
 
@@ -619,7 +619,7 @@ int pt_pkt_decode_stop(struct pt_packet_decoder *decoder,
 }
 
 int pt_pkt_decode_vmcs(struct pt_packet_decoder *decoder,
-               struct pt_packet *packet)
+                       struct pt_packet *packet)
 {
     int size;
 
@@ -638,7 +638,7 @@ int pt_pkt_decode_vmcs(struct pt_packet_decoder *decoder,
 }
 
 int pt_pkt_decode_mnt(struct pt_packet_decoder *decoder,
-              struct pt_packet *packet)
+                      struct pt_packet *packet)
 {
     int size;
 
@@ -657,7 +657,7 @@ int pt_pkt_decode_mnt(struct pt_packet_decoder *decoder,
 }
 
 int pt_pkt_decode_exstop(struct pt_packet_decoder *decoder,
-             struct pt_packet *packet)
+                         struct pt_packet *packet)
 {
     int size;
 
@@ -676,7 +676,7 @@ int pt_pkt_decode_exstop(struct pt_packet_decoder *decoder,
 }
 
 int pt_pkt_decode_mwait(struct pt_packet_decoder *decoder,
-            struct pt_packet *packet)
+                        struct pt_packet *packet)
 {
     int size;
 
@@ -695,7 +695,7 @@ int pt_pkt_decode_mwait(struct pt_packet_decoder *decoder,
 }
 
 int pt_pkt_decode_pwre(struct pt_packet_decoder *decoder,
-               struct pt_packet *packet)
+                       struct pt_packet *packet)
 {
     int size;
 
@@ -714,7 +714,7 @@ int pt_pkt_decode_pwre(struct pt_packet_decoder *decoder,
 }
 
 int pt_pkt_decode_pwrx(struct pt_packet_decoder *decoder,
-               struct pt_packet *packet)
+                       struct pt_packet *packet)
 {
     int size;
 
@@ -733,7 +733,7 @@ int pt_pkt_decode_pwrx(struct pt_packet_decoder *decoder,
 }
 
 int pt_pkt_decode_ptw(struct pt_packet_decoder *decoder,
-              struct pt_packet *packet)
+                      struct pt_packet *packet)
 {
     int size;
 

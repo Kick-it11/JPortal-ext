@@ -1,5 +1,5 @@
-#ifndef CONSTANTPOOL_HPP
-#define CONSTANTPOOL_HPP
+#ifndef CONSTANT_POOL_HPP
+#define CONSTANT_POOL_HPP
 
 #include "java/definitions.hpp"
 
@@ -250,4 +250,4 @@ class ConstantPool {
     const std::string symbol_at(int which);
 };
 
-#endif /* CONSTANTPOOL_HPP */
+#endif /* CONSTANT_POOL_HPP */

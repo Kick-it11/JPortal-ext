@@ -56,7 +56,7 @@
  * Returns a negative error code otherwise.
  */
 static int pt_qry_find_header_fup(struct pt_packet *packet,
-                  struct pt_packet_decoder *decoder)
+                                  struct pt_packet_decoder *decoder)
 {
     if (!packet || !decoder)
         return -pte_internal;
@@ -85,7 +85,7 @@ static int pt_qry_find_header_fup(struct pt_packet *packet,
 }
 
 int pt_qry_decoder_init(struct pt_query_decoder *decoder,
-            const struct pt_config *config)
+                        const struct pt_config *config)
 {
     int errcode;
 
@@ -305,7 +305,7 @@ static int pt_qry_read_ahead(struct pt_query_decoder *decoder)
 }
 
 static int pt_qry_start(struct pt_query_decoder *decoder, const uint8_t *pos,
-            uint64_t *addr)
+                        uint64_t *addr)
 {
     const struct pt_decoder_function *dfun;
     int status, errcode;
@@ -367,8 +367,8 @@ static int pt_qry_start(struct pt_query_decoder *decoder, const uint8_t *pos,
 }
 
 static int pt_qry_apply_tsc(struct pt_time *time, struct pt_time_cal *tcal,
-                const struct pt_packet_tsc *packet,
-                const struct pt_config *config)
+                            const struct pt_packet_tsc *packet,
+                            const struct pt_config *config)
 {
     int errcode;
 
@@ -392,9 +392,9 @@ static int pt_qry_apply_tsc(struct pt_time *time, struct pt_time_cal *tcal,
 }
 
 static int pt_qry_apply_header_tsc(struct pt_time *time,
-                   struct pt_time_cal *tcal,
-                   const struct pt_packet_tsc *packet,
-                   const struct pt_config *config)
+                                   struct pt_time_cal *tcal,
+                                   const struct pt_packet_tsc *packet,
+                                   const struct pt_config *config)
 {
     int errcode;
 
@@ -418,8 +418,8 @@ static int pt_qry_apply_header_tsc(struct pt_time *time,
 }
 
 static int pt_qry_apply_cbr(struct pt_time *time, struct pt_time_cal *tcal,
-                const struct pt_packet_cbr *packet,
-                const struct pt_config *config)
+                            const struct pt_packet_cbr *packet,
+                            const struct pt_config *config)
 {
     int errcode;
 
@@ -443,9 +443,9 @@ static int pt_qry_apply_cbr(struct pt_time *time, struct pt_time_cal *tcal,
 }
 
 static int pt_qry_apply_header_cbr(struct pt_time *time,
-                   struct pt_time_cal *tcal,
-                   const struct pt_packet_cbr *packet,
-                   const struct pt_config *config)
+                                   struct pt_time_cal *tcal,
+                                   const struct pt_packet_cbr *packet,
+                                   const struct pt_config *config)
 {
     int errcode;
 
@@ -469,8 +469,8 @@ static int pt_qry_apply_header_cbr(struct pt_time *time,
 }
 
 static int pt_qry_apply_tma(struct pt_time *time, struct pt_time_cal *tcal,
-                const struct pt_packet_tma *packet,
-                const struct pt_config *config)
+                            const struct pt_packet_tma *packet,
+                            const struct pt_config *config)
 {
     int errcode;
 
@@ -494,8 +494,8 @@ static int pt_qry_apply_tma(struct pt_time *time, struct pt_time_cal *tcal,
 }
 
 static int pt_qry_apply_mtc(struct pt_time *time, struct pt_time_cal *tcal,
-                const struct pt_packet_mtc *packet,
-                const struct pt_config *config)
+                            const struct pt_packet_mtc *packet,
+                            const struct pt_config *config)
 {
     int errcode;
 
@@ -519,8 +519,8 @@ static int pt_qry_apply_mtc(struct pt_time *time, struct pt_time_cal *tcal,
 }
 
 static int pt_qry_apply_cyc(struct pt_time *time, struct pt_time_cal *tcal,
-                const struct pt_packet_cyc *packet,
-                const struct pt_config *config)
+                            const struct pt_packet_cyc *packet,
+                            const struct pt_config *config)
 {
     uint64_t fcr;
     int errcode;
@@ -636,7 +636,7 @@ int pt_qry_sync_backward(struct pt_query_decoder *decoder, uint64_t *ip)
 }
 
 int pt_qry_sync_set(struct pt_query_decoder *decoder, uint64_t *ip,
-            uint64_t offset)
+                    uint64_t offset)
 {
     const uint8_t *sync, *pos;
     int errcode;
@@ -671,7 +671,7 @@ int pt_qry_get_offset(const struct pt_query_decoder *decoder, uint64_t *offset)
 }
 
 int pt_qry_get_sync_offset(const struct pt_query_decoder *decoder,
-               uint64_t *offset)
+                           uint64_t *offset)
 {
     const uint8_t *begin, *sync;
 
@@ -866,7 +866,7 @@ int pt_qry_indirect_branch(struct pt_query_decoder *decoder, uint64_t *addr)
 }
 
 int pt_qry_event(struct pt_query_decoder *decoder, struct pt_event *event,
-         size_t size)
+                 size_t size)
 {
     int errcode, flags;
 
@@ -948,7 +948,7 @@ int pt_qry_event(struct pt_query_decoder *decoder, struct pt_event *event,
 }
 
 int pt_qry_time(struct pt_query_decoder *decoder, uint64_t *time,
-        uint32_t *lost_mtc, uint32_t *lost_cyc)
+                uint32_t *lost_mtc, uint32_t *lost_cyc)
 {
     if (!decoder || !time)
         return -pte_invalid;
@@ -965,7 +965,7 @@ int pt_qry_core_bus_ratio(struct pt_query_decoder *decoder, uint32_t *cbr)
 }
 
 static int pt_qry_event_time(struct pt_event *event,
-                 const struct pt_query_decoder *decoder)
+                             const struct pt_query_decoder *decoder)
 {
     int errcode;
 
@@ -1087,7 +1087,7 @@ int pt_qry_decode_psb(struct pt_query_decoder *decoder)
 }
 
 static int pt_qry_event_ip(uint64_t *ip, struct pt_event *event,
-               const struct pt_query_decoder *decoder)
+                           const struct pt_query_decoder *decoder)
 {
     int errcode;
 
@@ -1147,7 +1147,7 @@ static int pt_qry_consume_tip(struct pt_query_decoder *decoder, int size)
 }
 
 static int pt_qry_event_tip(struct pt_event *ev,
-                struct pt_query_decoder *decoder)
+                            struct pt_query_decoder *decoder)
 {
     if (!ev || !decoder)
         return -pte_internal;
@@ -1272,7 +1272,7 @@ static int pt_qry_consume_tip_pge(struct pt_query_decoder *decoder, int size)
 }
 
 static int pt_qry_event_tip_pge(struct pt_event *ev,
-                const struct pt_query_decoder *decoder)
+                                const struct pt_query_decoder *decoder)
 {
     if (!ev)
         return -pte_internal;
@@ -1378,7 +1378,7 @@ static int pt_qry_consume_tip_pgd(struct pt_query_decoder *decoder, int size)
 }
 
 static int pt_qry_event_tip_pgd(struct pt_event *ev,
-                const struct pt_query_decoder *decoder)
+                                const struct pt_query_decoder *decoder)
 {
     if (!ev)
         return -pte_internal;
@@ -1532,7 +1532,7 @@ static int scan_for_erratum_bdm70(struct pt_packet_decoder *decoder)
 }
 
 static int check_erratum_bdm70(const uint8_t *pos,
-                   const struct pt_config *config)
+                               const struct pt_config *config)
 {
     struct pt_packet_decoder decoder;
     int errcode;
@@ -1586,7 +1586,7 @@ int pt_qry_header_fup(struct pt_query_decoder *decoder)
 }
 
 static int pt_qry_event_fup(struct pt_event *ev,
-                struct pt_query_decoder *decoder)
+                            struct pt_query_decoder *decoder)
 {
     if (!ev || !decoder)
         return -pte_internal;
@@ -1761,7 +1761,7 @@ int pt_qry_header_pip(struct pt_query_decoder *decoder)
 }
 
 static int pt_qry_event_psbend(struct pt_event *ev,
-                   struct pt_query_decoder *decoder)
+                               struct pt_query_decoder *decoder)
 {
     int errcode;
 
@@ -1899,9 +1899,9 @@ static int pt_qry_event_ovf_enabled(struct pt_query_decoder *decoder)
  * Returns zero on success, a negative error code otherwise.
  */
 static int skd010_recover(struct pt_query_decoder *decoder,
-              const struct pt_packet_ip *packet,
-              const struct pt_time_cal *tcal,
-              const struct pt_time *time, uint64_t offset)
+                          const struct pt_packet_ip *packet,
+                          const struct pt_time_cal *tcal,
+                          const struct pt_time *time, uint64_t offset)
 {
     struct pt_last_ip ip;
     struct pt_event *ev;
@@ -1959,8 +1959,8 @@ static int skd010_recover(struct pt_query_decoder *decoder,
  * Returns zero on success, a negative error code otherwise.
  */
 static int skd010_recover_disabled(struct pt_query_decoder *decoder,
-                   const struct pt_time_cal *tcal,
-                   const struct pt_time *time, uint64_t offset)
+                                   const struct pt_time_cal *tcal,
+                                   const struct pt_time *time, uint64_t offset)
 {
     if (!decoder || !tcal || !time)
         return -pte_internal;
@@ -1998,7 +1998,7 @@ static int skd010_recover_disabled(struct pt_query_decoder *decoder,
  * Returns a negative error code otherwise.
  */
 static int skd010_scan_for_ovf_resume(struct pt_packet_decoder *pkt,
-                      struct pt_query_decoder *decoder)
+                                      struct pt_query_decoder *decoder)
 {
     struct pt_time_cal tcal;
     struct pt_time time;
@@ -2397,8 +2397,8 @@ static int apl12_tracing_is_disabled(struct pt_packet_decoder *decoder)
  * Returns zero on success, a negative pt_error_code otherwise.
  */
 static int apl12_resume_disabled(struct pt_query_decoder *decoder,
-                 struct pt_packet_decoder *pkt,
-                 unsigned int offset)
+                                 struct pt_packet_decoder *pkt,
+                                 unsigned int offset)
 {
     uint64_t begin, end;
     int errcode;
@@ -2544,7 +2544,7 @@ static int apl12_resume_disabled(struct pt_query_decoder *decoder,
  * Returns a negative pt_error_code otherwise.
  */
 static int pt_qry_handle_apl12(struct pt_query_decoder *decoder,
-                   unsigned int offset)
+                               unsigned int offset)
 {
     struct pt_packet_decoder pkt;
     uint64_t here;
@@ -2588,7 +2588,7 @@ static int pt_qry_handle_apl12(struct pt_query_decoder *decoder,
  * Returns a negative pt_error_code otherwise.
  */
 static int apl11_apply(struct pt_query_decoder *decoder,
-               struct pt_packet_decoder *pkt)
+                       struct pt_packet_decoder *pkt)
 {
     struct pt_time_cal tcal;
     struct pt_time time;
@@ -2951,7 +2951,7 @@ int pt_qry_decode_ovf(struct pt_query_decoder *decoder)
 }
 
 static int pt_qry_decode_mode_exec(struct pt_query_decoder *decoder,
-                   const struct pt_packet_mode_exec *packet)
+                                   const struct pt_packet_mode_exec *packet)
 {
     struct pt_event *event;
 
@@ -2970,7 +2970,7 @@ static int pt_qry_decode_mode_exec(struct pt_query_decoder *decoder,
 }
 
 static int pt_qry_decode_mode_tsx(struct pt_query_decoder *decoder,
-                  const struct pt_packet_mode_tsx *packet)
+                                  const struct pt_packet_mode_tsx *packet)
 {
     struct pt_event *event;
 
@@ -3253,7 +3253,7 @@ int pt_qry_decode_mtc(struct pt_query_decoder *decoder)
 }
 
 static int check_erratum_skd007(struct pt_query_decoder *decoder,
-                const struct pt_packet_cyc *packet, int size)
+                                const struct pt_packet_cyc *packet, int size)
 {
     const uint8_t *pos;
     uint16_t payload;

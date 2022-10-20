@@ -64,7 +64,7 @@ struct pt_event *pt_evq_standalone(struct pt_event_queue *evq)
 }
 
 struct pt_event *pt_evq_enqueue(struct pt_event_queue *evq,
-                enum pt_event_binding evb)
+                                enum pt_event_binding evb)
 {
     uint8_t begin, end, gap, idx;
 
@@ -96,7 +96,7 @@ struct pt_event *pt_evq_enqueue(struct pt_event_queue *evq,
 }
 
 struct pt_event *pt_evq_dequeue(struct pt_event_queue *evq,
-                enum pt_event_binding evb)
+                                enum pt_event_binding evb)
 {
     uint8_t begin, end;
 
@@ -171,8 +171,8 @@ int pt_evq_pending(const struct pt_event_queue *evq, enum pt_event_binding evb)
 }
 
 struct pt_event *pt_evq_find(struct pt_event_queue *evq,
-                 enum pt_event_binding evb,
-                 enum pt_event_type evt)
+                             enum pt_event_binding evb,
+                             enum pt_event_type evt)
 {
     uint8_t begin, end;
 

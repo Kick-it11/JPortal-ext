@@ -26,8 +26,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef PT_DECODER_FUNCTION_H
-#define PT_DECODER_FUNCTION_H
+#ifndef PT_DECODER_FUNCTION_HPP
+#define PT_DECODER_FUNCTION_HPP
 
 #include <stdint.h>
 

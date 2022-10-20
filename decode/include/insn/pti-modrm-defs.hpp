@@ -27,8 +27,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if !defined(PTI_MODRM_DEFS_H)
-#define PTI_MODRM_DEFS_H
+#ifndef PTI_MODRM_DEFS_HPP
+#define PTI_MODRM_DEFS_HPP
 
 
 #define PTI_MODRM_FALSE       0
@@ -36,4 +36,4 @@
 #define PTI_MODRM_IGNORE_MOD  2
 #define PTI_MODRM_UNDEF       3
 
-#endif
+#endif /* PTI_MODRM_DEFS_HPP */

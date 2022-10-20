@@ -218,7 +218,7 @@ const struct pt_decoder_function pt_decode_ptw = {
 
 
 int pt_df_fetch(const struct pt_decoder_function **dfun, const uint8_t *pos,
-        const struct pt_config *config)
+                const struct pt_config *config)
 {
     const uint8_t *begin, *end;
     uint8_t opc, ext, ext2;

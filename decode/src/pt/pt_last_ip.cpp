@@ -76,8 +76,8 @@ static uint64_t sext(uint64_t val, uint8_t sign)
 }
 
 int pt_last_ip_update_ip(struct pt_last_ip *last_ip,
-             const struct pt_packet_ip *packet,
-             const struct pt_config *config)
+                         const struct pt_packet_ip *packet,
+                         const struct pt_config *config)
 {
     (void) config;
 

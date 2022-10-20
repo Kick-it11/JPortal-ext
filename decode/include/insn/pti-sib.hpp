@@ -27,8 +27,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef PTI_SIB_H
-#define PTI_SIB_H
+#ifndef PTI_SIB_HPP
+#define PTI_SIB_HPP
 
 #include <stdint.h>
 

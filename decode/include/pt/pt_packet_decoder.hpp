@@ -26,8 +26,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef PT_PACKET_DECODER_H
-#define PT_PACKET_DECODER_H
+#ifndef PT_PACKET_DECODER_HPP
+#define PT_PACKET_DECODER_HPP
 
 #include "pt/pt.hpp"
 

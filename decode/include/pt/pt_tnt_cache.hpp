@@ -26,8 +26,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef PT_TNT_CACHE_H
-#define PT_TNT_CACHE_H
+#ifndef PT_TNT_CACHE_HPP
+#define PT_TNT_CACHE_HPP
 
 #include <stdint.h>
 
@@ -82,7 +82,7 @@ extern int pt_tnt_cache_query(struct pt_tnt_cache *cache);
  * Returns -pte_bad_context if the tnt cache is not empty.
  */
 extern int pt_tnt_cache_update_tnt(struct pt_tnt_cache *cache,
-                   const struct pt_packet_tnt *packet,
-                   const struct pt_config *config);
+                                   const struct pt_packet_tnt *packet,
+                                   const struct pt_config *config);
 
 #endif /* PT_TNT_CACHE_HPP */

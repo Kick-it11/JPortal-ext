@@ -44,7 +44,7 @@ void pt_time_init(struct pt_time *time)
 }
 
 int pt_time_query_tsc(uint64_t *tsc, uint32_t *lost_mtc,
-              uint32_t *lost_cyc, const struct pt_time *time)
+                      uint32_t *lost_cyc, const struct pt_time *time)
 {
     if (!tsc || !time)
         return -pte_internal;
@@ -82,7 +82,7 @@ int pt_time_query_cbr(uint32_t *cbr, const struct pt_time *time)
  * Returns zero on success, a negative error code otherwise.
  */
 static int pt_time_ctc_delta(uint32_t *ctc_delta, uint32_t ctc,
-                 uint32_t last_ctc, const struct pt_config *config)
+                             uint32_t last_ctc, const struct pt_config *config)
 {
     if (!config || !ctc_delta)
         return -pte_internal;
@@ -109,7 +109,7 @@ static int pt_time_ctc_delta(uint32_t *ctc_delta, uint32_t ctc,
  * Returns zero on success, a negative error code otherwise.
  */
 static int pt_time_ctc_fc(uint64_t *fc, uint64_t ctc,
-              const struct pt_config *config)
+                          const struct pt_config *config)
 {
     uint32_t eax, ebx;
 
@@ -128,8 +128,8 @@ static int pt_time_ctc_fc(uint64_t *fc, uint64_t ctc,
 }
 
 int pt_time_update_tsc(struct pt_time *time,
-               const struct pt_packet_tsc *packet,
-               const struct pt_config *config)
+                       const struct pt_packet_tsc *packet,
+                       const struct pt_config *config)
 {
     (void) config;
 
@@ -151,8 +151,8 @@ int pt_time_update_tsc(struct pt_time *time,
 }
 
 int pt_time_update_cbr(struct pt_time *time,
-               const struct pt_packet_cbr *packet,
-               const struct pt_config *config)
+                       const struct pt_packet_cbr *packet,
+                       const struct pt_config *config)
 {
     uint8_t cbr;
 
@@ -172,8 +172,8 @@ int pt_time_update_cbr(struct pt_time *time,
 }
 
 int pt_time_update_tma(struct pt_time *time,
-               const struct pt_packet_tma *packet,
-               const struct pt_config *config)
+                       const struct pt_packet_tma *packet,
+                       const struct pt_config *config)
 {
     uint32_t ctc, mtc_freq, mtc_hi, ctc_mask;
     uint64_t fc;
@@ -232,8 +232,8 @@ int pt_time_update_tma(struct pt_time *time,
 }
 
 int pt_time_update_mtc(struct pt_time *time,
-               const struct pt_packet_mtc *packet,
-               const struct pt_config *config)
+                       const struct pt_packet_mtc *packet,
+                       const struct pt_config *config)
 {
     uint32_t last_ctc, ctc, ctc_delta;
     uint64_t tsc, base;
@@ -357,7 +357,7 @@ int pt_time_update_mtc(struct pt_time *time,
  * Returns zero on success, a negative error code otherwise.
  */
 static int pt_time_adjust_cyc(uint64_t *cyc, const struct pt_time *time,
-                  const struct pt_config *config, uint64_t fcr)
+                              const struct pt_config *config, uint64_t fcr)
 {
     uint32_t last_ctc, ctc, ctc_delta;
     uint64_t fc, total_cyc, old_cyc;
@@ -406,8 +406,8 @@ static int pt_time_adjust_cyc(uint64_t *cyc, const struct pt_time *time,
 }
 
 int pt_time_update_cyc(struct pt_time *time,
-               const struct pt_packet_cyc *packet,
-               const struct pt_config *config, uint64_t fcr)
+                       const struct pt_packet_cyc *packet,
+                       const struct pt_config *config, uint64_t fcr)
 {
     uint64_t cyc, fc;
 
@@ -485,7 +485,7 @@ int pt_tcal_set_fcr(struct pt_time_cal *tcal, uint64_t fcr)
 }
 
 int pt_tcal_update_psb(struct pt_time_cal *tcal,
-               const struct pt_config *config)
+                       const struct pt_config *config)
 {
     if (!tcal || !config)
         return -pte_internal;
@@ -497,8 +497,8 @@ int pt_tcal_update_psb(struct pt_time_cal *tcal,
 }
 
 int pt_tcal_update_tsc(struct pt_time_cal *tcal,
-              const struct pt_packet_tsc *packet,
-              const struct pt_config *config)
+                       const struct pt_packet_tsc *packet,
+                       const struct pt_config *config)
 {
     (void) config;
 
@@ -516,8 +516,8 @@ int pt_tcal_update_tsc(struct pt_time_cal *tcal,
 }
 
 int pt_tcal_header_tsc(struct pt_time_cal *tcal,
-              const struct pt_packet_tsc *packet,
-              const struct pt_config *config)
+                       const struct pt_packet_tsc *packet,
+                       const struct pt_config *config)
 {
     uint64_t tsc, last_tsc, tsc_delta, cyc, fcr;
 
@@ -565,8 +565,8 @@ int pt_tcal_header_tsc(struct pt_time_cal *tcal,
 }
 
 int pt_tcal_update_cbr(struct pt_time_cal *tcal,
-              const struct pt_packet_cbr *packet,
-              const struct pt_config *config)
+                       const struct pt_packet_cbr *packet,
+                       const struct pt_config *config)
 {
     /* A CBR outside of PSB+ indicates a frequency change.  Reset our
      * calibration state.
@@ -577,8 +577,8 @@ int pt_tcal_update_cbr(struct pt_time_cal *tcal,
 }
 
 int pt_tcal_header_cbr(struct pt_time_cal *tcal,
-              const struct pt_packet_cbr *packet,
-              const struct pt_config *config)
+                       const struct pt_packet_cbr *packet,
+                       const struct pt_config *config)
 {
     uint64_t cbr, p1, fcr;
 
@@ -600,8 +600,8 @@ int pt_tcal_header_cbr(struct pt_time_cal *tcal,
 }
 
 int pt_tcal_update_tma(struct pt_time_cal *tcal,
-              const struct pt_packet_tma *packet,
-              const struct pt_config *config)
+                       const struct pt_packet_tma *packet,
+                       const struct pt_config *config)
 {
     (void) tcal;
     (void) packet;
@@ -612,8 +612,8 @@ int pt_tcal_update_tma(struct pt_time_cal *tcal,
 }
 
 int pt_tcal_update_mtc(struct pt_time_cal *tcal,
-              const struct pt_packet_mtc *packet,
-              const struct pt_config *config)
+                       const struct pt_packet_mtc *packet,
+                       const struct pt_config *config)
 {
     uint32_t last_ctc, ctc, ctc_delta, have_mtc, check_skl168;
     uint64_t cyc, fc, fcr;
@@ -727,8 +727,8 @@ int pt_tcal_update_mtc(struct pt_time_cal *tcal,
 }
 
 int pt_tcal_update_cyc(struct pt_time_cal *tcal,
-              const struct pt_packet_cyc *packet,
-              const struct pt_config *config)
+                       const struct pt_packet_cyc *packet,
+                       const struct pt_config *config)
 {
     uint64_t cyc;
 
@@ -745,7 +745,7 @@ int pt_tcal_update_cyc(struct pt_time_cal *tcal,
 }
 
 int pt_tcal_update_ovf(struct pt_time_cal *tcal,
-               const struct pt_config *config)
+                       const struct pt_config *config)
 {
     if (!tcal || !config)
         return -pte_internal;

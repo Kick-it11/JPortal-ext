@@ -26,8 +26,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef PT_PACKET_H
-#define PT_PACKET_H
+#ifndef PT_PACKET_HPP
+#define PT_PACKET_HPP
 
 #include <stdint.h>
 

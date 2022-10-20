@@ -26,8 +26,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef PT_LAST_IP_H
-#define PT_LAST_IP_H
+#ifndef PT_LAST_IP_HPP
+#define PT_LAST_IP_HPP
 
 #include <stdint.h>
 

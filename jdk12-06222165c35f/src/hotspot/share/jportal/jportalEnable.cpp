@@ -330,7 +330,7 @@ void JPortalEnable::init() {
     MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
 
     // initialized
-    if (_initialized)
+    if (!JPortal || _initialized)
       return;
 
     // open pipe

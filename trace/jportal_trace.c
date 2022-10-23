@@ -1146,7 +1146,7 @@ int main(int argc, char *argv[])
 
         if (done && record_samples == hits)
         {
-            printf("JPortalTrace end %llu.\n", total_size);
+            printf("JPortalTrace end\n");
             break;
         }
     }

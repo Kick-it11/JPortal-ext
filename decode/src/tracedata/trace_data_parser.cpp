@@ -66,6 +66,7 @@ bool TraceDataParser::parse()
     if (sample_type & PERF_SAMPLE_IDENTIFIER)
         sample_size += 8;
 
+    uint64_t parse_size = sizeof(TraceDataHeader);
     /** parse pt, sideband, jvmruntime, offsets */
     for (;;)
     {
@@ -83,8 +84,8 @@ bool TraceDataParser::parse()
                 return false;
 
             /*PT data begin here */
-            begin = file.tellg();
-            if (begin < 0)
+            uint64_t pt_begin = file.tellg();
+            if (pt_begin < 0)
                 return false;
 
             /** cpu number */
@@ -94,7 +95,7 @@ bool TraceDataParser::parse()
             if (!file.seekg(aux.size, std::ios_base::cur))
                 return false;
 
-            _pt_offsets[cpu].push_back({begin, file.tellg()});
+            _pt_offsets[cpu].push_back({pt_begin, file.tellg()});
         }
         else if (header.type == PERF_RECORD_JVMRUNTIME)
         {
@@ -104,15 +105,15 @@ bool TraceDataParser::parse()
                 return false;
 
             /*data begin here */
-            begin = file.tellg();
-            if (begin < 0)
+            uint64_t jvm_begin = file.tellg();
+            if (jvm_begin < 0)
                 return false;
 
             /* skip*/
             if (!file.seekg(jvm.size, std::ios_base::cur))
                 return false;
 
-            _jvm_runtime_offsets.push_back({begin, file.tellg()});
+            _jvm_runtime_offsets.push_back({jvm_begin, file.tellg()});
         }
         else
         {
@@ -131,7 +132,11 @@ bool TraceDataParser::parse()
 
             _sideband_offsets[cpu].push_back({begin, file.tellg()});
         }
+        parse_size += (file.tellg() - begin);
     }
+
+    std::cout << "TraceDataParser: parse file " << _filename << " " << parse_size << std::endl;
+
     return true;
 }
 

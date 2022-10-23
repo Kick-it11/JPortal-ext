@@ -141,9 +141,6 @@ struct Excep
 
 class BlockGraph
 {
-    friend class BlockMatcher;
-    friend class JitMatcher;
-
 private:
     const u1 *_code;
     u1 *_bctcode = nullptr;
@@ -190,12 +187,22 @@ public:
         {
             delete block;
         }
+        _blocks.clear();
+
         for (auto bctblock : _bctblocks)
         {
             delete bctblock;
         }
+        _bctblocks.clear();
+
+        delete[] _exception_table;
+        _exception_table = nullptr;
+
         delete[] _code;
+        _code = nullptr;
+
         delete[] _bctcode;
+        _bctcode = nullptr;
     }
     void set_exceps(std::vector<Excep> exceps) {}
     std::vector<Excep> *get_exceps() { return &_exceps; }

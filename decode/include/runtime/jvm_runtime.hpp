@@ -2,6 +2,7 @@
 #define JVM_RUNTIME_HPP
 
 #include "java/definitions.hpp"
+#include "java/bytecodes.hpp"
 
 #include <map>
 
@@ -28,34 +29,73 @@ public:
     const static int dispatch_length = 256;
     const static int number_of_codes = 239;
 
-    /* JPortalDump files */
-    enum DumpType
+    /* Codelet type */
+    enum Codelet
     {
         _illegal = -1,
 
+        _slow_signature_handler = 0,
+        _unimplemented_bytecode = 1,
+        _illegal_bytecode_sequence = 2,
+
+        _return = 3,
+        _invoke_return = 4,
+        _invokeinterface_return = 5,
+        _invokedynamic_return = 6,
+
+        _earlyret = 7,
+
+        _result_handlers_for_native_calls = 8,
+        _rethrow_exception = 9,
+        _throw_exception = 10,
+        _remove_activation_preserving_args = 11,
+        _remove_activation = 12,
+        _throw_ArrayIndexOutOfBoundsException = 13,
+        _throw_ArrayStoreException = 14,
+        _throw_ArithmeticException = 15,
+        _throw_ClassCastException = 16,
+        _throw_NullPointerException = 17,
+        _throw_StackOverflowError = 18,
+
+        _method_entry_point = 19,
+
+        _deopt = 20,
+        _deopt_reexecute_return = 21,
+
+        _bytecode = 22,
+
+        _jitcode_entry = 23,
+        _jitcode_osr_entry = 24,
+        _jitcode = 25,
+
+    };
+
+    /* JPortalDump files */
+    enum DumpType
+    {
         /* First method entry: map between idx to method signature */
-        _method_entry_initial,
+        _method_entry_initial_info,
 
         /* method entry: when call */
-        _method_entry,
+        _method_entry_info,
 
         /* After loading a compiled method: entry, codes, scopes data etc included*/
-        _compiled_method_load,
+        _compiled_method_load_info,
 
         /* After unloading a compiled method */
-        _compiled_method_unload,
+        _compiled_method_unload_info,
 
         /* A thread begins*/
-        _thread_start,
+        _thread_start_info,
 
         /* Templates info etc... */
         _codelet_info,
 
         /* A inline cache: a map between a source ip to a destination ip */
-        _inline_cache_add,
+        _inline_cache_add_info,
 
         /* Inline cache clear: delete the map */
-        _inline_cache_clear,
+        _inline_cache_clear_info,
     };
 
     struct DumpInfo
@@ -163,8 +203,15 @@ public:
     };
 
     JVMRuntime();
+    ~JVMRuntime();
 
+    /* parse jvm runtime event to time */
     void move_on(uint64_t time);
+
+    /* match ip to a codelet, return value refers to bytecode maybe
+     * if none, return -1;
+     */
+    Codelet match(uint64_t ip, Bytecodes::Code &code, JitSection *&section);
     uint32_t get_java_tid(uint32_t tid);
     JitImage *image() { return _image; }
     bool get_ic(uint64_t &ip, JitSection *section)
@@ -179,6 +226,7 @@ public:
 
     static void initialize(uint8_t *buffer, uint64_t size, Analyser *analyser);
     static void destroy();
+    static void print();
 
 private:
     const uint8_t *_current;
@@ -187,11 +235,12 @@ private:
 
     static uint8_t *begin;
     static uint8_t *end;
+    static const CodeletsInfo *entries;
     /* map between system thread id & java thread id */
     static std::map<uint32_t, uint32_t> thread_map;
     static std::map<int, const Method *> md_map;
     static std::map<const uint8_t *, JitSection *> section_map;
-    static bool _initialized;
+    static bool initialized;
 };
 
 #endif /* JVM_RUNTIME_HPP */

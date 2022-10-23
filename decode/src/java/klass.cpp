@@ -8,7 +8,7 @@ void Klass::insert_method_ref(u2 index, std::string name)
     _cp_index2method_ref[index] = name;
 }
 
-void Klass::insert_method_map(Method *mptr)
+void Klass::insert_method_map(const Method *mptr)
 {
     _method_map[mptr->get_name()] = mptr;
 }

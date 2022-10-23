@@ -281,6 +281,7 @@ public:
     {
       delete (_constants[index]);
     }
+    _constants.clear();
   }
 
   const std::string symbol_at(int which);

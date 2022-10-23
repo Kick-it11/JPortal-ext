@@ -24,7 +24,7 @@ public:
 
   std::string get_name() const { return _name; }
   void insert_method_ref(u2 index, std::string name);
-  void insert_method_map(Method *mptr);
+  void insert_method_map(const Method *mptr);
   const Method *getMethod(std::string methodName) const;
   std::string index2method(u2 index) const;
   void print() const;

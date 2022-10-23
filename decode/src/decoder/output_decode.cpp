@@ -196,6 +196,9 @@ public:
     static void return_method(const Method *method, Block *cur,
                               std::vector<std::pair<const Method *, Block *>> &ans)
     {
+        if (!method || !method->is_jportal() || !cur)
+            return;
+
         std::vector<std::pair<int, Block *>> vv;
         std::unordered_set<Block *> ss;
         std::queue<std::pair<int, Block *>> q;
@@ -270,12 +273,12 @@ static bool handle_jitcode(ExecInfo *exec, const PCStackInfo **pcs, int size,
     std::set<const PCStackInfo *> pc_execs;
     std::set<std::pair<const Method *, Block *>> block_execs;
     bool notRetry = true;
-    JitMatchTree *tree = new JitMatchTree(section->cmd()->mainm(), nullptr);
+    JitMatchTree *tree = new JitMatchTree(section->mainm(), nullptr);
     auto call_match = [&exec, &tree, &block_execs, &pc_execs, &ans, section](bool newtree) -> void
     {
         tree->match(exec->prev_frame, 0, block_execs, ans);
         delete tree;
-        tree = newtree ? new JitMatchTree(section->cmd()->mainm(), nullptr) : nullptr;
+        tree = newtree ? new JitMatchTree(section->mainm(), nullptr) : nullptr;
         block_execs.clear();
         pc_execs.clear();
     };
@@ -289,7 +292,7 @@ static bool handle_jitcode(ExecInfo *exec, const PCStackInfo **pcs, int size,
         {
             int mi = pc->methods[j];
             int bci = pc->bcis[j];
-            const Method *method = section->cmd()->method(mi);
+            const Method *method = section->method(mi);
             Block *block = (method && method->is_jportal()) ? method->get_bg()->block(bci) : (Block *)(uint64_t)bci;
             frame.push_back({method, block});
             block_execs.insert({method, block});
@@ -332,7 +335,7 @@ static void return_exec(std::stack<ExecInfo *> &exec_st, const JitSection *secti
 static void output_trace(TraceData *trace, uint64_t start, uint64_t end, FILE *fp)
 {
     TraceDataAccess access(*trace, start, end);
-    CodeletsEntry::Codelet codelet, prev_codelet = CodeletsEntry::_illegal;
+    JVMRuntime::Codelet codelet, prev_codelet = JVMRuntime::_illegal;
     uint64_t loc;
     std::stack<ExecInfo *> exec_st;
     while (access.next_trace(codelet, loc))
@@ -345,27 +348,27 @@ static void output_trace(TraceData *trace, uint64_t start, uint64_t end, FILE *f
             exec_st = std::stack<ExecInfo *>();
             break;
         }
-        case CodeletsEntry::_method_entry:
+        case JVMRuntime::_method_entry_point:
         {
             if (exec_st.empty() || exec_st.top()->section)
                 exec_st.push(new ExecInfo(nullptr));
             break;
         }
-        case CodeletsEntry::_throw_ArrayIndexOutOfBoundsException:
-        case CodeletsEntry::_throw_ArrayStoreException:
-        case CodeletsEntry::_throw_ArithmeticException:
-        case CodeletsEntry::_throw_ClassCastException:
-        case CodeletsEntry::_throw_NullPointerException:
-        case CodeletsEntry::_throw_StackOverflowError:
+        case JVMRuntime::_throw_ArrayIndexOutOfBoundsException:
+        case JVMRuntime::_throw_ArrayStoreException:
+        case JVMRuntime::_throw_ArithmeticException:
+        case JVMRuntime::_throw_ClassCastException:
+        case JVMRuntime::_throw_NullPointerException:
+        case JVMRuntime::_throw_StackOverflowError:
         {
             break;
         }
-        case CodeletsEntry::_rethrow_exception:
+        case JVMRuntime::_rethrow_exception:
         {
             break;
         }
-        case CodeletsEntry::_deopt:
-        case CodeletsEntry::_deopt_reexecute_return:
+        case JVMRuntime::_deopt:
+        case JVMRuntime::_deopt_reexecute_return:
         {
             if (!exec_st.empty() && exec_st.top()->section)
             {
@@ -376,24 +379,24 @@ static void output_trace(TraceData *trace, uint64_t start, uint64_t end, FILE *f
                 exec_st.push(new ExecInfo(nullptr));
             break;
         }
-        case CodeletsEntry::_throw_exception:
+        case JVMRuntime::_throw_exception:
         {
             /* exception handling or throw */
             break;
         }
-        case CodeletsEntry::_remove_activation:
-        case CodeletsEntry::_remove_activation_preserving_args:
+        case JVMRuntime::_remove_activation:
+        case JVMRuntime::_remove_activation_preserving_args:
         {
             /* after throw exception or deoptimize */
             break;
         }
-        case CodeletsEntry::_invoke_return:
-        case CodeletsEntry::_invokedynamic_return:
-        case CodeletsEntry::_invokeinterface_return:
+        case JVMRuntime::_invoke_return:
+        case JVMRuntime::_invokedynamic_return:
+        case JVMRuntime::_invokeinterface_return:
         {
             break;
         }
-        case CodeletsEntry::_bytecode:
+        case JVMRuntime::_bytecode:
         {
             const uint8_t *codes;
             uint64_t size;
@@ -404,25 +407,25 @@ static void output_trace(TraceData *trace, uint64_t start, uint64_t end, FILE *f
             output_bytecode(fp, codes, size);
             break;
         }
-        case CodeletsEntry::_jitcode_entry:
-        case CodeletsEntry::_jitcode_osr_entry:
-        case CodeletsEntry::_jitcode:
+        case JVMRuntime::_jitcode_entry:
+        case JVMRuntime::_jitcode_osr_entry:
+        case JVMRuntime::_jitcode:
         {
             const JitSection *section = nullptr;
             const PCStackInfo **pcs = nullptr;
             uint64_t size;
-            assert(trace->get_jit(loc, pcs, size, section) && pcs && section && section->cmd());
+            assert(trace->get_jit(loc, pcs, size, section) && pcs && section);
             std::vector<std::pair<const Method *, Block *>> blocks;
-            if (codelet == CodeletsEntry::_jitcode_entry)
+            if (codelet == JVMRuntime::_jitcode_entry)
             {
                 ExecInfo *exec = new ExecInfo(section);
-                const Method *method = section->cmd()->mainm();
+                const Method *method = section->mainm();
                 Block *block = method->get_bg()->block(0);
                 blocks.push_back({method, block});
                 exec->prev_frame.push_back({method, block});
                 exec_st.push(exec);
             }
-            else if (codelet == CodeletsEntry::_jitcode_osr_entry)
+            else if (codelet == JVMRuntime::_jitcode_osr_entry)
             {
                 ExecInfo *exec = new ExecInfo(section);
                 exec_st.push(exec);

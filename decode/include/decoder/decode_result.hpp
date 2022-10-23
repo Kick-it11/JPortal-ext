@@ -2,8 +2,8 @@
 #define DECODE_RESULT_HPP
 
 #include "java/bytecodes.hpp"
-#include "runtime/codelets_entry.hpp"
 #include "runtime/jit_section.hpp"
+#include "runtime/jvm_runtime.hpp"
 
 #include <list>
 #include <unordered_map>
@@ -75,7 +75,7 @@ class TraceDataRecord
 {
 private:
     TraceData &trace;
-    CodeletsEntry::Codelet codelet_type = CodeletsEntry::_illegal;
+    JVMRuntime::Codelet codelet_type = JVMRuntime::_illegal;
     uint64_t loc;
     uint64_t current_time = 0;
     ThreadSplit *thread = nullptr;
@@ -89,7 +89,7 @@ public:
 
     void add_jitcode(uint64_t time, const JitSection *section, PCStackInfo *pc, uint64_t entry);
 
-    void add_codelet(uint64_t time, CodeletsEntry::Codelet codelet);
+    void add_codelet(uint64_t time, JVMRuntime::Codelet codelet);
 
     void add_method_info(const Method *method);
 
@@ -131,7 +131,7 @@ public:
         if (terminal > trace.data_end)
             terminal = trace.data_end;
     }
-    bool next_trace(CodeletsEntry::Codelet &codelet, uint64_t &loc);
+    bool next_trace(JVMRuntime::Codelet &codelet, uint64_t &loc);
 
     void set_current(uint64_t addr)
     {

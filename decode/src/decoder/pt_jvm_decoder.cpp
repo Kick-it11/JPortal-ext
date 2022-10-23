@@ -6,6 +6,147 @@
 
 #include <iostream>
 
+void PTJVMDecoder::decoder_reset() {
+    _mode = ptem_unknown;
+    _ip = 0UL;
+    _status = 0;
+    _speculative = 0;
+    _process_event = 0;
+    _process_insn = 0;
+    _bound_paging = 0;
+    _bound_vmcs = 0;
+    _bound_ptwrite = 0;
+    _enabled = 0;
+
+    pt_asid_init(&_asid);
+    pt_retstack_init(&_retstack);
+}
+
+/* Query an indirect branch.
+ * Can be used by jit and normal
+ * Returns zero on success, a negative error code otherwise.
+ * Store current status in _status
+ */
+int PTJVMDecoder::decoder_indirect_branch(uint64_t *ip)
+{
+    uint64_t evip;
+    int status;
+
+    status = pt_qry_indirect_branch(_qry, ip);
+    if (status < 0)
+        return status;
+
+    _status = status;
+
+    /** do not generate tick event, if time has changed call time_change */
+    decoder_time_change();
+
+    return status;
+}
+
+/* Query a conditional branch.
+ * Can be used by jit and normal
+ * Returns zero on success, a negative error code otherwise.
+ * Store current status in _status
+ */
+int PTJVMDecoder::decoder_cond_branch(int *taken)
+{
+    int status;
+
+    status = pt_qry_cond_branch(_qry, taken);
+    if (status < 0)
+        return status;
+
+    _status = status;
+
+    decoder_time_change();
+
+    return status;
+}
+
+/* Move forward to next synchronized point
+ * Store current status in _status
+ */
+int PTJVMDecoder::decoder_sync_forward()
+{
+    int status;
+
+    decoder_reset();
+
+    status = pt_qry_sync_forward(_qry, &_ip);
+
+    if (status < 0)
+        return status;
+
+    _status = status;
+
+    decoder_time_change();
+
+    return status;
+}
+
+/* return 1 if an event pending to be processed
+ * 1. has queried, _process_event is 1
+ * 2. _status = 1, query here
+ */
+int PTJVMDecoder::decoder_event_pending()
+{
+    int status;
+
+    if (_process_event)
+        return 1;
+
+    status = _status;
+    if (!(status & pts_event_pending))
+        return 0;
+
+    status = pt_qry_event(_qry, &_event, sizeof(_event));
+    if (status < 0)
+        return status;
+
+    _process_event = 1;
+
+    _status = status;
+
+    decoder_time_change();
+
+    return 1;
+}
+
+void PTJVMDecoder::decoder_time_change()
+{
+    uint64_t tsc;
+
+    pt_qry_time(_qry, &tsc, NULL, NULL);
+
+    if (tsc == _time)
+        return;
+
+    _time = tsc;
+
+    _jvm->move_on(_time);
+
+    /** data loss, if loss set, do not try to change it. */
+    bool loss = false;
+
+    /** iterate all sideband ( perf event )*/
+    while (_sideband->event(_time))
+    {
+        uint32_t sideband_tid = _sideband->tid();
+        if (_sideband->loss())
+            loss = true;
+
+        uint32_t java_tid = _jvm->get_java_tid(sideband_tid);
+
+        if (loss || _tid != java_tid)
+        {
+            _tid = java_tid;
+            _record.switch_out(loss);
+            _record.switch_in(_tid, _time, loss);
+        }
+    }
+}
+
 int PTJVMDecoder::decoder_process_enabled()
 {
     struct pt_event *ev;
@@ -207,123 +348,7 @@ int PTJVMDecoder::decoder_process_vmcs()
     return 0;
 }
 
-/* Query an indirect branch.
- * Can be used by jit and normal
- * Returns zero on success, a negative error code otherwise.
- */
-int PTJVMDecoder::decoder_indirect_branch(uint64_t *ip)
-{
-    uint64_t evip;
-    int status;
 
-    status = pt_qry_indirect_branch(_qry, ip);
-    if (status < 0)
-        return status;
-
-    /** do not generate tick event, if time has changed call time_change */
-    decoder_time_change();
-
-    _status = status;
-
-    return status;
-}
-
-/* Query a conditional branch.
- * Can be used by jit and normal
- * Returns zero on success, a negative error code otherwise.
- */
-int PTJVMDecoder::decoder_cond_branch(int *taken)
-{
-    int status;
-
-    status = pt_qry_cond_branch(_qry, taken);
-    if (status < 0)
-        return status;
-
-    _status = status;
-
-    decoder_time_change();
-
-    return status;
-}
-
-/* Move forward to next synchronized point */
-int PTJVMDecoder::decoder_sync_forward()
-{
-    int status;
-
-    pt_insn_reset();
-
-    status = pt_qry_sync_forward(_qry, &_ip);
-
-    if (status < 0)
-        return status;
-
-    _status = status;
-
-    decoder_time_change();
-
-    return status;
-}
-
-int PTJVMDecoder::decoder_event_pending()
-{
-    int status;
-
-    if (_process_event)
-        return 1;
-
-    status = _status;
-    if (!(status & pts_event_pending))
-        return 0;
-
-    status = pt_qry_event(_qry, &_event, sizeof(_event));
-    if (status < 0)
-        return status;
-
-    decoder_time_change();
-
-    _process_event = 1;
-
-    _status = status;
-
-    return 1;
-}
-
-void PTJVMDecoder::decoder_time_change()
-{
-    uint64_t tsc;
-
-    pt_qry_time(_qry, &tsc, NULL, NULL);
-
-    if (tsc == _time)
-        return;
-
-    _time = tsc;
-
-    _jvm->move_on(_time);
-
-    /** data loss, if loss set, do not try to change it. */
-    bool loss = false;
-
-    /** iterate all sideband ( perf event )*/
-    while (_sideband->event(_time))
-    {
-        uint32_t sideband_tid = _sideband->tid();
-        if (_sideband->loss())
-            loss = true;
-
-        uint32_t java_tid = _jvm->get_java_tid(sideband_tid);
-
-        if (loss || _tid != java_tid)
-        {
-            _tid = java_tid;
-            _record.switch_out(loss);
-            _record.switch_in(_tid, _time, loss);
-        }
-    }
-    _record.switch_in(_tid, _time, loss);
-}
 
 /* Retry decoding an instruction after a preceding decode error.
  *
@@ -493,60 +518,6 @@ int PTJVMDecoder::pt_insn_range_is_contiguous(uint64_t begin, uint64_t end,
     return 1;
 }
 
-int PTJVMDecoder::pt_insn_reset()
-{
-    /* _mode, _ip, _status, _speculative, _asid */
-    _process_insn = 0;
-    _bound_paging = 0;
-    _bound_vmcs = 0;
-    _bound_ptwrite = 0;
-
-    pt_retstack_init(&_retstack);
-    return 0;
-}
-
-int PTJVMDecoder::pt_insn_status(int flags)
-{
-    int status;
-
-    status = _status;
-
-    /* Indicate whether tracing is disabled or enabled.
-     *
-     * This duplicates the indication in struct pt_insn and covers the case
-     * where we indicate the status after synchronizing.
-     */
-    if (!_enabled)
-        flags |= pts_ip_suppressed;
-
-    /* Forward end-of-trace indications.
-     *
-     * Postpone it as long as we're still processing events, though.
-     */
-    if ((status & pts_eos) && !_process_event)
-        flags |= pts_eos;
-
-    return flags;
-}
-
-int PTJVMDecoder::pt_insn_start()
-{
-    if (!(_status & pts_ip_suppressed))
-        _enabled = 1;
-
-    /* Process any initial events.
-     *
-     * Some events are processed after proceeding to the next IP in order to
-     * indicate things like tracing disable or trace stop in the preceding
-     * instruction.  Those events will be processed without such an
-     * indication before decoding the current instruction.
-     *
-     * We do this already here so we can indicate user-events that precede
-     * the first instruction.
-     */
-    return pt_insn_check_ip_event(NULL, NULL);
-}
-
 int PTJVMDecoder::pt_insn_check_erratum_skd022()
 {
     struct pt_insn_ext iext;
@@ -594,108 +565,6 @@ int PTJVMDecoder::pt_insn_handle_erratum_skd022()
     return 1;
 }
 
-int PTJVMDecoder::pt_insn_proceed(const struct pt_insn *insn,
-                                  const struct pt_insn_ext *iext)
-{
-    if (!insn || !iext)
-        return -pte_internal;
-
-    /* Branch displacements apply to the next instruction. */
-    _ip += insn->size;
-
-    /* We handle non-branches, non-taken conditional branches, and
-     * compressed returns directly in the switch and do some pre-work for
-     * calls.
-     *
-     * All kinds of branches are handled below the switch.
-     */
-    switch (insn->iclass)
-    {
-    case ptic_ptwrite:
-    case ptic_other:
-        return 0;
-
-    case ptic_cond_jump:
-    {
-        int status, taken;
-
-        status = decoder_cond_branch(&taken);
-        if (status < 0)
-            return status;
-
-        if (!taken)
-            return 0;
-
-        break;
-    }
-
-    case ptic_call:
-        /* Log the call for return compression.
-         *
-         * Unless this is a call to the next instruction as is used
-         * for position independent code.
-         */
-        if (iext->variant.branch.displacement ||
-            !iext->variant.branch.is_direct)
-            pt_retstack_push(&_retstack, _ip);
-
-        break;
-
-    case ptic_return:
-    {
-        int taken, status;
-
-        /* Check for a compressed return. */
-        status = decoder_cond_branch(&taken);
-        if (status >= 0)
-        {
-            /* A compressed return is indicated by a taken
-             * conditional branch.
-             */
-            if (!taken)
-                return -pte_bad_retcomp;
-
-            return pt_retstack_pop(&_retstack, &_ip);
-        }
-
-        break;
-    }
-
-    case ptic_jump:
-    case ptic_far_call:
-    case ptic_far_return:
-    case ptic_far_jump:
-    case ptic_indirect:
-        break;
-
-    case ptic_unknown:
-        return -pte_bad_insn;
-    }
-
-    /* Process a direct or indirect branch.
-     *
-     * This combines calls, uncompressed returns, taken conditional jumps,
-     * and all flavors of far transfers.
-     */
-    if (iext->variant.branch.is_direct)
-        _ip += (uint64_t)(int64_t)iext->variant.branch.displacement;
-    else
-    {
-        int status;
-
-        status = decoder_indirect_branch(&_ip);
-
-        if (status < 0)
-            return status;
-
-        /* We do need an IP to proceed. */
-        if (status & pts_ip_suppressed)
-            return -pte_noip;
-    }
-
-    return 0;
-}
-
 int PTJVMDecoder::pt_insn_at_skl014(const struct pt_event *ev,
                                     const struct pt_insn *insn,
                                     const struct pt_insn_ext *iext,
@@ -738,6 +607,52 @@ int PTJVMDecoder::pt_insn_at_skl014(const struct pt_event *ev,
     }
 
     return 0;
+}
+
+/* Try to work around erratum BDM64.
+ *
+ * If we got a transaction abort immediately following a branch that produced
+ * trace, the trace for that branch might have been corrupted.
+ *
+ * Returns a positive integer if the erratum was handled.
+ * Returns zero if the erratum does not seem to apply.
+ * Returns a negative error code otherwise.
+ */
+int PTJVMDecoder::pt_insn_handle_erratum_bdm64(const struct pt_event *ev,
+                                               const struct pt_insn *insn,
+                                               const struct pt_insn_ext *iext)
+{
+    int status;
+
+    if (!ev || !insn || !iext)
+        return -pte_internal;
+
+    /* This only affects aborts. */
+    if (!ev->variant.tsx.aborted)
+        return 0;
+
+    /* This only affects branches. */
+    if (!pt_insn_is_branch(insn, iext))
+        return 0;
+
+    /* Let's check if we can reach the event location from here.
+     *
+     * If we can, let's assume the erratum did not hit.  We might still be
+     * wrong but we're not able to tell.
+     */
+    status = pt_insn_range_is_contiguous(_ip, ev->variant.tsx.ip, _mode, bdm64_max_steps);
+    if (status > 0)
+        return 0;
+
+    /* We can't reach the event location.  This could either mean that we
+     * stopped too early (and status is zero) or that the erratum hit.
+     *
+     * We assume the latter and pretend that the previous branch brought us
+     * to the event location, instead.
+     */
+    _ip = ev->variant.tsx.ip;
+
+    return 1;
 }
 
 int PTJVMDecoder::pt_insn_at_disabled_event(const struct pt_event *ev,
@@ -866,6 +781,34 @@ int PTJVMDecoder::pt_insn_proceed_postponed()
         return status;
 
     return pt_insn_clear_postponed();
+}
+
+int PTJVMDecoder::pt_insn_postpone_tsx(const struct pt_insn *insn,
+                                       const struct pt_insn_ext *iext,
+                                       const struct pt_event *ev)
+{
+    int status;
+
+    if (!ev)
+        return -pte_internal;
+
+    if (ev->ip_suppressed)
+        return 0;
+
+    if (insn && iext)
+    {
+        if (_config.errata.bdm64)
+        {
+            status = pt_insn_handle_erratum_bdm64(ev, insn, iext);
+            if (status < 0)
+                return status;
+        }
+    }
+
+    if (_ip != ev->variant.tsx.ip)
+        return 1;
+
+    return 0;
 }
 
 int PTJVMDecoder::pt_insn_check_insn_event(const struct pt_insn *insn,
@@ -1011,80 +954,6 @@ int PTJVMDecoder::pt_insn_check_insn_event(const struct pt_insn *insn,
     }
 
     return pt_insn_status(pts_event_pending);
-}
-
-/* Try to work around erratum BDM64.
- *
- * If we got a transaction abort immediately following a branch that produced
- * trace, the trace for that branch might have been corrupted.
- *
- * Returns a positive integer if the erratum was handled.
- * Returns zero if the erratum does not seem to apply.
- * Returns a negative error code otherwise.
- */
-int PTJVMDecoder::pt_insn_handle_erratum_bdm64(const struct pt_event *ev,
-                                               const struct pt_insn *insn,
-                                               const struct pt_insn_ext *iext)
-{
-    int status;
-
-    if (!ev || !insn || !iext)
-        return -pte_internal;
-
-    /* This only affects aborts. */
-    if (!ev->variant.tsx.aborted)
-        return 0;
-
-    /* This only affects branches. */
-    if (!pt_insn_is_branch(insn, iext))
-        return 0;
-
-    /* Let's check if we can reach the event location from here.
-     *
-     * If we can, let's assume the erratum did not hit.  We might still be
-     * wrong but we're not able to tell.
-     */
-    status = pt_insn_range_is_contiguous(_ip, ev->variant.tsx.ip, _mode, bdm64_max_steps);
-    if (status > 0)
-        return 0;
-
-    /* We can't reach the event location.  This could either mean that we
-     * stopped too early (and status is zero) or that the erratum hit.
-     *
-     * We assume the latter and pretend that the previous branch brought us
-     * to the event location, instead.
-     */
-    _ip = ev->variant.tsx.ip;
-
-    return 1;
-}
-
-int PTJVMDecoder::pt_insn_postpone_tsx(const struct pt_insn *insn,
-                                       const struct pt_insn_ext *iext,
-                                       const struct pt_event *ev)
-{
-    int status;
-
-    if (!ev)
-        return -pte_internal;
-
-    if (ev->ip_suppressed)
-        return 0;
-
-    if (insn && iext)
-    {
-        if (_config.errata.bdm64)
-        {
-            status = pt_insn_handle_erratum_bdm64(ev, insn, iext);
-            if (status < 0)
-                return status;
-        }
-    }
-
-    if (_ip != ev->variant.tsx.ip)
-        return 1;
-
-    return 0;
 }
 
 /* Check for events that bind to an IP.
@@ -1245,11 +1114,173 @@ int PTJVMDecoder::pt_insn_check_ip_event(const struct pt_insn *insn,
     return pt_insn_status(0);
 }
 
-int PTJVMDecoder::pt_insn_drain_events()
+void PTJVMDecoder::pt_insn_reset()
 {
-    int status = _status;
+    /* _mode, _ip, _status, _speculative, _asid */
+    _process_insn = 0;
+    _bound_paging = 0;
+    _bound_vmcs = 0;
+    _bound_ptwrite = 0;
 
-    while (status & pts_event_pending)
+    pt_retstack_init(&_retstack);
+    return;
+}
+
+/* return current status that will influence instruction */
+int PTJVMDecoder::pt_insn_status(int flags)
+{
+    int status;
+
+    status = _status;
+
+    /* Indicate whether tracing is disabled or enabled.
+     *
+     * This duplicates the indication in struct pt_insn and covers the case
+     * where we indicate the status after synchronizing.
+     */
+    if (!_enabled)
+        flags |= pts_ip_suppressed;
+
+    /* Forward end-of-trace indications.
+     *
+     * Postpone it as long as we're still processing events, though.
+     */
+    if ((status & pts_eos) && !_process_event)
+        flags |= pts_eos;
+
+    return flags;
+}
+
+/* At the start of insn decoding,
+ * reset related info, 
+ * return containing status to process initial event
+ */
+int PTJVMDecoder::pt_insn_start()
+{
+    pt_insn_reset();
+
+    if (!(_status & pts_ip_suppressed))
+        _enabled = 1;
+
+    /* Process any initial events.
+     *
+     * Some events are processed after proceeding to the next IP in order to
+     * indicate things like tracing disable or trace stop in the preceding
+     * instruction.  Those events will be processed without such an
+     * indication before decoding the current instruction.
+     *
+     * We do this already here so we can indicate user-events that precede
+     * the first instruction.
+     */
+    return pt_insn_check_ip_event(NULL, NULL);
+}
+
+/* proceed instruction to next */
+int PTJVMDecoder::pt_insn_proceed(const struct pt_insn *insn,
+                                  const struct pt_insn_ext *iext)
+{
+    if (!insn || !iext)
+        return -pte_internal;
+
+    /* Branch displacements apply to the next instruction. */
+    _ip += insn->size;
+
+    /* We handle non-branches, non-taken conditional branches, and
+     * compressed returns directly in the switch and do some pre-work for
+     * calls.
+     *
+     * All kinds of branches are handled below the switch.
+     */
+    switch (insn->iclass)
+    {
+    case ptic_ptwrite:
+    case ptic_other:
+        return 0;
+
+    case ptic_cond_jump:
+    {
+        int status, taken;
+
+        status = decoder_cond_branch(&taken);
+        if (status < 0)
+            return status;
+
+        if (!taken)
+            return 0;
+
+        break;
+    }
+
+    case ptic_call:
+        /* Log the call for return compression.
+         *
+         * Unless this is a call to the next instruction as is used
+         * for position independent code.
+         */
+        if (iext->variant.branch.displacement ||
+            !iext->variant.branch.is_direct)
+            pt_retstack_push(&_retstack, _ip);
+
+        break;
+
+    case ptic_return:
+    {
+        int taken, status;
+
+        /* Check for a compressed return. */
+        status = decoder_cond_branch(&taken);
+        if (status >= 0)
+        {
+            /* A compressed return is indicated by a taken
+             * conditional branch.
+             */
+            if (!taken)
+                return -pte_bad_retcomp;
+
+            return pt_retstack_pop(&_retstack, &_ip);
+        }
+
+        break;
+    }
+
+    case ptic_jump:
+    case ptic_far_call:
+    case ptic_far_return:
+    case ptic_far_jump:
+    case ptic_indirect:
+        break;
+
+    case ptic_unknown:
+        return -pte_bad_insn;
+    }
+
+    /* Process a direct or indirect branch.
+     *
+     * This combines calls, uncompressed returns, taken conditional jumps,
+     * and all flavors of far transfers.
+     */
+    if (iext->variant.branch.is_direct)
+        _ip += (uint64_t)(int64_t)iext->variant.branch.displacement;
+    else
+    {
+        int status;
+
+        status = decoder_indirect_branch(&_ip);
+
+        if (status < 0)
+            return status;
+
+        /* We do need an IP to proceed. */
+        if (status & pts_ip_suppressed)
+            return -pte_noip;
+    }
+
+    return 0;
+}
+
+int PTJVMDecoder::pt_insn_drain_events(int status)
+{
+    while (status && pts_event_pending)
     {
         /* We must currently process an event. */
         if (!_process_event)
@@ -1443,7 +1474,9 @@ int PTJVMDecoder::pt_insn_next(JitSection *&section, struct pt_insn &insn)
 {
     struct pt_insn_ext iext;
     int status, isid;
-    uint8_t insn_size;
+
+    if (!section)
+        return -pte_internal;
 
     /* Tracing must be enabled.
      *
@@ -1470,26 +1503,20 @@ int PTJVMDecoder::pt_insn_next(JitSection *&section, struct pt_insn &insn)
         insn.speculative = 1;
     insn.ip = _ip;
     insn.mode = _mode;
-    insn_size = sizeof(insn.raw);
+    insn.size = sizeof(insn.raw);
 
-    if (!section || !section->read(insn.raw, &insn_size, _ip))
+    if (!section->read(insn.raw, &insn.size, _ip))
     {
         if (!(section = _jvm->image()->find(_ip)))
             return -pte_nomap;
 
-        insn_size = sizeof(insn.raw);
-        if (!section->read(insn.raw, &insn_size, _ip))
-        {
-            std::cerr << "PTJVMDecoder error: compiled code's section" << std::endl;
+        insn.size = sizeof(insn.raw);
+        if (!section->read(insn.raw, &insn.size, _ip))
             return -pte_bad_insn;
-        }
     }
 
     if (pt_ild_decode(&insn, &iext) < 0)
-    {
-        std::cerr << "PTJVMDecoder error: compiled code's ild" << std::endl;
         return -pte_bad_insn;
-    }
 
     /* Check for events that bind to the current instruction.
      *
@@ -1526,65 +1553,72 @@ int PTJVMDecoder::pt_insn_next(JitSection *&section, struct pt_insn &insn)
     return pt_insn_check_ip_event(&insn, &iext);
 }
 
-int PTJVMDecoder::decoder_process_jitcode()
+int PTJVMDecoder::decoder_process_jitcode(JitSection* section)
 {
-    int errcode;
+    int status;
     struct pt_insn insn;
-    JitSection *section = nullptr;
     PCStackInfo *info = nullptr;
     bool tow = false;
 
-    errcode = pt_insn_reset();
-    if (errcode < 0)
-        return errcode;
-
-    errcode = pt_insn_start();
-    if (errcode != 0)
+    status = pt_insn_start();
+    if (status != 0)
     {
         /* errcode < 0 indicates error */
-        if (errcode < 0) {
-            std::cerr << "PTJVMDecoder error: insn start" << std::endl;
-            return errcode;
+        if (status < 0)
+        {
+            std::cerr << "PTJVMDecoder error: Insn start " << pt_errstr(pt_errcode(status)) << std::endl;
+            return status;
         }
 
-        errcode = pt_insn_drain_events();
-        if (errcode < 0) {
-            std::cerr << "PTJVMDecoder error: drain events" << std::endl;
-            return errcode;
+        /* event if decoder._status might have event pending
+         * it might not be handled this time
+         */
+        if (status & pts_event_pending)
+        {
+            status = pt_insn_drain_events(status);
+            if (status < 0) {
+                std::cerr << "PTJVMDecoder error: Drain insn events " << pt_errstr(pt_errcode(status)) << std::endl;
+                return status;
+            }
         }
     }
 
     for (;;)
     {
-        errcode = pt_insn_next(section, insn);
-        if (errcode < 0)
+        status = decoder_record_jitcode(section, info, tow);
+        if (status < 0)
         {
-            if (errcode = -pte_eos)
-                break;
-
-            std::cerr << "PTJVMDecoder error: jitcode next" << std::endl;
+            std::cerr << "PTJVMDecoder error: Record jit " << pt_errstr(pt_errcode(status)) << std::endl;
             break;
         }
 
-        errcode = decoder_record_jitcode(section, info, tow);
-        if (errcode < 0)
+        status = pt_insn_next(section, insn);
+        if (status < 0)
         {
-            std::cerr << "PTJVMDecoder error: jitcode result" << std::endl;
+            if (status == -pte_eos || status == -pte_nomap)
+                break;
+
+            std::cerr << "PTJVMDecoder error: Next insn " << pt_errstr(pt_errcode(status)) << std::endl;
             break;
         }
 
-        errcode = pt_insn_drain_events();
-        if (errcode < 0)
-        {
-            if (errcode = -pte_eos)
-                break;
+        /* event if decoder._status might have event pending
+         * it might not be handled this time
+         */
+        if (status & pts_event_pending) {
+            status = pt_insn_drain_events(status);
+            if (status < 0)
+            {
+                if (status = -pte_eos)
+                    break;
 
-            std::cerr << "PTJVMDecoder error: jitcode result" << std::endl;
-            break;
+                std::cerr << "PTJVMDecoder error: Drain insn events " << pt_errstr(pt_errcode(status)) << std::endl;
+                break;
+            }
         }
     }
 
-    return errcode;
+    return status;
 }
 
 int PTJVMDecoder::decoder_record_bytecode(Bytecodes::Code bytecode)
@@ -1605,26 +1639,33 @@ int PTJVMDecoder::decoder_process_ip()
 {
     int errcode = 0;
     Bytecodes::Code bytecode;
-    CodeletsEntry::Codelet codelet = CodeletsEntry::entry_match(_ip, bytecode);
+    JitSection* section;
+    JVMRuntime::Codelet codelet = _jvm->match(_ip, bytecode, section);
     switch (codelet)
     {
-    case (CodeletsEntry::_illegal):
+    case JVMRuntime::_illegal:
     {
-        errcode = decoder_process_jitcode();
+        std::cerr << "PTJVMDecoder error: unknown codelet" << std::endl;
+        return 0;
+    }
+    case (JVMRuntime::_jitcode):
+    {
+        errcode = decoder_process_jitcode(section);
         if (errcode < 0) {
             /* jitted code process error but do not let it affect ip processing */
             _record.switch_out(true);
+            _record.switch_in(_tid, _time, true);
             return 0;
         }
 
         /* while processing jit, decoder might query a non-compiled-code ip */
-        codelet = CodeletsEntry::entry_match(_ip, bytecode);
-        if (codelet != CodeletsEntry::_illegal)
+        codelet = _jvm->match(_ip, bytecode, section);
+        if (codelet != JVMRuntime::_illegal)
             return decoder_process_ip();
 
         return errcode;
     }
-    case (CodeletsEntry::_bytecode):
+    case (JVMRuntime::_bytecode):
     {
         return decoder_record_bytecode(bytecode);
     }
@@ -1739,6 +1780,8 @@ int PTJVMDecoder::decoder_drain_events()
             break;
         }
 
+        _process_event = 0;
+
         /* This completes processing of the current event. */
         if (unresolved)
         {
@@ -1747,8 +1790,6 @@ int PTJVMDecoder::decoder_drain_events()
                 return errcode;
             unresolved = false;
         }
-
-        _process_event = 0;
     }
 
     return errcode;
@@ -1756,48 +1797,52 @@ int PTJVMDecoder::decoder_drain_events()
 
 void PTJVMDecoder::decode()
 {
-    int errcode, taken;
+    int status, taken;
     for (;;)
     {
-        errcode = decoder_sync_forward();
-        if (errcode < 0)
+        status = decoder_sync_forward();
+        if (status < 0)
         {
-            if (errcode == -pte_eos)
+            if (status == -pte_eos)
                 break;
 
-            std::cerr << "PTJVMDecoder error: " << pt_errstr(pt_errcode(errcode)) << std::endl;
+            std::cerr << "PTJVMDecoder error: Sync forward " << pt_errstr(pt_errcode(status)) << std::endl;
             continue;
         }
 
         for (;;)
         {
-            errcode = decoder_drain_events();
-            if (errcode < 0)
+            status = decoder_drain_events();
+            if (status < 0)
                 break;
 
-            errcode = decoder_cond_branch(&taken);
-            if (errcode < 0)
+            status = decoder_cond_branch(&taken);
+            if (status < 0)
             {
-                errcode = decoder_indirect_branch(&_ip);
-                if (errcode < 0)
+                status = decoder_indirect_branch(&_ip);
+                if (status < 0)
                     break;
 
-                errcode = decoder_process_ip();
-                if (errcode < 0)
+                if (status & pts_ip_suppressed)
+                    continue;
+
+                status = decoder_process_ip();
+                if (status < 0)
                     break;
             }
         }
 
-        if (!errcode)
-            errcode = -pte_internal;
+        if (!status)
+            status = -pte_internal;
 
         /* We're done when we reach the end of the trace stream. */
-        if (errcode == -pte_eos)
+        if (status == -pte_eos)
             break;
         else
-            std::cerr << "PTJVMDecoder error: " << pt_errstr(pt_errcode(errcode))
-                      << " " << _time << std::endl;
+            std::cerr << "PTJVMDecoder error: Loop " << pt_errstr(pt_errcode(status)) << std::endl;
     }
+
+    _record.switch_out(false);
 }
 
 PTJVMDecoder::PTJVMDecoder(const struct pt_config &config, TraceData &trace, uint32_t cpu)
@@ -1811,7 +1856,7 @@ PTJVMDecoder::PTJVMDecoder(const struct pt_config &config, TraceData &trace, uin
 
     if ((_qry = pt_qry_alloc_decoder(&_config)) == nullptr)
     {
-        std::cerr << "PTJVMDecoder: fail to allocate query decoder." << std::endl;
+        std::cerr << "PTJVMDecoder error: Allocate query decoder" << std::endl;
         exit(-1);
     }
 }

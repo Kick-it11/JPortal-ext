@@ -62,6 +62,31 @@ static void decode(const std::string &file, std::list<std::string> &paths)
     traces.clear();
 }
 
+static void show(const std::string &file, const std::string &info, std::list<std::string> &paths) {
+    TraceDataParser parser(file);
+    if (info == "sideband")
+    {
+        auto sideband_data = parser.sideband_data();
+        Sideband::initialize(sideband_data, parser.sample_type(), parser.time_mult(),
+                             parser.time_shift(), parser.time_zero());
+        Sideband::print();
+        Sideband::destroy();
+    }
+    else if (info == "jvm")
+    {
+        auto jvmdata = parser.jvm_runtime_data();
+        Analyser *analyser = new Analyser(paths);
+        JVMRuntime::initialize(jvmdata.first, jvmdata.second, analyser);
+        JVMRuntime::print();
+        JVMRuntime::destroy();
+        delete analyser;
+    }
+    else
+    {
+        std::cerr << "decode error: Unknown show info" << std::endl;
+    }
+}
+
 int main(int argc, char **argv)
 {
     std::string trace_data = "JPortalTrace.data";
@@ -73,7 +98,7 @@ int main(int argc, char **argv)
         {
             if (argc <= i)
             {
-                std::cerr << "Missing tracedata -d" << std::endl;
+                std::cerr << "decode error: Missing tracedata -d" << std::endl;
                 return -1;
             }
             trace_data = argv[i++];
@@ -84,7 +109,7 @@ int main(int argc, char **argv)
         {
             if (argc <= i)
             {
-                std::cerr << "Missing class path -c" << std::endl;
+                std::cerr << "decode error: Missing class path -c" << std::endl;
                 return -1;
             }
             class_paths.push_back(argv[i++]);
@@ -93,11 +118,25 @@ int main(int argc, char **argv)
 
         if (arg == "-h")
         {
-            std::cout << "decode -d $file [-c $path]+ -h" << std::endl;
+            std::cout << "decode -d $file [-c $path]+  :decode $file with classfile path $path" << std::endl;
+            std::cout << "       -s sideband/jvm       :show sideband/jvm info(-d -c needed before)" << std::endl;
+            std::cout << "       -h                    :print this" << std::endl;
             return 0;
         }
 
-        std::cerr << "Unknown arguments" << std::endl;
+        if (arg == "-s")
+        {
+             if (argc <= i)
+            {
+                std::cerr << "decode error: Missing s info" << std::endl;
+                return -1;
+            }
+            arg = argv[i++];
+            show(trace_data, arg, class_paths);
+            return 0;
+        }
+
+        std::cerr << "decode error: Unknown arguments" << std::endl;
         return -1;
     }
 

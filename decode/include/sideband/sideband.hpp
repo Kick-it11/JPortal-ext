@@ -54,8 +54,10 @@ public:
 
     static void initialize(std::map<uint32_t, std::pair<uint8_t *, uint64_t>> &data,
                            uint64_t sample_type, uint32_t time_mult,
-                           uint16_t time_shift, uint16_t time_zero);
+                           uint16_t time_shift, uint64_t time_zero);
     static void destroy();
+
+    static void print();
 };
 
 #endif /* SIDEBAND_HPP */

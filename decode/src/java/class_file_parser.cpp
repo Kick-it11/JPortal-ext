@@ -124,6 +124,7 @@ void ClassFileParser::parse_class(const ClassFileStream *const stream)
     parse_classfile_attributes(stream);
 
     /*  Make sure this is the end of class file stream */
+    delete cp;
 
     return;
 }
@@ -363,7 +364,9 @@ void ClassFileParser::parse_methods(const ClassFileStream *const stream,
     const u2 length = stream->get_u2();
     for (int index = 0; index < length; index++)
     {
-        _klass->insert_method_map(parse_method(stream, cp));
+        Method* method = parse_method(stream, cp);
+        _analyser->add_method(method);
+        _klass->insert_method_map(method);
     } /* End of for */
 }
 

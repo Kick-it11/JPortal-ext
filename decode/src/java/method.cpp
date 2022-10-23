@@ -18,6 +18,12 @@ Method::Method(std::string name_signature, const u1 *const code_buffer,
 Method::~Method()
 {
     delete _bg;
+    _bg = nullptr;
+}
+
+BlockGraph *Method::get_bg() const {
+    _bg->build_bctlist();
+    return _bg;
 }
 void Method::print_graph() const
 {

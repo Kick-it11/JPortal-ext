@@ -64,24 +64,37 @@ CompiledMethodLoadInlineRecord::CompiledMethodLoadInlineRecord(const uint8_t *sc
     }
 }
 
+CompiledMethodLoadInlineRecord::~CompiledMethodLoadInlineRecord() {
+    for (int i = 0; i < numpcs; ++i) {
+        delete pcinfo[i].methods;
+        delete pcinfo[i].bcis;
+    }
+    delete pcinfo;
+    pcinfo = nullptr;
+}
+
 JitSection::JitSection(const uint8_t *code, uint64_t code_begin, uint32_t code_size,
                        const uint8_t *scopes_pc, uint32_t scopes_pc_size,
                        const uint8_t *scopes_data, uint32_t scopes_data_size,
-                       CompiledMethodDesc *cmd, const std::string &name) : _code(code), _code_begin(code_begin), _code_size(code_size),
-                                                                           _cmd(cmd), _name(name)
+                       uint64_t entry_point, uint64_t verified_entry_point,
+                       uint64_t osr_entry_point, uint32_t inline_method_cnt,
+                       std::map<int, const Method *> &methods,
+                       const Method* mainm, const std::string &name)
+                       : _code(code), _code_begin(code_begin), _entry_point(entry_point),
+                         _verified_entry_point(verified_entry_point), _osr_entry_point(osr_entry_point),
+                         _code_size(code_size), _inline_method_cnt(inline_method_cnt),
+                         _methods(methods), _mainm(mainm), _name(name)
 {
     assert(code != nullptr);
-
-    _record = cmd ? new CompiledMethodLoadInlineRecord(scopes_pc, scopes_pc_size,
-                                                       scopes_data, scopes_data_size,
-                                                       code_begin)
-                  : nullptr;
+    _record = new CompiledMethodLoadInlineRecord(scopes_pc, scopes_pc_size,
+                                                 scopes_data, scopes_data_size,
+                                                 code_begin);
 }
 
 JitSection::~JitSection()
 {
     delete _record;
-    delete _cmd;
+    _record = nullptr;
 }
 
 bool JitSection::read(uint8_t *buffer, uint8_t *size, uint64_t vaddr)
@@ -94,7 +107,7 @@ bool JitSection::read(uint8_t *buffer, uint8_t *size, uint64_t vaddr)
     /* Truncate if we try to read past the end of the section. */
     uint64_t space = limit - offset;
     if (space < *size)
-        *size = (uint16_t)space;
+        *size = (uint8_t)space;
 
     memcpy(buffer, _code + offset, *size);
     return true;

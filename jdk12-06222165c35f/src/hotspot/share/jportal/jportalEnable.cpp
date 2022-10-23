@@ -20,7 +20,6 @@
 bool                       JPortalEnable::_initialized     = false;
 int                        JPortalEnable::_shm_id          = -1;
 address                    JPortalEnable::_shm_addr        = NULL;
-GrowableArray<Method *>*   JPortalEnable::_method_array    = NULL;
 
 inline u4 JPortalEnable::get_java_tid(JavaThread* thread) {
   oop obj = ((JavaThread*)thread)->threadObj();
@@ -117,6 +116,32 @@ void JPortalEnable::dump_codelets() {
 #endif
 }
 
+void JPortalEnable::dump_method_initial(Method *moop) {
+  assert(JPortalEnable_lock->is_locked(), "JPortalEnable error: method intial must have");
+
+  u4 size = 0;
+  int klass_name_length = moop->klass_name()->utf8_length();
+  int name_length = moop->name()->utf8_length();
+  int sig_length = moop->signature()->utf8_length();
+  char *klass_name = (char *)moop->klass_name()->bytes();
+  char *method_name = (char *)moop->name()->bytes();
+  char *method_signature = (char *)moop->signature()->bytes();
+
+  size = sizeof(MethodInitial) + klass_name_length + name_length + sig_length;
+  MethodInitial me(klass_name_length, name_length, sig_length, (u8)moop, size);
+
+  if (JPortalShmVolume - sizeof(ShmHeader) <= size) {
+    fprintf(stderr, "JPortalEnable error: ignore entry for size too big.\n");
+    return;
+  }
+
+  dump_data((address)&me, sizeof(me));
+  dump_data((address)klass_name, klass_name_length);
+  dump_data((address)method_name, name_length);
+  dump_data((address)method_signature, sig_length);
+  return;
+}
+
 void JPortalEnable::dump_method_entry(JavaThread *thread, Method *moop) {
   MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
 
@@ -130,33 +155,40 @@ void JPortalEnable::dump_method_entry(JavaThread *thread, Method *moop) {
     return;
   }
 
-  u4 size = 0;
-  int idx = _method_array->find(moop);
-  if (idx == -1) {
-    int klass_name_length = moop->klass_name()->utf8_length();
-    int name_length = moop->name()->utf8_length();
-    int sig_length = moop->signature()->utf8_length();
-    char *klass_name = (char *)moop->klass_name()->bytes();
-    char *method_name = (char *)moop->name()->bytes();
-    char *method_signature = (char *)moop->signature()->bytes();
+  if (!moop->is_jportal())
+    return;
 
-    size = sizeof(MethodEntryInitial) + klass_name_length + name_length + sig_length;
-    MethodEntryInitial me(idx, klass_name_length, name_length, sig_length, get_java_tid(thread), size);
+  if (!moop->jportal_dumped()) {
+    dump_method_initial(moop);
+    moop->set_jportal_dumped();
+  }
+  u4 size = sizeof(MethodEntryInfo);
+  MethodEntryInfo me(get_java_tid(thread), (u8)moop, size);
+  dump_data((address)&me, size);
+}
 
-    if (JPortalShmVolume - sizeof(ShmHeader) <= size) {
-      fprintf(stderr, "JPortalEnable error: ignore entry for size too big.\n");
-      return;
-    }
+void JPortalEnable::dump_method_exit(JavaThread *thread, Method *moop) {
+  MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
 
-    dump_data((address)&me, sizeof(me));
-    dump_data((address)klass_name, klass_name_length);
-    dump_data((address)method_name, name_length);
-    dump_data((address)method_signature, sig_length);
+  if (!_initialized) {
+    fprintf(stderr, "JPortalEnable error: method exit before initialize.\n");
     return;
   }
 
-  size = sizeof(MethodEntryInfo);
-  MethodEntryInfo me(idx, get_java_tid(thread), size);
+  if (!thread || !moop) {
+    fprintf(stderr, "JPortalEnable error: empty method exit.\n");
+    return;
+  }
+
+  if (!moop->is_jportal())
+    return;
+
+  if (!moop->jportal_dumped()) {
+    dump_method_initial(moop);
+    moop->set_jportal_dumped();
+  }
+  u4 size = sizeof(MethodExitInfo);
+  MethodExitInfo me(get_java_tid(thread), (u8)moop, size);
   dump_data((address)&me, size);
 }
 
@@ -262,13 +294,13 @@ void JPortalEnable::dump_compiled_method_unload(Method *moop, nmethod *nm) {
 void JPortalEnable::dump_thread_start(JavaThread *thread) {
   MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
 
-  if (!thread) {
-    fprintf(stderr, "JPortalEnable error: empty thread start.\n");
+  if (!_initialized) {
+    // thread before initialized can be simply ignored
     return;
   }
 
-  if (!_initialized) {
-    // thread before initialized can be simply ignored
+  if (!thread) {
+    fprintf(stderr, "JPortalEnable error: empty thread start.\n");
     return;
   }
 
@@ -312,9 +344,6 @@ void JPortalEnable::destroy() {
   if (!_initialized)
     return;
 
-  delete _method_array;
-  _method_array = NULL;
-
   shmdt(_shm_addr);
 
   // let subprocess delete shared memory
@@ -330,7 +359,7 @@ void JPortalEnable::init() {
     MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
 
     // initialized
-    if (_initialized)
+    if (!JPortal || _initialized)
       return;
 
     // open pipe
@@ -431,8 +460,6 @@ void JPortalEnable::init() {
       return;
     }
     close(pipe_fd[0]);
-
-    _method_array = new(ResourceObj::C_HEAP, mtInternal) GrowableArray<Method*> (10, true);
 
     // Succeed
     _initialized = true;

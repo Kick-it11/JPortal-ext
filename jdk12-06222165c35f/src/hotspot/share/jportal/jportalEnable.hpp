@@ -7,22 +7,12 @@
 class JavaThread;
 class JPortalEnable {
   private:
-    // const static int number_of_states = 10;
-    // const static int number_of_return_entries = 6;
-    // const static int number_of_return_addrs = 10;
-    // const static int number_of_method_entries = 34;
-    // const static int number_of_result_handlers = 10;
-    // const static int number_of_deopt_entries = 7;
-    // const static int dispatch_length = 256;
-    // const static int number_of_codes = 239;
 
     static bool      _initialized;     // indicate JPortal is initialized
 
     // shared memory related info
     static int       _shm_id;          // shared memory identifier
     static address   _shm_addr;        // start address of shared memory
-
-    static GrowableArray<Method *> *_method_array;  // method array
 
   public:
     struct ShmHeader {
@@ -33,15 +23,15 @@ class JPortalEnable {
 
     // JVM runtime dump type
     enum DumpType {
-      _illegal = -1,
-      _method_entry_initial,     // first method entry: map between idx to method signature
-      _method_entry,             // method entry: when call
-      _compiled_method_load,     // after loading a compiled method: entry, codes, scopes data etc included
-      _compiled_method_unload,   // after unloading a compiled method
-      _thread_start,             // a thread begins, map between system tid and java tid
-      _codelet_info,             // templates info etc...
-      _inline_cache_add,         // inline cache: a map between a source ip to a destination ip
-      _inline_cache_clear,       // inline cache clear: delete the map
+      _method_initial_info,           // first method entry: map between idx to method signature
+      _method_entry_info,             // method entry: when call
+      _method_exit_info,              // method exit: when exit
+      _compiled_method_load_info,     // after loading a compiled method: entry, codes, scopes data etc included
+      _compiled_method_unload_info,   // after unloading a compiled method
+      _thread_start_info,             // a thread begins, map between system tid and java tid
+      _codelet_info,                  // templates info etc...
+      _inline_cache_add_info,         // inline cache: a map between a source ip to a destination ip
+      _inline_cache_clear_info,       // inline cache clear: delete the map
     };
 
     struct DumpInfo {
@@ -50,25 +40,24 @@ class JPortalEnable {
       u8 time;
     };
 
-    struct MethodEntryInitial {
+    struct MethodInitial {
       struct DumpInfo info;
-      u4 idx;
       u4 klass_name_length;
       u4 method_name_length;
       u4 method_signature_length;
-      u4 tid;
       u4 _pending;
+      u8 method;
 
-      MethodEntryInitial(u4 _idx, u4 _klass_name_length,
-                         u4 _method_name_length,
-                         u4 _method_signature_length,
-                         u4 _tid, u4 _size) :
-        idx(_idx),
+      MethodInitial(u4 _klass_name_length,
+                    u4 _method_name_length,
+                    u4 _method_signature_length,
+                    u8 _method,
+                    u4 _size) :
         klass_name_length(_klass_name_length),
         method_name_length(_method_name_length),
         method_signature_length(_method_signature_length),
-        tid(_tid) {
-        info.type = _method_entry_initial;
+        method(_method) {
+        info.type = _method_initial_info;
         info.size = _size;
         info.time = get_timestamp();
       }
@@ -76,10 +65,23 @@ class JPortalEnable {
 
     struct MethodEntryInfo {
       struct DumpInfo info;
-      u4 idx;
       u4 tid;
-      MethodEntryInfo(u4 _idx, u4 _tid, u4 _size) : idx(_idx), tid(_tid) {
-        info.type = _method_entry;
+      u4 _pending;
+      u8 method;
+      MethodEntryInfo(u4 _tid, u8 _method, u4 _size) : tid(_tid), method(_method) {
+        info.type = _method_entry_info;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
+    };
+
+    struct MethodExitInfo {
+      struct DumpInfo info;
+      u4 tid;
+      u4 _pending;
+      u8 method;
+      MethodExitInfo(u4 _tid, u8 _method, u4 _size) : tid(_tid), method(_method) {
+        info.type = _method_exit_info;
         info.size = _size;
         info.time = get_timestamp();
       }
@@ -110,7 +112,7 @@ class JPortalEnable {
                        code_size(_code_size),
                        scopes_pc_size(_scopes_pc_size),
                        scopes_data_size(_scopes_data_size) {
-        info.type = _compiled_method_load;
+        info.type = _compiled_method_load_info;
         info.size = _size;
         info.time = get_timestamp();
       }
@@ -121,7 +123,7 @@ class JPortalEnable {
       u8 code_begin;
 
       CompiledMethodUnloadInfo(u8 _code_begin, u8 _size) : code_begin(_code_begin) {
-        info.type = _compiled_method_unload;
+        info.type = _compiled_method_unload_info;
         info.size = _size;
         info.time = get_timestamp();
       }
@@ -149,7 +151,7 @@ class JPortalEnable {
       u4 sys_tid;
 
       ThreadStartInfo(u4 _java_tid, u4 _sys_tid, u4 _size) : java_tid(_java_tid), sys_tid(_sys_tid) {
-        info.type = _thread_start;
+        info.type = _thread_start_info;
         info.size = _size;
         info.time = get_timestamp();
       }
@@ -161,7 +163,7 @@ class JPortalEnable {
       u8 dest;
 
       InlineCacheAdd(u8 _src, u8 _dest, u4 size) : src(_src), dest(_dest) {
-        info.type = _inline_cache_add;
+        info.type = _inline_cache_add_info;
         info.size = size;
         info.time = get_timestamp();
       }
@@ -172,7 +174,7 @@ class JPortalEnable {
       u8 src;
 
       InlineCacheClear(u8 _src, u4 size) : src(_src) {
-        info.type = _inline_cache_clear;
+        info.type = _inline_cache_clear_info;
         info.size = size;
         info.time = get_timestamp();
       }
@@ -241,7 +243,11 @@ class JPortalEnable {
 
     static void dump_codelets();
 
+    static void dump_method_initial(Method *moop);
+
     static void dump_method_entry(JavaThread *thread, Method *moop);
+
+    static void dump_method_exit(JavaThread *thread, Method *moop);
 
     static void dump_compiled_method_load(Method *moop, nmethod *nm);
 

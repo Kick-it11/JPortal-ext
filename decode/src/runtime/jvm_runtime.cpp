@@ -10,7 +10,7 @@ uint8_t *JVMRuntime::begin = nullptr;
 uint8_t *JVMRuntime::end = nullptr;
 const JVMRuntime::CodeletsInfo *JVMRuntime::entries = nullptr;
 std::map<uint32_t, uint32_t> JVMRuntime::thread_map;
-std::map<int, const Method *> JVMRuntime::md_map;
+std::map<uint64_t, const Method *> JVMRuntime::md_map;
 std::map<const uint8_t *, JitSection *> JVMRuntime::section_map;
 bool JVMRuntime::initialized = false;
 
@@ -42,7 +42,7 @@ void JVMRuntime::move_on(uint64_t time)
             _current += sizeof(CodeletsInfo);
             break;
         }
-        case _method_entry_initial_info:
+        case _method_initial_info:
         {
             const MethodEntryInitial *me;
             me = (const MethodEntryInitial *)_current;
@@ -60,6 +60,13 @@ void JVMRuntime::move_on(uint64_t time)
             const MethodEntryInfo *me;
             me = (const MethodEntryInfo *)_current;
             _current += sizeof(MethodEntryInfo);
+            break;
+        }
+        case _method_exit_info:
+        {
+            const MethodExitInfo *me;
+            me = (const MethodExitInfo *)_current;
+            _current += sizeof(MethodExitInfo);
             break;
         }
         case _compiled_method_load_info:
@@ -271,7 +278,7 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
             buffer += sizeof(CodeletsInfo);
             break;
         }
-        case _method_entry_initial_info:
+        case _method_initial_info:
         {
             const MethodEntryInitial *me;
             me = (const MethodEntryInitial *)buffer;
@@ -285,7 +292,7 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
             std::string klassName = std::string(klass_name, me->klass_name_length);
             std::string methodName = std::string(name, me->method_name_length) + std::string(sig, me->method_signature_length);
             const Method *method = analyser->get_method(klassName, methodName);
-            md_map[me->idx] = method;
+            md_map[me->method] = method;
             break;
         }
         case _method_entry_info:
@@ -293,6 +300,13 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
             const MethodEntryInfo *me;
             me = (const MethodEntryInfo *)buffer;
             buffer += sizeof(MethodEntryInfo);
+            break;
+        }
+        case _method_exit_info:
+        {
+            const MethodExitInfo *me;
+            me = (const MethodExitInfo *)buffer;
+            buffer += sizeof(MethodExitInfo);
             break;
         }
         case _compiled_method_load_info:
@@ -420,7 +434,7 @@ void JVMRuntime::print()
             std::cout << "CodeletsInfo " << entries->_low_bound << " " << entries->_high_bound << std::endl;
             break;
         }
-        case _method_entry_initial_info:
+        case _method_initial_info:
         {
             const MethodEntryInitial *me;
             me = (const MethodEntryInitial *)buffer;
@@ -431,7 +445,7 @@ void JVMRuntime::print()
             buffer += me->method_name_length;
             std::string sig((const char*)buffer, me->method_signature_length);
             buffer += me->method_signature_length;
-            std::cout << "MethodEntryInitial: " << me->idx << " " << me->tid << " "
+            std::cout << "MethodEntryInitial: " << me->method << " " << me->method << " "
                       << klass_name << " " << name << " " << sig << std::endl;
             break;
         }
@@ -440,7 +454,15 @@ void JVMRuntime::print()
             const MethodEntryInfo *me;
             me = (const MethodEntryInfo *)buffer;
             buffer += sizeof(MethodEntryInfo);
-            std::cout << "MethodEntryInitial: " << me->idx << " " << me->tid << std::endl;
+            std::cout << "MethodEntry: " << me->method << " " << me->tid << std::endl;
+            break;
+        }
+        case _method_exit_info:
+        {
+            const MethodExitInfo *me;
+            me = (const MethodExitInfo *)buffer;
+            buffer += sizeof(MethodExitInfo);
+            std::cout << "MethodExit: " << me->method << " " << me->tid << std::endl;
             break;
         }
         case _compiled_method_load_info:

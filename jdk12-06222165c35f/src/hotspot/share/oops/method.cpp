@@ -106,7 +106,7 @@ Method::Method(ConstMethod* xconst, AccessFlags access_flags) {
     clear_native_function();
     set_signature_handler(NULL);
   }
-
+  _jportal_dumped=false;
   NOT_PRODUCT(set_compiled_invocation_count(0);)
 }
 

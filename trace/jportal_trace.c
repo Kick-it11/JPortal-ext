@@ -996,7 +996,7 @@ static int shm_record(void *shm_addr, __u64 *start, int fd) {
             return -1;
         }
 
-        if (record_write(1, data_begin, head) < 0)
+        if (record_write(fd, data_begin, head) < 0)
         {
             return -1;
         }

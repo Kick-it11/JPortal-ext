@@ -116,9 +116,14 @@ class Method : public Metadata {
   CompiledMethod* _aot_code;
 #endif
 
+  // JPortal
+  bool            _jportal_dumped;
+
   // Constructor
   Method(ConstMethod* xconst, AccessFlags access_flags);
  public:
+  bool           jportal_dumped()     { return _jportal_dumped; }
+  void           set_jportal_dumped() { _jportal_dumped = true; }
 
   static Method* allocate(ClassLoaderData* loader_data,
                           int byte_code_size,

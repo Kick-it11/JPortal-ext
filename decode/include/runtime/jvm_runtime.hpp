@@ -74,10 +74,13 @@ public:
     enum DumpType
     {
         /* First method entry: map between idx to method signature */
-        _method_entry_initial_info,
+        _method_initial_info,
 
         /* method entry: when call */
         _method_entry_info,
+
+        /* method exit: when exit*/
+        _method_exit_info,
 
         /* After loading a compiled method: entry, codes, scopes data etc included*/
         _compiled_method_load_info,
@@ -107,18 +110,25 @@ public:
 
     struct MethodEntryInitial
     {
-        uint32_t idx;
         uint32_t klass_name_length;
         uint32_t method_name_length;
         uint32_t method_signature_length;
-        uint32_t tid;
         uint32_t _pending;
+        uint64_t method;
     };
 
     struct MethodEntryInfo
     {
-        uint32_t idx;
         uint32_t tid;
+        uint32_t _pending;
+        uint64_t method;
+    };
+
+    struct MethodExitInfo
+    {
+        uint32_t tid;
+        uint32_t _pending;
+        uint64_t method;
     };
 
     struct CompiledMethodLoadInfo
@@ -238,7 +248,7 @@ private:
     static const CodeletsInfo *entries;
     /* map between system thread id & java thread id */
     static std::map<uint32_t, uint32_t> thread_map;
-    static std::map<int, const Method *> md_map;
+    static std::map<uint64_t, const Method *> md_map;
     static std::map<const uint8_t *, JitSection *> section_map;
     static bool initialized;
 };

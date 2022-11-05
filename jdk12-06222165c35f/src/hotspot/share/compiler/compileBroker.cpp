@@ -897,9 +897,12 @@ void CompileBroker::possibly_add_compiler_threads() {
 
   julong available_memory = os::available_memory();
   // If SegmentedCodeCache is off, both values refer to the single heap (with type CodeBlobType::All).
-  size_t available_cc_np  = CodeCache::unallocated_capacity(CodeBlobType::MethodNonProfiled),
-         available_cc_p   = CodeCache::unallocated_capacity(CodeBlobType::MethodProfiled);
-
+  size_t available_cc_np  = CodeCache::unallocated_capacity(CodeBlobType::MethodNonProfiled, false),
+         available_cc_p   = CodeCache::unallocated_capacity(CodeBlobType::MethodProfiled, false);
+  if (JPortal) {
+    available_cc_np  = MIN2(available_cc_np, CodeCache::unallocated_capacity(CodeBlobType::MethodNonProfiled, true));     
+    available_cc_p   = MIN2(available_cc_p, CodeCache::unallocated_capacity(CodeBlobType::MethodProfiled, true));
+  }
   // Only do attempt to start additional threads if the lock is free.
   if (!CompileThread_lock->try_lock()) return;
 

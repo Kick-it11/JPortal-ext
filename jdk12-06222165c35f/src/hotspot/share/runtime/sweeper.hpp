@@ -116,7 +116,7 @@ class NMethodSweeper : public AllStatic {
   static CodeBlobClosure* prepare_mark_active_nmethods();
   static CodeBlobClosure* prepare_reset_hotness_counters();
   static void sweeper_loop();
-  static void notify(int code_blob_type, bool jportal = false);  // Possibly start the sweeper thread.
+  static void notify(int code_blob_type, bool jportal);  // Possibly start the sweeper thread.
   static void force_sweep();
 
   static int hotness_counter_reset_val();

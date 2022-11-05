@@ -88,10 +88,8 @@ class TemplateTable: AllStatic {
 
  private:
   static bool            _is_initialized;        // true if TemplateTable has been initialized
-  static Template        _normal_template_table     [Bytecodes::number_of_codes];
-  static Template        _normal_template_table_wide[Bytecodes::number_of_codes];
-  static Template        _mirror_template_table     [Bytecodes::number_of_codes];
-  static Template        _mirror_template_table_wide[Bytecodes::number_of_codes];
+  static Template        _template_table     [Bytecodes::number_of_codes];
+  static Template        _template_table_wide[Bytecodes::number_of_codes];
 
   static Template*       _desc;                  // the current template to be generated
   static Bytecodes::Code bytecode()              { return _desc->bytecode(); }
@@ -332,12 +330,12 @@ class TemplateTable: AllStatic {
   static void transition(TosState tos_in, TosState tos_out);// checks if in/out states expected by template generator correspond to table entries
 
   // initialization helpers
-  static void def(Bytecodes::Code code, int flags, TosState in, TosState out, void (*gen)(            ), char filler , bool mirror = false);
-  static void def(Bytecodes::Code code, int flags, TosState in, TosState out, void (*gen)(int arg     ), int arg     , bool mirror = false);
-  static void def(Bytecodes::Code code, int flags, TosState in, TosState out, void (*gen)(bool arg    ), bool arg    , bool mirror = false);
-  static void def(Bytecodes::Code code, int flags, TosState in, TosState out, void (*gen)(TosState tos), TosState tos, bool mirror = false);
-  static void def(Bytecodes::Code code, int flags, TosState in, TosState out, void (*gen)(Operation op), Operation op, bool mirror = false);
-  static void def(Bytecodes::Code code, int flags, TosState in, TosState out, void (*gen)(Condition cc), Condition cc, bool mirror = false);
+  static void def(Bytecodes::Code code, int flags, TosState in, TosState out, void (*gen)(            ), char filler );
+  static void def(Bytecodes::Code code, int flags, TosState in, TosState out, void (*gen)(int arg     ), int arg     );
+ static void def(Bytecodes::Code code, int flags, TosState in, TosState out, void (*gen)(bool arg    ), bool arg    );
+  static void def(Bytecodes::Code code, int flags, TosState in, TosState out, void (*gen)(TosState tos), TosState tos);
+  static void def(Bytecodes::Code code, int flags, TosState in, TosState out, void (*gen)(Operation op), Operation op);
+  static void def(Bytecodes::Code code, int flags, TosState in, TosState out, void (*gen)(Condition cc), Condition cc);
 
   friend class Template;
 
@@ -350,8 +348,8 @@ class TemplateTable: AllStatic {
   static void pd_initialize();
 
   // Templates
-  static Template* template_for     (Bytecodes::Code code, bool mirror = false)  { Bytecodes::check     (code); return &((mirror?_mirror_template_table:_normal_template_table)     [code]); }
-  static Template* template_for_wide(Bytecodes::Code code, bool mirror = false)  { Bytecodes::wide_check(code); return &((mirror?_mirror_template_table_wide:_normal_template_table_wide)[code]); }
+  static Template* template_for     (Bytecodes::Code code)  { Bytecodes::check     (code); return &_template_table     [code]; }
+  static Template* template_for_wide(Bytecodes::Code code)  { Bytecodes::wide_check(code); return &_template_table_wide[code]; }
 
   // Platform specifics
 #include CPU_HEADER(templateTable)

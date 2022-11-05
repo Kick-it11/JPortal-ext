@@ -489,6 +489,7 @@ static void tsc_ctc_ratio(__u32 *n, __u32 *d)
     *d = eax;
 }
 
+/* these reads and writes might be non-atomic in a non-64 bit platform */
 static __u64 auxtrace_mmap_read_head(struct perf_event_mmap_page *header)
 {
     __u64 head = header->aux_head;
@@ -1131,7 +1132,7 @@ int main(int argc, char *argv[])
     }
     close(write_pipe);
 
-    printf("JPortal Tracing starts(process: %d  ip filter: %lx-%lx).\n",
+    printf("JPortalTrace starts(process: %d  ip filter: %lx-%lx).\n",
             rec->pid, _low_bound, _high_bound);
 
     for (;;)
@@ -1155,11 +1156,11 @@ out:
     trace_event_disable(rec);
     trace_event_close(rec);
     trace_record_free(rec);
-    return 0;
+    exit(0);
 
 err:
     trace_event_disable(rec);
     trace_event_close(rec);
     trace_record_free(rec);
-    return -1;
+    exit(-1);
 }

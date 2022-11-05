@@ -169,7 +169,7 @@ address TemplateInterpreterGenerator::generate_exception_handler_common(
                rarg, rarg2);
   }
   // throw exception
-  __ jump(ExternalAddress(Interpreter::throw_exception_entry(Interpreter::is_mirror(entry))));
+  __ jump(ExternalAddress(Interpreter::throw_exception_entry()));
   return entry;
 }
 
@@ -365,8 +365,7 @@ address TemplateInterpreterGenerator::generate_safept_entry_for(
   address entry = __ pc();
   __ push(state);
   __ call_VM(noreg, runtime_entry);
-  __ dispatch_via(vtos, Interpreter::is_mirror(entry)?Interpreter::_jportal_normal_table.table_for(vtos):
-                                Interpreter::_normal_normal_table.table_for(vtos));
+  __ dispatch_via(vtos, Interpreter::_normal_table.table_for(vtos));
   return entry;
 }
 
@@ -755,7 +754,7 @@ address TemplateInterpreterGenerator::generate_Reference_get_entry(void) {
 
   // generate a vanilla interpreter entry as the slow path
   __ bind(slow_path);
-  __ jump_to_entry(Interpreter::entry_for_kind(Interpreter::zerolocals, Interpreter::is_mirror(entry)));
+  __ jump_to_entry(Interpreter::entry_for_kind(Interpreter::zerolocals));
   return entry;
 }
 
@@ -1163,7 +1162,7 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
 
   {
     Label no_oop;
-    __ lea(t, ExternalAddress(AbstractInterpreter::result_handler(T_OBJECT, Interpreter::is_mirror(entry_point))));
+    __ lea(t, ExternalAddress(AbstractInterpreter::result_handler(T_OBJECT)));
     __ cmpptr(t, Address(rbp, frame::interpreter_frame_result_handler_offset*wordSize));
     __ jcc(Assembler::notEqual, no_oop);
     // retrieve result
@@ -1499,9 +1498,7 @@ address TemplateInterpreterGenerator::generate_normal_entry(bool synchronized) {
 void TemplateInterpreterGenerator::generate_throw_exception() {
   // Entry point in previous activation (i.e., if the caller was
   // interpreted)
-  address addr = __ pc();
-  bool mirror = Interpreter::is_mirror(addr);
-  (mirror?Interpreter::_mirror_rethrow_exception_entry:Interpreter::_normal_rethrow_exception_entry) = __ pc();
+  Interpreter::_rethrow_exception_entry = __ pc();
   // Restore sp to interpreter_frame_last_sp even though we are going
   // to empty the expression stack for the exception processing.
   __ movptr(Address(rbp, frame::interpreter_frame_last_sp_offset * wordSize), (int32_t)NULL_WORD);
@@ -1511,7 +1508,7 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
   __ restore_locals();
   LP64_ONLY(__ reinit_heapbase());  // restore r12 as heapbase.
   // Entry point for exceptions thrown within interpreter code
-  (mirror?Interpreter::_mirror_throw_exception_entry:Interpreter::_normal_throw_exception_entry) = __ pc();
+  Interpreter::_throw_exception_entry = __ pc();
   // expression stack is undefined here
   // rax: exception
   // r13/rsi: exception bcp
@@ -1550,7 +1547,7 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
   // JVMTI PopFrame support
   //
 
-  (mirror?Interpreter::_mirror_remove_activation_preserving_args_entry:Interpreter::_normal_remove_activation_preserving_args_entry) = __ pc();
+  Interpreter::_remove_activation_preserving_args_entry = __ pc();
   __ empty_expression_stack();
   // Set the popframe_processing bit in pending_popframe_condition
   // indicating that we are currently handling popframe, so that
@@ -1691,7 +1688,7 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
   __ dispatch_next(vtos);
   // end of PopFrame support
 
-  (mirror?Interpreter::_mirror_remove_activation_entry:Interpreter::_normal_remove_activation_entry) = __ pc();
+  Interpreter::_remove_activation_entry = __ pc();
 
   // preserve exception over this code sequence
   __ pop_ptr(rax);
@@ -1865,15 +1862,15 @@ void TemplateInterpreterGenerator::trace_bytecode(Template* t) {
   // Call a little run-time stub to avoid blow-up for each bytecode.
   // The run-time runtime saves the right registers, depending on
   // the tosca in-state for the given template.
-  address addr = __ pc();
-  assert(Interpreter::trace_code(t->tos_in(), Interpreter::is_mirror(addr)) != NULL,
+
+  assert(Interpreter::trace_code(t->tos_in()) != NULL,
          "entry must have been generated");
 #ifndef _LP64
   __ call(RuntimeAddress(Interpreter::trace_code(t->tos_in())));
 #else
   __ mov(r12, rsp); // remember sp (can only use r12 if not using call_VM)
   __ andptr(rsp, -16); // align stack as required by ABI
-  __ call(RuntimeAddress(Interpreter::trace_code(t->tos_in(), Interpreter::is_mirror(addr))));
+  __ call(RuntimeAddress(Interpreter::trace_code(t->tos_in())));
   __ mov(rsp, r12); // restore sp
   __ reinit_heapbase();
 #endif // _LP64

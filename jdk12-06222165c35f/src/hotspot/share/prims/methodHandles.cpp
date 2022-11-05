@@ -98,8 +98,7 @@ void MethodHandlesAdapterGenerator::generate() {
     StubCodeMark mark(this, "MethodHandle::interpreter_entry", vmIntrinsics::name_at(iid));
     address entry = MethodHandles::generate_method_handle_interpreter_entry(_masm, iid);
     if (entry != NULL) {
-      Interpreter::set_entry_for_kind(mk, entry, false);
-      Interpreter::set_entry_for_kind(mk, entry, true);
+      Interpreter::set_entry_for_kind(mk, entry);
     }
     // If the entry is not set, it will throw AbstractMethodError.
   }

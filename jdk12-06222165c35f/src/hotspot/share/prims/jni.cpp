@@ -4045,12 +4045,12 @@ _JNI_IMPORT_OR_EXPORT_ jint JNICALL JNI_GetCreatedJavaVMs(JavaVM **vm_buf, jsize
 }
 
 // JPortal
-_JNI_IMPORT_OR_EXPORT_ void JNICALL JNI_JPortalEnableInit() {
-  JPortalEnable::init();
-}
-
-_JNI_IMPORT_OR_EXPORT_ void JNICALL JNI_JPortalEnableDestroy() {
-  JPortalEnable::destroy();
+_JNI_IMPORT_OR_EXPORT_ void JNICALL JNI_JPortalEnableTrace() {
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    JPortalEnable::trace();
+  }
+#endif
 }
 
 extern "C" {

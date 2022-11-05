@@ -381,14 +381,14 @@ RuntimeStub* RuntimeStub::new_runtime_stub(const char* stub_name,
 
 
 void* RuntimeStub::operator new(size_t s, unsigned size) throw() {
-  void* p = CodeCache::allocate(size, CodeBlobType::NonNMethod);
+  void* p = CodeCache::allocate(size, CodeBlobType::NonNMethod, false);
   if (!p) fatal("Initial size of CodeCache is too small");
   return p;
 }
 
 // operator new shared by all singletons:
 void* SingletonBlob::operator new(size_t s, unsigned size) throw() {
-  void* p = CodeCache::allocate(size, CodeBlobType::NonNMethod);
+  void* p = CodeCache::allocate(size, CodeBlobType::NonNMethod, false);
   if (!p) fatal("Initial size of CodeCache is too small");
   return p;
 }

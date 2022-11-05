@@ -66,6 +66,7 @@ class ConstMethod;
 class InlineTableSizes;
 class KlassSizeStats;
 class CompiledMethod;
+class JPortalStub;
 
 class Method : public Metadata {
  friend class VMStructs;
@@ -116,14 +117,13 @@ class Method : public Metadata {
   CompiledMethod* _aot_code;
 #endif
 
-  // JPortal
-  bool            _jportal_dumped;
+#ifdef JPORTAL_ENABLE
+  JPortalStub* _jportal_stub;
+#endif
 
   // Constructor
   Method(ConstMethod* xconst, AccessFlags access_flags);
  public:
-  bool           jportal_dumped()     { return _jportal_dumped; }
-  void           set_jportal_dumped() { _jportal_dumped = true; }
 
   static Method* allocate(ClassLoaderData* loader_data,
                           int byte_code_size,

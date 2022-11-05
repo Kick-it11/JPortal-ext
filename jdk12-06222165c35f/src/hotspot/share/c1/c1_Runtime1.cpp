@@ -1277,9 +1277,12 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* thread, Runtime1::StubID stub_i
     }
   }
 
+#ifdef JPORTAL_ENABLE
   // JPortal
-  if (ic_dump)
+  if (ic_dump) {
     JPortalEnable::dump_inline_cache_add(ic_src, ic_dest);
+  }
+#endif
 
   // If we are patching in a non-perm oop, make sure the nmethod
   // is on the right list.

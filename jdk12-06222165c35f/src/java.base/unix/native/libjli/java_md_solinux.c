@@ -621,15 +621,9 @@ LoadJavaVM(const char *jvmpath, InvocationFunctions *ifn)
     }
 
     // JPortal
-    ifn->JPortalEnableInit = (JPortalEnableInit_t)
-        dlsym(libjvm, "JNI_JPortalEnableInit");
-    if (ifn->JPortalEnableInit == NULL) {
-        JLI_ReportErrorMessage(DLL_ERROR2, jvmpath, dlerror());
-        return JNI_FALSE;
-    }
-    ifn->JPortalEnableDestroy = (JPortalEnableDestroy_t)
-        dlsym(libjvm, "JNI_JPortalEnableDestroy");
-    if (ifn->JPortalEnableDestroy == NULL) {
+    ifn->JPortalEnableTrace = (JPortalEnableTrace_t)
+        dlsym(libjvm, "JNI_JPortalEnableTrace");
+    if (ifn->JPortalEnableTrace == NULL) {
         JLI_ReportErrorMessage(DLL_ERROR2, jvmpath, dlerror());
         return JNI_FALSE;
     }

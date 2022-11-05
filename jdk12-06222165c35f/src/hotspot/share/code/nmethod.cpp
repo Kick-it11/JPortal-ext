@@ -1284,9 +1284,12 @@ bool nmethod::make_not_entrant_or_zombie(int state) {
     unlink_from_method(false /* already owns Patching_lock */);
   } // leave critical region under Patching_lock
 
+#ifdef JPORTAL_ENABLE
   // JPortal
-  if (ic_dump)
+  if (ic_dump) {
     JPortalEnable::dump_inline_cache_add(ic_src, ic_dest);
+  }
+#endif
 
 #ifdef ASSERT
   if (is_osr_method() && method() != NULL) {
@@ -1474,10 +1477,12 @@ void nmethod::post_compiled_method_load_event() {
       JvmtiDeferredEvent::compiled_method_load_event(this));
   }
 
+#ifdef JPORTAL_ENABLE
   // JPortal
   if (JPortal && CodeCache::is_jportal((address)this)) {
     JPortalEnable::dump_compiled_method_load(moop, this);
   }
+#endif
 }
 
 jmethodID nmethod::get_and_cache_jmethod_id() {
@@ -1516,10 +1521,12 @@ void nmethod::post_compiled_method_unload() {
     JvmtiDeferredEventQueue::enqueue(event);
   }
 
+#ifdef JPORTAL_ENABLE
   // JPortal
   if (JPortal && CodeCache::is_jportal((address)this)) {
     JPortalEnable::dump_compiled_method_unload(method(), this);
   }
+#endif
 
   // The JVMTI CompiledMethodUnload event can be enabled or disabled at
   // any time. As the nmethod is being unloaded now we mark it has

@@ -80,16 +80,14 @@ typedef jint (JNICALL *CreateJavaVM_t)(JavaVM **pvm, void **env, void *args);
 typedef jint (JNICALL *GetDefaultJavaVMInitArgs_t)(void *args);
 typedef jint (JNICALL *GetCreatedJavaVMs_t)(JavaVM **vmBuf, jsize bufLen, jsize *nVMs);
 // JPortal
-typedef void (JNICALL *JPortalEnableInit_t)();
-typedef void (JNICALL *JPortalEnableDestroy_t)();
+typedef void (JNICALL *JPortalEnableTrace_t)();
 
 typedef struct {
     CreateJavaVM_t CreateJavaVM;
     GetDefaultJavaVMInitArgs_t GetDefaultJavaVMInitArgs;
     GetCreatedJavaVMs_t GetCreatedJavaVMs;
     // JPortal
-    JPortalEnableInit_t JPortalEnableInit;
-    JPortalEnableDestroy_t JPortalEnableDestroy;
+    JPortalEnableTrace_t JPortalEnableTrace;
 } InvocationFunctions;
 
 JNIEXPORT int JNICALL

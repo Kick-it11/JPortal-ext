@@ -535,6 +535,9 @@ JavaMain(void * _args)
     PostJVMInit(env, appClass, vm);
     CHECK_EXCEPTION_LEAVE(1);
 
+    // JPortal
+    ifn.JPortalEnableTrace();
+
     /*
      * The LoadMainClass not only loads the main class, it will also ensure
      * that the main method's signature is correct, therefore further checking
@@ -545,14 +548,9 @@ JavaMain(void * _args)
                                        "([Ljava/lang/String;)V");
     CHECK_EXCEPTION_NULL_LEAVE(mainID);
 
-    // JPortal
-    ifn.JPortalEnableInit();
-
     /* Invoke main method. */
     (*env)->CallStaticVoidMethod(env, mainClass, mainID, mainArgs);
 
-    // JPortal
-    ifn.JPortalEnableDestroy();
     /*
      * The launcher's exit code (in the absence of calls to
      * System.exit) will be non-zero if main threw an exception.

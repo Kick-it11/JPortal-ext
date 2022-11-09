@@ -74,7 +74,7 @@ inline void JPortalEnable::dump_data(address src, u4 size) {
   }
 }
 
-void JPortalEnable::dump_method_entry(Method *moop, address addr) {
+void JPortalEnable::dump_method_entry(Method *moop) {
   MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
 
   if (!_initialized) {
@@ -96,7 +96,7 @@ void JPortalEnable::dump_method_entry(Method *moop, address addr) {
   char *method_signature = (char *)moop->signature()->bytes();
 
   size = sizeof(MethodEntryInfo) + klass_name_length + name_length + sig_length;
-  MethodEntryInfo me(klass_name_length, name_length, sig_length, (u8)addr, size);
+  MethodEntryInfo me(klass_name_length, name_length, sig_length, (u8)moop->interpreter_entry(), size);
 
   if (!check_data(size)) {
     warning("JPortalEnable error: ignore entry for size too big");
@@ -147,6 +147,56 @@ void JPortalEnable::dump_branch_not_taken(address addr) {
   }
 
   dump_data((address)&bnti, sizeof(bnti));
+  return;
+}
+
+void JPortalEnable::dump_exception_handling(JavaThread *thread, Method *moop, int current_bci, int handler_bci) {
+  MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
+
+  if (!_initialized) {
+    warning("JPortalEnable error: dump exception before initialize");
+    return;
+  }
+
+  if (!thread || !moop) {
+    warning("JPortalEnable error: empty exception");
+    return;
+  }
+
+  u4 size = sizeof(struct ExceptionHandlingInfo);
+  ExceptionHandlingInfo ehi(current_bci, handler_bci, get_java_tid(thread), (u8)moop->interpreter_entry(), size);
+
+  if (!check_data(size)) {
+    warning("JPortalEnable error: ignore exception for size too big");
+    return;
+  }
+
+  dump_data((address)&ehi, sizeof(ehi));
+  return;
+}
+
+void JPortalEnable::dump_deoptimization(JavaThread *thread, Method *moop, int bci) {
+  MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
+
+  if (!_initialized) {
+    warning("JPortalEnable error: dump exception before initialize");
+    return;
+  }
+
+  if (!thread || !moop) {
+    warning("JPortalEnable error: empty exception");
+    return;
+  }
+
+  u4 size = sizeof(struct DeoptimizationInfo);
+  DeoptimizationInfo di(get_java_tid(thread), bci, (u8)moop->interpreter_entry(), size);
+
+  if (!check_data(size)) {
+    warning("JPortalEnable error: ignore branch not taken for size too big");
+    return;
+  }
+
+  dump_data((address)&di, sizeof(di));
   return;
 }
 

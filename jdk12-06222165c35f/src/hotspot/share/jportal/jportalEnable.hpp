@@ -28,6 +28,8 @@ class JPortalEnable {
       _method_entry_info,             // method entry
       _branch_taken_info,             // branch taken
       _branch_not_taken_info,         // branch not taken
+      _exception_handling_info,       // exception handling or maybe unwind
+      _deoptimization_info,           // deoptimization point
       _compiled_method_load_info,     // after loading a compiled method: entry, codes, scopes data etc included
       _compiled_method_unload_info,   // after unloading a compiled method
       _thread_start_info,             // a thread begins, map between system tid and java tid
@@ -70,7 +72,7 @@ class JPortalEnable {
       BranchTakenInfo(u8 _addr, u4 _size) : addr(_addr) {
         info.type = _branch_taken_info;
         info.size = _size;
-        info.type = get_timestamp();
+        info.time = get_timestamp();
       }
     };
 
@@ -80,7 +82,35 @@ class JPortalEnable {
       BranchNotTakenInfo(u8 _addr, u4 _size) : addr(_addr) {
         info.type = _branch_not_taken_info;
         info.size = _size;
-        info.type = get_timestamp();
+        info.time = get_timestamp();
+      }
+    };
+
+    struct ExceptionHandlingInfo {
+      struct DumpInfo info;
+      int current_bci;
+      int handler_bci; // -1 for unwind
+      u4 java_tid;
+      u4 _pending;
+      u8 addr; // mark for method
+      ExceptionHandlingInfo(int _current_bci, int _handler_bci, u4 _tid, u8 _addr, u4 _size) :
+        current_bci(_current_bci), handler_bci(_handler_bci), java_tid(_tid), addr(_addr) {
+        info.type = _exception_handling_info;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
+    };
+
+    struct DeoptimizationInfo {
+      struct DumpInfo info;
+      u4 java_tid;
+      u4 bci;
+      u8 addr;
+      DeoptimizationInfo(u4 _tid, u4 _bci, u8 _addr, u4 _size) :
+        java_tid(_tid), bci(_bci), addr(_addr) {
+        info.type = _deoptimization_info;
+        info.size = _size;
+        info.time = get_timestamp();
       }
     };
 
@@ -199,11 +229,15 @@ class JPortalEnable {
 
     static void trace();
 
-    static void dump_method_entry(Method *moop, address addr);
+    static void dump_method_entry(Method *moop);
 
     static void dump_branch_taken(address addr);
 
     static void dump_branch_not_taken(address addr);
+
+    static void dump_exception_handling(JavaThread *thread, Method *moop, int current_bci, int handler_bci);
+
+    static void dump_deoptimization(JavaThread *thread, Method *moop, int bci);
 
     static void dump_compiled_method_load(Method *moop, nmethod *nm);
 

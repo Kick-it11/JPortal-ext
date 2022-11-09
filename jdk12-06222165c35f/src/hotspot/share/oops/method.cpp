@@ -938,10 +938,10 @@ void Method::unlink_method() {
   if (JPortal && is_jportal()) {
     if (!_jportal_stub) {
       _jportal_stub = JPortalStubBuffer::new_jportal_stub();
-      JPortalEnable::dump_method_entry(this, _jportal_stub->code_begin());
+      _i2i_entry = _jportal_stub->code_begin();
+      JPortalEnable::dump_method_entry(this);
     }
     _jportal_stub->set_stub(Interpreter::entry_for_cds_method(this));
-    _i2i_entry = _jportal_stub->code_begin();
   } else {
 #endif
   _i2i_entry = Interpreter::entry_for_cds_method(this);
@@ -1046,12 +1046,9 @@ void Method::link_method(const methodHandle& h_method, TRAPS) {
     address entry = Interpreter::entry_for_cds_method(h_method);
 #ifdef JPORTAL_ENABLE
     if (JPortal && is_jportal()) {
-      if (!_jportal_stub) {
-        _jportal_stub = JPortalStubBuffer::new_jportal_stub();
-        JPortalEnable::dump_method_entry(this, _jportal_stub->code_begin());
-      }
-      assert(entry != NULL && entry == _jportal_stub->destination()
-             && _i2i_entry == _jportal_stub->code_begin(),
+      assert(_jportal_stub != NULL && entry != NULL &&
+             entry == _jportal_stub->destination() &&
+             _i2i_entry == _jportal_stub->code_begin(),
              "should be correctly set during dump time");
       if (adapter() != NULL) {
         return;
@@ -1087,10 +1084,10 @@ void Method::link_method(const methodHandle& h_method, TRAPS) {
     if (JPortal && is_jportal()) {
       if (!_jportal_stub) {
         _jportal_stub = JPortalStubBuffer::new_jportal_stub();
-        JPortalEnable::dump_method_entry(this, _jportal_stub->code_begin());
+        set_interpreter_entry(_jportal_stub->code_begin());
+        JPortalEnable::dump_method_entry(this);
       }
       _jportal_stub->set_stub(entry);
-      set_interpreter_entry(_jportal_stub->code_begin());
     } else {
 #endif
     set_interpreter_entry(entry);

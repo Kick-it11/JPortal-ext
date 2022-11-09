@@ -27,6 +27,7 @@
 #include "code/vmreg.inline.hpp"
 #include "interpreter/bytecode.hpp"
 #include "interpreter/interpreter.hpp"
+#include "jportal/jportalEnable.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
@@ -469,6 +470,12 @@ void vframeArrayElement::unpack_on_stack(int caller_actual_parameters,
   // The expression stack and locals are in the resource area don't leave
   // a dangling pointer in the vframeArray we leave around for debug
   // purposes
+
+#ifdef JPORTAL_ENABLE
+  if (JPortal && method()->is_jportal()) {
+    JPortalEnable::dump_deoptimization(thread, method(), method()->bci_from(bcp));
+  }
+#endif
 
   _locals = _expressions = NULL;
 

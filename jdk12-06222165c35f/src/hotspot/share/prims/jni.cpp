@@ -3968,6 +3968,13 @@ static jint JNI_CreateJavaVM_inner(JavaVM **vm, void **penv, void *args) {
 
     post_thread_start_event(thread);
 
+#ifdef JPORTAL_ENABLE
+    // JPortal
+    if (JPortal) {
+      JPortalEnable::dump_thread_start(thread);
+    }
+#endif
+
 #ifndef PRODUCT
     if (ReplayCompiles) ciReplay::replay(thread);
 

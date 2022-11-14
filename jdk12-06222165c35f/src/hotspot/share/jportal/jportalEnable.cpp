@@ -23,7 +23,7 @@ void JPortalEnable_exit() {
   JPortalEnable::destroy();
 }
 
-inline u4 JPortalEnable::get_java_tid(JavaThread* thread) {
+inline u8 JPortalEnable::get_java_tid(JavaThread* thread) {
   oop obj = ((JavaThread*)thread)->threadObj();
   return (obj == NULL) ? 0 : java_lang_Thread::thread_id(obj);
 }
@@ -96,14 +96,14 @@ void JPortalEnable::dump_method_entry(Method *moop) {
   char *method_signature = (char *)moop->signature()->bytes();
 
   size = sizeof(MethodEntryInfo) + klass_name_length + name_length + sig_length;
-  MethodEntryInfo me(klass_name_length, name_length, sig_length, (u8)moop->interpreter_entry(), size);
+  MethodEntryInfo mei(klass_name_length, name_length, sig_length, (u8)moop->interpreter_entry(), size);
 
   if (!check_data(size)) {
     warning("JPortalEnable error: ignore entry for size too big");
     return;
   }
 
-  dump_data((address)&me, sizeof(me));
+  dump_data((address)&mei, sizeof(mei));
   dump_data((address)klass_name, klass_name_length);
   dump_data((address)method_name, name_length);
   dump_data((address)method_signature, sig_length);
@@ -214,6 +214,7 @@ void JPortalEnable::dump_compiled_method_load(Method *moop, nmethod *nm) {
   }
 
   address code_begin = nm->insts_begin();
+  address stub_begin = nm->stub_begin();
   u4 code_size = nm->insts_size() + nm->stub_size();
   address scopes_pc_begin = (address)nm->scopes_pcs_begin();
   u4 scopes_pc_size = nm->scopes_pcs_size();
@@ -223,8 +224,11 @@ void JPortalEnable::dump_compiled_method_load(Method *moop, nmethod *nm) {
   int metadata_cnt = nm->metadata_count();
   address entry_point = nm->entry_point();
   address verified_entry_point = nm->verified_entry_point();
-  address osr_entry_point = nm->is_osr_method()?nm->osr_entry():entry_point;
-             
+  address osr_entry_point = nm->is_osr_method()?nm->osr_entry():NULL;
+  address exception_begin = nm->exception_begin();
+  address deopt_begin = nm->deopt_handler_begin();
+  address deopt_mh_begin = nm->deopt_mh_handler_begin();
+
   u4 size = sizeof(CompiledMethodLoadInfo) + code_size + scopes_pc_size + scopes_data_size;
   int inline_method_cnt = 0;
   for (int index = 0; index < metadata_cnt; index++) {
@@ -236,42 +240,29 @@ void JPortalEnable::dump_compiled_method_load(Method *moop, nmethod *nm) {
     inline_method_cnt++;
     size += (sizeof(InlineMethodInfo) + m->klass_name()->utf8_length() + m->name()->utf8_length() + m->signature()->utf8_length());
   }
-  if (inline_method_cnt == 0) {
-    size += (sizeof(InlineMethodInfo) + moop->klass_name()->utf8_length() + moop->name()->utf8_length() + moop->signature()->utf8_length());
-  }
 
-  CompiledMethodLoadInfo cm((u8)code_begin, (u8)entry_point, (u8)verified_entry_point, (u8)osr_entry_point,
-                            inline_method_cnt ? inline_method_cnt : 1, code_size,
-                            scopes_pc_size, scopes_data_size, size);
+  CompiledMethodLoadInfo cmi((u8)code_begin, (u8)stub_begin, (u8)entry_point, (u8)verified_entry_point,
+                             (u8)osr_entry_point, (u8)exception_begin, (u8)deopt_begin, (u8)deopt_mh_begin,
+                             inline_method_cnt, code_size, scopes_pc_size, scopes_data_size, size);
 
   if (!check_data(size)) {
     warning("JPortalEnable error: ignore compiled code load for size too big");
     return;
   }
 
-  dump_data((address)&cm, sizeof(cm));
+  dump_data((address)&cmi, sizeof(cmi));
 
-  if (inline_method_cnt == 0) {
-    InlineMethodInfo mi(moop->klass_name()->utf8_length(), moop->name()->utf8_length(),
-                        moop->signature()->utf8_length(), 1);
-    dump_data((address)&mi, sizeof(mi));
-    dump_data((address)moop->klass_name()->bytes(), moop->klass_name()->utf8_length());
-    dump_data((address)moop->name()->bytes(), moop->name()->utf8_length());
-    dump_data((address)moop->signature()->bytes(), moop->signature()->utf8_length());
-    inline_method_cnt = 1;
-  } else {
-    for (int index = 0; index < metadata_cnt; index++) {
-      Method *m = (Method*)metadata_begin[index];
-      if (m == Universe::non_oop_word() || m == NULL || !m->is_metaspace_object() || !m->is_method())
-        continue;
+  for (int index = 0; index < metadata_cnt; index++) {
+    Method *m = (Method*)metadata_begin[index];
+    if (m == Universe::non_oop_word() || m == NULL || !m->is_metaspace_object() || !m->is_method())
+      continue;
 
-      InlineMethodInfo mi(m->klass_name()->utf8_length(), m->name()->utf8_length(),
-                          m->signature()->utf8_length(), index+1);
-      dump_data((address)&mi, sizeof(mi));
-      dump_data((address)m->klass_name()->bytes(), m->klass_name()->utf8_length());
-      dump_data((address)m->name()->bytes(), m->name()->utf8_length());
-      dump_data((address)m->signature()->bytes(), m->signature()->utf8_length());
-    }
+    InlineMethodInfo imi(m->klass_name()->utf8_length(), m->name()->utf8_length(),
+                         m->signature()->utf8_length(), index+1);
+    dump_data((address)&imi, sizeof(imi));
+    dump_data((address)m->klass_name()->bytes(), m->klass_name()->utf8_length());
+    dump_data((address)m->name()->bytes(), m->name()->utf8_length());
+    dump_data((address)m->signature()->bytes(), m->signature()->utf8_length());
   }
   dump_data(code_begin, code_size);
   dump_data(scopes_pc_begin, scopes_pc_size);
@@ -294,14 +285,14 @@ void JPortalEnable::dump_compiled_method_unload(Method *moop, nmethod *nm) {
   address code_begin = nm->insts_begin();
 
   u4 size = sizeof(CompiledMethodUnloadInfo);
-  CompiledMethodUnloadInfo cmu((u8)code_begin, size);
+  CompiledMethodUnloadInfo cmui((u8)code_begin, size);
 
   if (!check_data(size)) {
     warning("JPortalEnable error: ignore compiled code unload for size too big");
     return;
   }
 
-  dump_data((address)&cmu, size);
+  dump_data((address)&cmui, size);
 }
 
 void JPortalEnable::dump_thread_start(JavaThread *thread) {
@@ -318,14 +309,14 @@ void JPortalEnable::dump_thread_start(JavaThread *thread) {
   }
 
   u4 size = sizeof(ThreadStartInfo);
-  ThreadStartInfo ts(get_java_tid(thread), syscall(SYS_gettid), size);
+  ThreadStartInfo tsi(get_java_tid(thread), syscall(SYS_gettid), size);
 
   if (!check_data(size)) {
     warning("JPortalEnable error: ignore thread start for size too big");
     return;
   }
 
-  dump_data((address)&ts, size);
+  dump_data((address)&tsi, size);
 }
 
 void JPortalEnable::dump_inline_cache_add(address src, address dest) {
@@ -336,15 +327,15 @@ void JPortalEnable::dump_inline_cache_add(address src, address dest) {
     return;
   }
 
-  u4 size = sizeof(InlineCacheAdd);
-  InlineCacheAdd ic((u8)src, (u8)dest, size);
+  u4 size = sizeof(InlineCacheAddInfo);
+  InlineCacheAddInfo icai((u8)src, (u8)dest, size);
 
   if (!check_data(size)) {
     warning("JPortalEnable error: ignore inline cache add for size too big");
     return;
   }
 
-  dump_data((address)&ic, size);
+  dump_data((address)&icai, size);
 }
 
 void JPortalEnable::dump_inline_cache_clear(address src) {
@@ -355,15 +346,15 @@ void JPortalEnable::dump_inline_cache_clear(address src) {
     return;
   }
 
-  u8 size = sizeof(InlineCacheClear);
-  InlineCacheClear ic((u8)src, size);
+  u8 size = sizeof(InlineCacheClearInfo);
+  InlineCacheClearInfo icci((u8)src, size);
 
   if (!check_data(size)) {
     warning("JPortalEnable error: ignore inline cache clear for size too big");
     return;
   }
 
-  dump_data((address)&ic, size);
+  dump_data((address)&icci, size);
 }
 
 void JPortalEnable::trace() {

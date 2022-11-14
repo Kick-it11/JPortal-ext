@@ -33,7 +33,6 @@ class JPortalEnable {
       _compiled_method_load_info,     // after loading a compiled method: entry, codes, scopes data etc included
       _compiled_method_unload_info,   // after unloading a compiled method
       _thread_start_info,             // a thread begins, map between system tid and java tid
-      _codelet_info,                  // templates info etc...
       _inline_cache_add_info,         // inline cache: a map between a source ip to a destination ip
       _inline_cache_clear_info,       // inline cache clear: delete the map
     };
@@ -88,12 +87,11 @@ class JPortalEnable {
 
     struct ExceptionHandlingInfo {
       struct DumpInfo info;
-      int current_bci;
-      int handler_bci; // -1 for unwind
-      u4 java_tid;
-      u4 _pending;
+      s4 current_bci;
+      s4 handler_bci; // -1 for unwind
+      u8 java_tid;
       u8 addr; // mark for method
-      ExceptionHandlingInfo(int _current_bci, int _handler_bci, u4 _tid, u8 _addr, u4 _size) :
+      ExceptionHandlingInfo(s4 _current_bci, s4 _handler_bci, u8 _tid, u8 _addr, u4 _size) :
         current_bci(_current_bci), handler_bci(_handler_bci), java_tid(_tid), addr(_addr) {
         info.type = _exception_handling_info;
         info.size = _size;
@@ -103,11 +101,12 @@ class JPortalEnable {
 
     struct DeoptimizationInfo {
       struct DumpInfo info;
-      u4 java_tid;
-      u4 bci;
+      s4 bci;
+      u4 _pending;
+      u8 java_tid;
       u8 addr;
-      DeoptimizationInfo(u4 _tid, u4 _bci, u8 _addr, u4 _size) :
-        java_tid(_tid), bci(_bci), addr(_addr) {
+      DeoptimizationInfo(u8 _tid, int _bci, u8 _addr, u4 _size) :
+        bci(_bci), java_tid(_tid), addr(_addr) {
         info.type = _deoptimization_info;
         info.size = _size;
         info.time = get_timestamp();
@@ -117,24 +116,33 @@ class JPortalEnable {
     struct CompiledMethodLoadInfo {
       struct DumpInfo info;
       u8 code_begin;
+      u8 stub_begin;
       u8 entry_point;
       u8 verified_entry_point;
       u8 osr_entry_point;
+      u8 exception_begin;
+      u8 deopt_begin;
+      u8 deopt_mh_begin;
       u4 inline_method_cnt;
       u4 code_size;
       u4 scopes_pc_size;
       u4 scopes_data_size;
 
-      CompiledMethodLoadInfo(u8 _code_begin, u8 _entry_point,
+      CompiledMethodLoadInfo(u8 _code_begin, u8 _stub_begin, u8 _entry_point,
                              u8 _verified_entry_point, u8 _osr_entry_point,
-                             u4 _inline_method_cnt,
+                             u8 _exception_begin, u8 _deopt_begin,
+                             u8 _deopt_mh_begin, u4 _inline_method_cnt, 
                              u4 _code_size, u4 _scopes_pc_size,
                              u4 _scopes_data_size,
                              u4 _size)
                      : code_begin(_code_begin),
+                       stub_begin(_stub_begin),
                        entry_point(_entry_point),
                        verified_entry_point(_verified_entry_point),
                        osr_entry_point(_osr_entry_point),
+                       exception_begin(_exception_begin),
+                       deopt_begin(_deopt_begin),
+                       deopt_mh_begin(_deopt_mh_begin),
                        inline_method_cnt(_inline_method_cnt),
                        code_size(_code_size),
                        scopes_pc_size(_scopes_pc_size),
@@ -174,33 +182,33 @@ class JPortalEnable {
 
     struct ThreadStartInfo {
       struct DumpInfo info;
-      u4 java_tid;
-      u4 sys_tid;
+      u8 java_tid;
+      u8 sys_tid;
 
-      ThreadStartInfo(u4 _java_tid, u4 _sys_tid, u4 _size) : java_tid(_java_tid), sys_tid(_sys_tid) {
+      ThreadStartInfo(u8 _java_tid, u8 _sys_tid, u4 _size) : java_tid(_java_tid), sys_tid(_sys_tid) {
         info.type = _thread_start_info;
         info.size = _size;
         info.time = get_timestamp();
       }
     };
 
-    struct InlineCacheAdd {
+    struct InlineCacheAddInfo {
       struct DumpInfo info;
       u8 src;
       u8 dest;
 
-      InlineCacheAdd(u8 _src, u8 _dest, u4 size) : src(_src), dest(_dest) {
+      InlineCacheAddInfo(u8 _src, u8 _dest, u4 size) : src(_src), dest(_dest) {
         info.type = _inline_cache_add_info;
         info.size = size;
         info.time = get_timestamp();
       }
     };
 
-    struct InlineCacheClear {
+    struct InlineCacheClearInfo {
       struct DumpInfo info;
       u8 src;
 
-      InlineCacheClear(u8 _src, u4 size) : src(_src) {
+      InlineCacheClearInfo(u8 _src, u4 size) : src(_src) {
         info.type = _inline_cache_clear_info;
         info.size = size;
         info.time = get_timestamp();
@@ -213,7 +221,7 @@ class JPortalEnable {
       return low | ((u8)high) << 32;
     }
 
-    inline static u4 get_java_tid(JavaThread* thread);
+    inline static u8 get_java_tid(JavaThread* thread);
 
     // check data size
     inline static bool check_data(u4 size);

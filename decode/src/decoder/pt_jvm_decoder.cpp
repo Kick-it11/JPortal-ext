@@ -122,7 +122,9 @@ void PTJVMDecoder::decoder_drain_jvm_events()
         int status = _jvm->event(_time, &data);
         if (status < 0)
         {
-            std::cerr << "PTJVMDecoder error: sideband event " << pt_errstr(pt_errcode(status)) << std::endl;
+            if (status == -pte_eos)
+                break;
+            std::cerr << "PTJVMDecoder error: jvm event " << pt_errstr(pt_errcode(status)) << std::endl;
             return;
         }
 
@@ -134,13 +136,9 @@ void PTJVMDecoder::decoder_drain_jvm_events()
         const JVMRuntime::DumpInfo *info = (const JVMRuntime::DumpInfo *)data;
         data += sizeof(JVMRuntime::DumpInfo);
 
-        /* ignore _jvm_runtime event before _start_time */
-        if (info->time <= _start_time)
-        {
-            continue;
-        }
-
-        /* handle jvm runtime event */
+        /* handle jvm runtime event
+         * should ignore _jvm_runtime event before _start_time for record event
+         */
         switch (info->type)
         {
         default:
@@ -160,7 +158,7 @@ void PTJVMDecoder::decoder_drain_jvm_events()
         {
             const JVMRuntime::ExceptionHandlingInfo *ehi = (const JVMRuntime::ExceptionHandlingInfo *)data;
             const Method *method = JVMRuntime::method_entry(ehi->addr);
-            if (_tid == ehi->java_tid)
+            if (info->time > _start_time && _tid == ehi->java_tid)
             {
                 _record.record_exception_handling(method, ehi->current_bci, ehi->handler_bci);
             }
@@ -170,7 +168,7 @@ void PTJVMDecoder::decoder_drain_jvm_events()
         {
             const JVMRuntime::DeoptimizationInfo *di = (const JVMRuntime::DeoptimizationInfo *)data;
             const Method *method = JVMRuntime::method_entry(di->addr);
-            if (_tid == di->java_tid)
+            if (info->time > _start_time && _tid == di->java_tid)
             {
                 _record.record_deoptimization(method, di->bci);
             }
@@ -223,13 +221,15 @@ void PTJVMDecoder::decoder_drain_sideband_events()
 {
     struct pev_event event;
     bool data_loss = false;
-    uint64_t java_tid = 0;
+    uint64_t java_tid = _tid;
 
     for (;;)
     {
         int status = _sideband->event(_time, &event);
         if (status < 0)
         {
+            if (status == -pte_eos)
+                break;
             std::cerr << "PTJVMDecoder error: sideband event " << pt_errstr(pt_errcode(status)) << std::endl;
             return;
         }
@@ -285,10 +285,9 @@ void PTJVMDecoder::decoder_drain_sideband_events()
         }
     }
 
-    if (java_tid != _tid)
-    {
-        _record.record_switch(_tid, _time);
-    }
+    _tid = java_tid;
+    _record.record_switch(_tid, _time);
+
     if (data_loss)
     {
         _record.record_data_loss();

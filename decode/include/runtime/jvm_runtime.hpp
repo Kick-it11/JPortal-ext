@@ -204,7 +204,7 @@ public:
     }
 
     /* print all jvm runtime event */
-    static void print();
+    static void print(uint8_t *buffer, uint64_t size);
 
 private:
     /* current position */
@@ -225,7 +225,8 @@ private:
     /* map between system tid and java tid
      * A potential bug here: system tid might be reused for different java tid
      *                       for a long running java program
-     *                       Fix it later.
+     *                       Fix it later. By using sys tid and java tid both
+     *                                        and making it a runtime info
      */
     static std::map<uint64_t, uint64_t> tid_map;
 

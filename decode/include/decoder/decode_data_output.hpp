@@ -17,6 +17,9 @@ public:
 
     /* output trace data to file with name prefix-thrd1, prefix-thrd*, ... */
     void output(const std::string prefix);
+
+    /* simply print decode data, with no method info */
+    void print();
 };
 
 #endif /* DECODE_DATA_OUTPUT_HPP */

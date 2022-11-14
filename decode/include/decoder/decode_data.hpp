@@ -56,14 +56,14 @@ public:
         /* 0, for aligning */
         _padding = 0,
 
+        /* method entry in a java method level, follows a method pointer -> for inter */
+        _method_entry = 1,
+
         /* taken branch in a bytecode level -> for inter */
         _taken = 2,
 
         /* untaken branch in a bytecode level -> for inter*/
-        _not_taken = 1,
-
-        /* method entry in a java method level, follows a method pointer -> for inter */
-        _method_entry = 3,
+        _not_taken = 3,
 
         /* exception handling or unwwind -> for inter */
         _exception = 4,
@@ -144,7 +144,7 @@ public:
     ~DecodeDataRecord()
     {
         /* mark end has been set */
-        assert(_cur_thread != nullptr);
+        assert(_cur_thread == nullptr);
         _type = DecodeData::_illegal;
     }
 
@@ -190,11 +190,20 @@ private:
     const uint8_t *_terminal;
 
 public:
-    DecodeDataAccess(DecodeData *data) : _data(data)
+    DecodeDataAccess(DecodeData *data)
     {
         assert(data != NULL);
+        _data = data;
         _current = _data->_data_begin;
         _terminal = _data->_data_end;
+    }
+
+    DecodeDataAccess(const DecodeData::ThreadSplit &split)
+    {
+        assert(split.data != NULL);
+        _data = split.data;
+        _current = _data->_data_begin + split.start_addr;
+        _terminal = _data->_data_begin + split.end_addr;
     }
 
     bool next_trace(DecodeData::DecodeDataType &type, uint64_t &pos);

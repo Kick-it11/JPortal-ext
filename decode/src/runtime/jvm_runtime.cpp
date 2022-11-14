@@ -36,7 +36,7 @@ int JVMRuntime::event(uint64_t time, const uint8_t **data)
 
     if (_current >= end)
     {
-        return 0;
+        return -pte_eos;
     }
 
     const DumpInfo *info = (const struct DumpInfo *)_current;
@@ -53,6 +53,8 @@ int JVMRuntime::event(uint64_t time, const uint8_t **data)
 
     *data = _current;
     _current += info->size;
+
+    return 0;
 }
 
 void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
@@ -225,15 +227,15 @@ void JVMRuntime::destroy()
     initialized = false;
 }
 
-void JVMRuntime::print()
+void JVMRuntime::print(uint8_t *buffer, uint64_t size)
 {
-    assert(initialized);
-    uint8_t *buffer = begin;
-    while (buffer < end)
+    uint8_t *print_begin = buffer;
+    uint8_t *print_end = buffer + size;
+    while (buffer < print_end)
     {
         const DumpInfo *info;
         info = (const struct DumpInfo *)buffer;
-        if (buffer + info->size > end)
+        if (buffer + info->size > print_end)
         {
             std::cerr << "JVMRuntime error: print out of bounds" << std::endl;
             break;
@@ -358,7 +360,7 @@ void JVMRuntime::print()
         {
             /* error */
             std::cerr << "JVMRuntime error: Unknown tpye" << std::endl;
-            buffer = end;
+            buffer = print_end;
             return;
         }
         }

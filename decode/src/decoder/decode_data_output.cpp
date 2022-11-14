@@ -18,7 +18,123 @@ DecodeDataOutput::DecodeDataOutput(const std::vector<DecodeData *> &data)
 
 void DecodeDataOutput::output(const std::string prefix)
 {
+
 }
+
+void DecodeDataOutput::print()
+{
+    for (auto&& thread : _splits)
+    {
+        std::cout << "Thread " << thread.first << std::endl;
+        for (auto &&split : thread.second)
+        {
+            std::cout << "  Part: " << split.start_addr << " " << split.end_addr
+                      << " " << split.start_time << " " << split.end_time << std::endl;
+            DecodeDataAccess access(split);
+            DecodeData::DecodeDataType type;
+            uint64_t loc;
+            while (access.next_trace(type, loc))
+            {
+                switch (type)
+                {
+                case DecodeData::_method_entry:
+                {
+                    const Method *method;
+                    if (!access.get_method_entry(loc, method))
+                    {
+                        std::cerr << "DecodeDataOutput error: Fail to get method entry" << std::endl;
+                        exit(1);
+                    }
+                    std::cout << "    Method Entry: " << method->get_klass()->get_name()
+                              << " " << method->get_name() << std::endl;
+                    break;
+                }
+                case DecodeData::_taken:
+                    std::cout << "    Branch Taken" << std::endl;
+                    break;
+                case DecodeData::_not_taken:
+                    std::cout << "    Branch Not Taken" << std::endl;
+                    break;
+                case DecodeData::_exception:
+                {
+                    const Method *method;
+                    int current_bci, handler_bci;
+                    if (!access.get_exception_handling(loc, method, current_bci, handler_bci))
+                    {
+                        std::cerr << "DecodeDataOutput error: Fail to get exception" << std::endl;
+                        exit(1);
+                    }
+                    std::cout << "    Exception Handling: " << method->get_klass()->get_name()
+                              << " " << method->get_name() << " " << current_bci
+                              << " " << handler_bci << std::endl;
+                    break;
+                }
+                case DecodeData::_deoptimization:
+                {
+                    const Method *method;
+                    int bci;
+                    if (!access.get_deoptimization(loc, method, bci))
+                    {
+                        std::cerr << "DecodeDataOutput error: Fail to get deoptimization" << std::endl;
+                        exit(1);
+                    }
+                    std::cout << "    Deoptimization: " << method->get_klass()->get_name()
+                              << " " << method->get_name() << " " << bci << std::endl;
+                    break;
+                }
+                case DecodeData::_jit_entry:
+                case DecodeData::_jit_osr_entry:
+                case DecodeData::_jit_code:
+                {
+                    const JitSection* section;
+                    const PCStackInfo **info;
+                    uint64_t size;
+                    if (!access.get_jit_code(loc, section, info, size))
+                    {
+                        std::cerr << "DecodeDataOutput error: Fail to get jit code" << std::endl;
+                        exit(1);
+                    }
+                    if (type == DecodeData::_jit_entry)
+                    {
+                        std::cout << "  Jit code entry: ";
+                    }
+                    if (type == DecodeData::_jit_osr_entry)
+                    {
+                        std::cout << "Jit code osr entry: ";
+                    }
+                    if (type == DecodeData::_jit_code)
+                    {
+                        std::cout << "Jit code: ";
+                    }
+                    std::cout <<  section->mainm()->get_klass()->get_name()
+                              << " " << section->mainm()->get_name()
+                              << " " << size << std::endl;
+                    break;
+                }
+                case DecodeData::_jit_exception:
+                    std::cout << "    Jit exception" << std::endl;
+                    break;
+                case DecodeData::_jit_deopt:
+                    std::cout << "    Jit deopt" << std::endl;
+                    break;
+                case DecodeData::_jit_deopt_mh:
+                    std::cout << "    Jit deopt mh" << std::endl;
+                    break;
+                case DecodeData::_data_loss:
+                    std::cout << "    Data loss" << std::endl;
+                    break;
+                case DecodeData::_decode_error:
+                    std::cout << "    Decode error" << std::endl;
+                    break;
+                default:
+                    std::cerr << "DecodeDataOutput error: unknown type" << std::endl;
+                    exit(1);
+                }
+            }
+        }
+    }
+}
+
 // struct ExecInfo
 // {
 //     const JitSection *section;

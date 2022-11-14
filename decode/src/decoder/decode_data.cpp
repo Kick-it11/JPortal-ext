@@ -98,7 +98,7 @@ void DecodeDataRecord::record_mark_end(uint64_t time)
 
 void DecodeDataRecord::record_method_entry(const Method *method)
 {
-    assert(_cur_thread != nullptr);
+    assert(_cur_thread != nullptr && method != nullptr);
     _type = DecodeData::_method_entry;
     _data->write(&_type, 1);
     _data->write(&method, sizeof(method));
@@ -120,7 +120,7 @@ void DecodeDataRecord::record_branch_not_taken()
 
 void DecodeDataRecord::record_exception_handling(const Method *method, int current_bci, int handler_bci)
 {
-    assert(_cur_thread != nullptr);
+    assert(_cur_thread != nullptr && method != nullptr);
     _type = DecodeData::_exception;
     _data->write(&_type, 1);
     _data->write(&method, sizeof(method));
@@ -130,7 +130,7 @@ void DecodeDataRecord::record_exception_handling(const Method *method, int curre
 
 void DecodeDataRecord::record_deoptimization(const Method *method, int bci)
 {
-    assert(_cur_thread != nullptr);
+    assert(_cur_thread != nullptr && method != nullptr);
     _type = DecodeData::_deoptimization;
     _data->write(&_type, 1);
     _data->write(&method, sizeof(method));
@@ -139,6 +139,7 @@ void DecodeDataRecord::record_deoptimization(const Method *method, int bci)
 
 void DecodeDataRecord::record_jit_entry(const JitSection *section)
 {
+    assert(_cur_thread != nullptr && section != nullptr);
     _type = DecodeData::_jit_entry;
     _data->write(&_type, 1);
     _cur_section = section;
@@ -157,6 +158,7 @@ void DecodeDataRecord::record_jit_entry(const JitSection *section)
 
 void DecodeDataRecord::record_jit_osr_entry(const JitSection *section)
 {
+    assert(_cur_thread != nullptr && section != nullptr);
     _type = DecodeData::_jit_osr_entry;
     _data->write(&_type, 1);
     _cur_section = section;
@@ -175,6 +177,7 @@ void DecodeDataRecord::record_jit_osr_entry(const JitSection *section)
 
 void DecodeDataRecord::record_jit_code(const JitSection *section, const PCStackInfo *info)
 {
+    assert(_cur_thread != nullptr && section != nullptr && info != nullptr);
     if ((_type < DecodeData::_jit_entry || _type > DecodeData::_jit_code) || section != _cur_section)
     {
         _type = DecodeData::_jit_code;
@@ -199,6 +202,7 @@ void DecodeDataRecord::record_jit_code(const JitSection *section, const PCStackI
 
 void DecodeDataRecord::record_jit_exception()
 {
+    assert(_cur_thread != nullptr);
     assert(_cur_thread != nullptr);
     _type = DecodeData::_jit_exception;
     _data->write(&_type, 1);
@@ -301,6 +305,7 @@ bool DecodeDataAccess::get_method_entry(uint64_t pos, const Method *&method)
         return false;
     }
     memcpy(&method, buf, sizeof(method));
+    assert(method != nullptr);
     return true;
 }
 
@@ -323,6 +328,7 @@ bool DecodeDataAccess::get_exception_handling(uint64_t pos, const Method *&metho
     memcpy(&current_bci, buf, sizeof(current_bci));
     buf += sizeof(current_bci);
     memcpy(&handler_bci, buf, sizeof(handler_bci));
+    assert(method != nullptr);
     return true;
 }
 
@@ -342,6 +348,7 @@ bool DecodeDataAccess::get_deoptimization(uint64_t pos, const Method *&method, i
     memcpy(&method, buf, sizeof(method));
     buf += sizeof(method);
     memcpy(&bci, buf, sizeof(bci));
+    assert(method != nullptr);
     return true;
 }
 
@@ -370,5 +377,6 @@ bool DecodeDataAccess::get_jit_code(uint64_t pos, const JitSection *&section,
         ++buf;
     }
     pcs = (const PCStackInfo **)buf;
+    assert(section != nullptr && pcs != nullptr);
     return true;
 }

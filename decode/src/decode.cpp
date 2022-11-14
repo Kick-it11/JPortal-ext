@@ -55,6 +55,7 @@ static void decode(const std::string &file, std::vector<std::string> &paths)
     std::cout << "Output..." << std::endl;
     DecodeDataOutput to_file(results);
     to_file.output("decode");
+    to_file.print();
 
     /* Exit */
     JVMRuntime::destroy();
@@ -80,8 +81,7 @@ static void show(const std::string &file, const std::string &info, std::vector<s
     {
         auto jvmdata = parser.jvm_runtime_data();
         Analyser *analyser = new Analyser(paths);
-        JVMRuntime::initialize(jvmdata.first, jvmdata.second, analyser);
-        JVMRuntime::print();
+        JVMRuntime::print(jvmdata.first, jvmdata.second);
         JVMRuntime::destroy();
         delete analyser;
     }

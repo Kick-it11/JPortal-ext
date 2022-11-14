@@ -139,7 +139,7 @@ void JPortalEnable::dump_branch_not_taken(address addr) {
   }
 
   u4 size = sizeof(struct BranchNotTakenInfo);
-  BranchTakenInfo bnti((u8)addr, size);
+  BranchNotTakenInfo bnti((u8)addr, size);
 
   if (!check_data(size)) {
     warning("JPortalEnable error: ignore branch not taken for size too big");

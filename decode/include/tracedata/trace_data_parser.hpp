@@ -101,7 +101,8 @@ private:
      *
      *  return last sync_offset
      */
-    uint64_t sync_forward(uint8_t *buffer, uint64_t size, int &number);
+    uint64_t sync_forward(uint8_t *buffer, uint64_t size,
+                          int &number, std::pair<uint64_t, uint64_t> &time);
 
 public:
     /** TraceDataParser constructor: initialized from file name */
@@ -117,14 +118,15 @@ public:
     /** return jvm runtime data*/
     std::pair<uint8_t *, uint64_t> jvm_runtime_data();
 
-    /** return pt data */
+    /** return pt data at once, cpou -> <data, size> */
     std::map<uint32_t, std::pair<uint8_t *, uint64_t>> pt_data();
 
     /** begin to split pt data, set _split_pt_offsets to _pt_offsets*/
     void resplit_pt_data();
 
-    /** get next splitted pt data, return true if we can still get */
-    bool next_pt_data(std::pair<uint8_t *, uint64_t> &part_data, uint32_t &cpu);
+    /** get next splitted pt data & start to end time, return true if we can still get */
+    bool next_pt_data(std::pair<uint8_t *, uint64_t> &part_data,
+                      uint32_t &cpu, std::pair<uint64_t, uint64_t> &time);
 
     uint16_t time_shift() { return _trace_header.time_shift; }
     uint32_t time_mult() { return _trace_header.time_mult; }

@@ -27,9 +27,6 @@ private:
     /** sideband data current */
     const uint8_t *_current;
 
-    /** event of last event() call*/
-    struct pev_event _event;
-
 public:
     /** sideband(perf event) constructor */
     Sideband(uint32_t cpu);
@@ -38,19 +35,7 @@ public:
     ~Sideband();
 
     /* iterate sideband events until time */
-    bool event(uint64_t time);
-
-    /* tid of current event */
-    uint32_t tid()
-    {
-        return _event.sample.tid ? (*_event.sample.tid) : -1;
-    }
-
-    /** current event has a data loss flag */
-    bool loss()
-    {
-        return (_event.type != PERF_RECORD_AUX) ? false : (_event.record.aux->flags & PERF_AUX_FLAG_TRUNCATED == PERF_AUX_FLAG_TRUNCATED);
-    }
+    int event(uint64_t time, struct pev_event *event);
 
     static void initialize(std::map<uint32_t, std::pair<uint8_t *, uint64_t>> &data,
                            uint64_t sample_type, uint32_t time_mult,

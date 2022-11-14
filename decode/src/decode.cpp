@@ -1,4 +1,4 @@
-#include "decoder/output_decode.hpp"
+#include "decoder/decode_data_output.hpp"
 #include "decoder/pt_jvm_decoder.hpp"
 #include "java/analyser.hpp"
 #include "runtime/jvm_runtime.hpp"
@@ -10,17 +10,18 @@
 #include <iostream>
 #include <thread>
 
-static void decode_part(struct pt_config config, uint32_t cpu, TraceData *trace)
+static void decode_part(DecodeData *trace, struct pt_config config,
+                        uint32_t cpu, std::pair<uint64_t, uint64_t> time)
 {
-    PTJVMDecoder decoder(config, *trace, cpu);
+    PTJVMDecoder decoder(&config, trace, cpu, time);
     decoder.decode();
     delete[] config.begin;
 }
 
-static void decode(const std::string &file, std::list<std::string> &paths)
+static void decode(const std::string &file, std::vector<std::string> &paths)
 {
     TraceDataParser parser(file);
-    std::list<TraceData *> traces;
+    std::vector<DecodeData *> results;
 
     /** Initialize */
     std::cout << "Initializing..." << std::endl;
@@ -36,33 +37,36 @@ static void decode(const std::string &file, std::list<std::string> &paths)
     std::cout << "Decoding..." << std::endl;
     std::pair<uint8_t *, uint64_t> pt_data;
     uint32_t cpu;
+    std::pair<uint64_t, uint64_t> time;
     ThreadPool pool(16, 32);
-    while (parser.next_pt_data(pt_data, cpu))
+    while (parser.next_pt_data(pt_data, cpu, time))
     {
-        TraceData *trace = new TraceData();
-        traces.push_back(trace);
+        DecodeData *trace = new DecodeData();
+        results.push_back(trace);
         struct pt_config config;
         parser.init_pt_config_from_trace(config);
         config.begin = pt_data.first;
         config.end = pt_data.first + pt_data.second;
-        pool.submit(decode_part, config, cpu, trace);
+        pool.submit(decode_part, trace, config, cpu, time);
     }
     pool.shutdown();
 
     /** Output */
     std::cout << "Output..." << std::endl;
-    output_decode(traces);
+    DecodeDataOutput to_file(results);
+    to_file.output("decode");
 
     /* Exit */
     JVMRuntime::destroy();
     Sideband::destroy();
     delete analyser;
-    for (auto trace : traces)
+    for (auto trace : results)
         delete trace;
-    traces.clear();
+    results.clear();
 }
 
-static void show(const std::string &file, const std::string &info, std::list<std::string> &paths) {
+static void show(const std::string &file, const std::string &info, std::vector<std::string> &paths)
+{
     TraceDataParser parser(file);
     if (info == "sideband")
     {
@@ -90,7 +94,7 @@ static void show(const std::string &file, const std::string &info, std::list<std
 int main(int argc, char **argv)
 {
     std::string trace_data = "JPortalTrace.data";
-    std::list<std::string> class_paths;
+    std::vector<std::string> class_paths;
     for (int i = 1; i < argc;)
     {
         std::string arg = argv[i++];
@@ -126,7 +130,7 @@ int main(int argc, char **argv)
 
         if (arg == "-s")
         {
-             if (argc <= i)
+            if (argc <= i)
             {
                 std::cerr << "decode error: Missing s info" << std::endl;
                 return -1;

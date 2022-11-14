@@ -364,7 +364,7 @@ void ClassFileParser::parse_methods(const ClassFileStream *const stream,
     const u2 length = stream->get_u2();
     for (int index = 0; index < length; index++)
     {
-        Method* method = parse_method(stream, cp);
+        Method *method = parse_method(stream, cp);
         _analyser->add_method(method);
         _klass->insert_method_map(method);
     } /* End of for */

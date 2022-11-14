@@ -1,4 +1,5 @@
 #include "java/analyser.hpp"
+#include "pt/pt.hpp"
 #include "runtime/jit_image.hpp"
 #include "runtime/jit_section.hpp"
 #include "runtime/jvm_runtime.hpp"
@@ -8,251 +9,50 @@
 
 uint8_t *JVMRuntime::begin = nullptr;
 uint8_t *JVMRuntime::end = nullptr;
-const JVMRuntime::CodeletsInfo *JVMRuntime::entries = nullptr;
-std::map<uint32_t, uint32_t> JVMRuntime::thread_map;
 std::map<uint64_t, const Method *> JVMRuntime::md_map;
+std::set<uint64_t> JVMRuntime::takens;
+std::set<uint64_t> JVMRuntime::not_takens;
+std::map<uint64_t, uint64_t> JVMRuntime::tid_map;
 std::map<const uint8_t *, JitSection *> JVMRuntime::section_map;
 bool JVMRuntime::initialized = false;
 
 JVMRuntime::JVMRuntime()
 {
     assert(initialized);
-    _image = new JitImage("jitted-code");
     _current = begin;
 }
 
-JVMRuntime::~JVMRuntime() {
-    delete _image;
-    _image = nullptr;
+JVMRuntime::~JVMRuntime()
+{
+    _current = nullptr;
 }
 
-void JVMRuntime::move_on(uint64_t time)
+int JVMRuntime::event(uint64_t time, const uint8_t **data)
 {
-    const DumpInfo *info;
-    while (_current < end)
+    if (!data)
     {
-        info = (const struct DumpInfo *)_current;
-        if (_current + info->size > end || info->time > time)
-            return;
-        _current += sizeof(DumpInfo);
-        switch (info->type)
-        {
-        case _codelet_info:
-        {
-            _current += sizeof(CodeletsInfo);
-            break;
-        }
-        case _method_initial_info:
-        {
-            const MethodEntryInitial *me;
-            me = (const MethodEntryInitial *)_current;
-            _current += sizeof(MethodEntryInitial);
-            const char *klass_name = (const char *)_current;
-            _current += me->klass_name_length;
-            const char *name = (const char *)_current;
-            _current += me->method_name_length;
-            const char *signature = (const char *)_current;
-            _current += me->method_signature_length;
-            break;
-        }
-        case _method_entry_info:
-        {
-            const MethodEntryInfo *me;
-            me = (const MethodEntryInfo *)_current;
-            _current += sizeof(MethodEntryInfo);
-            break;
-        }
-        case _method_exit_info:
-        {
-            const MethodExitInfo *me;
-            me = (const MethodExitInfo *)_current;
-            _current += sizeof(MethodExitInfo);
-            break;
-        }
-        case _compiled_method_load_info:
-        {
-            _current += (info->size - sizeof(DumpInfo));
-            if (section_map.count(_current))
-                _image->add(section_map[_current]);
-            break;
-        }
-        case _compiled_method_unload_info:
-        {
-            const CompiledMethodUnloadInfo *cmu = (const CompiledMethodUnloadInfo *)_current;
-            _current += sizeof(CompiledMethodUnloadInfo);
-            _image->remove(cmu->code_begin);
-            break;
-        }
-        case _thread_start_info:
-        {
-            _current += sizeof(ThreadStartInfo);
-            break;
-        }
-        case _inline_cache_add_info:
-        {
-            const InlineCacheAdd *ica = (const InlineCacheAdd *)_current;
-            JitSection *section = _image->find(ica->src);
-            if (section)
-                _ics[{ica->src, section}] = ica->dest;
-            else
-                std::cerr << "JVMRuntime error: Add inline cache to unknown "
-                          << ica->src << " " << ica->dest << std::endl;
-            _current += sizeof(InlineCacheAdd);
-            break;
-        }
-        case _inline_cache_clear_info:
-        {
-            const InlineCacheClear *icc = (const InlineCacheClear *)_current;
-            JitSection *section = _image->find(icc->src);
-            if (section)
-                _ics.erase({icc->src, section});
-            else
-                std::cerr << "JVMRuntime error: Clear inline cache to unknown "
-                          << icc->src << std::endl;
-            _current += sizeof(InlineCacheClear);
-            break;
-        }
-        default:
-        {
-            /* error */
-            _current = end;
-            return;
-        }
-        }
-    }
-}
-
-uint32_t JVMRuntime::get_java_tid(uint32_t tid)
-{
-    auto iter = thread_map.find(tid);
-    if (iter == thread_map.end())
-        return -1;
-    return iter->second;
-}
-
-JVMRuntime::Codelet JVMRuntime::match(uint64_t ip, Bytecodes::Code &code, JitSection *&section)
-{
-    if (ip >= entries->_normal_table[0][0] && ip < entries->_wentry_point[0])
-    {
-        int low = 0, high = JVMRuntime::dispatch_length * JVMRuntime::number_of_states - 1;
-        while (low <= high)
-        {
-            int mid = (low + high) / 2;
-            uint64_t addr = entries->_normal_table[mid / JVMRuntime::number_of_states][mid % JVMRuntime::number_of_states];
-            if (addr == ip)
-            {
-                code = Bytecodes::cast(mid / JVMRuntime::number_of_states);
-                return _bytecode;
-            }
-            else if (addr > ip)
-            {
-                high = mid - 1;
-            }
-            else
-            {
-                low = mid + 1;
-            }
-        }
-        return _illegal;
+        return -pte_internal;
     }
 
-    if (ip >= entries->_wentry_point[0] && ip < entries->_deopt_entry[0][0])
+    if (_current >= end)
     {
-        int low = 0, high = JVMRuntime::dispatch_length - 1;
-        while (low <= high)
-        {
-            int mid = (low + high) / 2;
-            uint64_t addr = entries->_wentry_point[mid];
-            if (addr == ip)
-            {
-                code = Bytecodes::cast(mid);
-                return _bytecode;
-            }
-            else if (addr > ip)
-            {
-                high = mid - 1;
-            }
-            else
-            {
-                low = mid + 1;
-            }
-        }
-        return _illegal;
+        return 0;
     }
 
-    if (ip < entries->_unimplemented_bytecode_entry)
-        return _illegal;
+    const DumpInfo *info = (const struct DumpInfo *)_current;
+    if (_current + info->size > end)
+    {
+        _current = end;
+        return -pte_internal;
+    }
 
-    if (ip == entries->_slow_signature_handler)
-        return _slow_signature_handler;
+    if (info->time > time)
+    {
+        return 0;
+    }
 
-    if (ip == entries->_unimplemented_bytecode_entry)
-        return _unimplemented_bytecode;
-
-    if (ip == entries->_illegal_bytecode_sequence_entry)
-        return _illegal_bytecode_sequence;
-
-    if (ip >= entries->_return_entry[0][0] && ip < entries->_invoke_return_entry[0])
-        return _return;
-
-    if (ip >= entries->_invoke_return_entry[0] && ip < entries->_invokeinterface_return_entry[0])
-        return _invoke_return;
-
-    if (ip >= entries->_invokeinterface_return_entry[0] && ip < entries->_invokedynamic_return_entry[0])
-        return _invokeinterface_return;
-
-    if (ip >= entries->_invokedynamic_return_entry[0] && ip < entries->_earlyret_entry[0])
-        return _invokedynamic_return;
-
-    if (ip >= entries->_earlyret_entry[0] && ip < entries->_native_abi_to_tosca[0])
-        return _earlyret;
-
-    if (ip >= entries->_native_abi_to_tosca[0] && ip < entries->_rethrow_exception_entry)
-        return _result_handlers_for_native_calls;
-
-    if (ip >= entries->_entry_table[0] && ip < entries->_normal_table[0][0])
-        return _method_entry_point;
-
-    if (ip >= entries->_deopt_entry[0][0] && ip < entries->_deopt_reexecute_return_entry)
-        return _deopt;
-
-    if (ip == entries->_rethrow_exception_entry)
-        return _rethrow_exception;
-
-    if (ip == entries->_throw_exception_entry)
-        return _throw_exception;
-
-    if (ip == entries->_remove_activation_preserving_args_entry)
-        return _remove_activation_preserving_args;
-
-    if (ip == entries->_remove_activation_entry)
-        return _remove_activation;
-
-    if (ip == entries->_throw_ArrayIndexOutOfBoundsException_entry)
-        return _throw_ArrayIndexOutOfBoundsException;
-
-    if (ip == entries->_throw_ArrayStoreException_entry)
-        return _throw_ArrayStoreException;
-
-    if (ip == entries->_throw_ArithmeticException_entry)
-        return _throw_ArithmeticException;
-
-    if (ip == entries->_throw_ClassCastException_entry)
-        return _throw_ClassCastException;
-
-    if (ip == entries->_throw_NullPointerException_entry)
-        return _throw_NullPointerException;
-
-    if (ip == entries->_throw_StackOverflowError_entry)
-        return _throw_StackOverflowError;
-
-    if (ip == entries->_deopt_reexecute_return_entry)
-        return _deopt_reexecute_return;
-
-    section = _image->find(ip);
-    if (!section)
-        return _illegal;
-    return _jitcode;
+    *data = _current;
+    _current += info->size;
 }
 
 void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
@@ -272,51 +72,59 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
         buffer += sizeof(DumpInfo);
         switch (info->type)
         {
-        case _codelet_info:
-        {
-            entries = (CodeletsInfo *)buffer;
-            buffer += sizeof(CodeletsInfo);
-            break;
-        }
-        case _method_initial_info:
-        {
-            const MethodEntryInitial *me;
-            me = (const MethodEntryInitial *)buffer;
-            buffer += sizeof(MethodEntryInitial);
-            const char *klass_name = (const char *)buffer;
-            buffer += me->klass_name_length;
-            const char *name = (const char *)buffer;
-            buffer += me->method_name_length;
-            const char *sig = (const char *)buffer;
-            buffer += me->method_signature_length;
-            std::string klassName = std::string(klass_name, me->klass_name_length);
-            std::string methodName = std::string(name, me->method_name_length) + std::string(sig, me->method_signature_length);
-            const Method *method = analyser->get_method(klassName, methodName);
-            md_map[me->method] = method;
-            break;
-        }
         case _method_entry_info:
         {
-            const MethodEntryInfo *me;
-            me = (const MethodEntryInfo *)buffer;
+            const MethodEntryInfo *mei;
+            mei = (const MethodEntryInfo *)buffer;
             buffer += sizeof(MethodEntryInfo);
+            std::string klass_name((const char *)buffer, mei->klass_name_length);
+            buffer += mei->klass_name_length;
+            std::string name((const char *)buffer, mei->method_name_length);
+            buffer += mei->method_name_length;
+            std::string sig((const char *)buffer, mei->method_signature_length);
+            buffer += mei->method_signature_length;
+            const Method *method = analyser->get_method(klass_name, name + sig);
+            md_map[mei->addr] = method;
             break;
         }
-        case _method_exit_info:
+        case _branch_taken_info:
         {
-            const MethodExitInfo *me;
-            me = (const MethodExitInfo *)buffer;
-            buffer += sizeof(MethodExitInfo);
+            const BranchTakenInfo *bti;
+            bti = (const BranchTakenInfo *)buffer;
+            buffer += sizeof(BranchTakenInfo);
+            takens.insert(bti->addr);
+            break;
+        }
+        case _branch_not_taken_info:
+        {
+            const BranchNotTakenInfo *bnti;
+            bnti = (const BranchNotTakenInfo *)buffer;
+            buffer += sizeof(BranchNotTakenInfo);
+            not_takens.insert(bnti->addr);
+            break;
+        }
+        case _exception_handling_info:
+        {
+            const ExceptionHandlingInfo *ehi;
+            ehi = (const ExceptionHandlingInfo *)buffer;
+            buffer += sizeof(ExceptionHandlingInfo);
+            break;
+        }
+        case _deoptimization_info:
+        {
+            const DeoptimizationInfo *di;
+            di = (const DeoptimizationInfo *)buffer;
+            buffer += sizeof(DeoptimizationInfo);
             break;
         }
         case _compiled_method_load_info:
         {
-            const CompiledMethodLoadInfo *cm;
-            cm = (const CompiledMethodLoadInfo *)buffer;
+            const CompiledMethodLoadInfo *cmi;
+            cmi = (const CompiledMethodLoadInfo *)buffer;
             buffer += sizeof(CompiledMethodLoadInfo);
             const Method *mainm = nullptr;
             std::map<int, const Method *> methods;
-            for (int i = 0; i < cm->inline_method_cnt; i++)
+            for (int i = 0; i < cmi->inline_method_cnt; i++)
             {
                 const InlineMethodInfo *imi;
                 imi = (const InlineMethodInfo *)buffer;
@@ -336,21 +144,23 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
             }
             const uint8_t *insts, *scopes_pc, *scopes_data;
             insts = (const uint8_t *)buffer;
-            buffer += cm->code_size;
+            buffer += cmi->code_size;
             scopes_pc = (const uint8_t *)buffer;
-            buffer += cm->scopes_pc_size;
+            buffer += cmi->scopes_pc_size;
             scopes_data = (const uint8_t *)buffer;
-            buffer += cm->scopes_data_size;
+            buffer += cmi->scopes_data_size;
             if (!mainm || !mainm->is_jportal())
             {
                 std::cerr << "JvmDumpDecoder error: Unknown or un-jportal section" << std::endl;
                 break;
             }
-            JitSection *section = new JitSection(insts, cm->code_begin, cm->code_size,
-                                                 scopes_pc, cm->scopes_pc_size,
-                                                 scopes_data, cm->scopes_data_size,
-                                                 cm->entry_point, cm->verified_entry_point,
-                                                 cm->osr_entry_point, cm->inline_method_cnt,
+            JitSection *section = new JitSection(insts, cmi->code_begin, cmi->stub_begin,
+                                                 cmi->code_size, scopes_pc, cmi->scopes_pc_size,
+                                                 scopes_data, cmi->scopes_data_size,
+                                                 cmi->entry_point, cmi->verified_entry_point,
+                                                 cmi->osr_entry_point, cmi->exception_begin,
+                                                 cmi->deopt_begin, cmi->deopt_mh_begin,
+                                                 cmi->inline_method_cnt,
                                                  methods, mainm, mainm->get_name());
             section_map[buffer] = section;
             break;
@@ -362,24 +172,27 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
         }
         case _thread_start_info:
         {
-            const ThreadStartInfo *th;
-            th = (const ThreadStartInfo *)buffer;
+            const ThreadStartInfo *thi;
+            thi = (const ThreadStartInfo *)buffer;
             buffer += sizeof(ThreadStartInfo);
-            thread_map[th->sys_tid] = th->java_tid;
+
+            /* A potential bug: system tid might get reused */
+            assert(!tid_map.count(thi->sys_tid));
+            tid_map[thi->sys_tid] = thi->java_tid;
             break;
         }
         case _inline_cache_add_info:
         {
-            const InlineCacheAdd *ic;
-            ic = (const InlineCacheAdd *)buffer;
-            buffer += sizeof(InlineCacheAdd);
+            const InlineCacheAddInfo *icai;
+            icai = (const InlineCacheAddInfo *)buffer;
+            buffer += sizeof(InlineCacheAddInfo);
             break;
         }
         case _inline_cache_clear_info:
         {
-            const InlineCacheClear *ic;
-            ic = (const InlineCacheClear *)buffer;
-            buffer += sizeof(InlineCacheClear);
+            const InlineCacheClearInfo *icci;
+            icci = (const InlineCacheClearInfo *)buffer;
+            buffer += sizeof(InlineCacheClearInfo);
             break;
         }
         default:
@@ -408,7 +221,6 @@ void JVMRuntime::destroy()
 
     begin = nullptr;
     end = nullptr;
-    entries = nullptr;
 
     initialized = false;
 }
@@ -421,75 +233,104 @@ void JVMRuntime::print()
     {
         const DumpInfo *info;
         info = (const struct DumpInfo *)buffer;
-        if (buffer + info->size > end) {
+        if (buffer + info->size > end)
+        {
             std::cerr << "JVMRuntime error: print out of bounds" << std::endl;
             break;
         }
         buffer += sizeof(DumpInfo);
         switch (info->type)
         {
-        case _codelet_info:
-        {
-            buffer += sizeof(CodeletsInfo);
-            std::cout << "CodeletsInfo " << entries->_low_bound << " " << entries->_high_bound << std::endl;
-            break;
-        }
-        case _method_initial_info:
-        {
-            const MethodEntryInitial *me;
-            me = (const MethodEntryInitial *)buffer;
-            buffer += sizeof(MethodEntryInitial);
-            std::string klass_name((const char *)buffer, me->klass_name_length);
-            buffer += me->klass_name_length;
-            std::string name((const char *)buffer, me->method_name_length);
-            buffer += me->method_name_length;
-            std::string sig((const char*)buffer, me->method_signature_length);
-            buffer += me->method_signature_length;
-            std::cout << "MethodEntryInitial: " << me->method << " " << me->method << " "
-                      << klass_name << " " << name << " " << sig << std::endl;
-            break;
-        }
         case _method_entry_info:
         {
-            const MethodEntryInfo *me;
-            me = (const MethodEntryInfo *)buffer;
+            const MethodEntryInfo *mei;
+            mei = (const MethodEntryInfo *)buffer;
             buffer += sizeof(MethodEntryInfo);
-            std::cout << "MethodEntry: " << me->method << " " << me->tid << std::endl;
+            std::string klass_name((const char *)buffer, mei->klass_name_length);
+            buffer += mei->klass_name_length;
+            std::string name((const char *)buffer, mei->method_name_length);
+            buffer += mei->method_name_length;
+            std::string sig((const char *)buffer, mei->method_signature_length);
+            buffer += mei->method_signature_length;
+            std::cout << "MethodEntryInfo: " << mei->addr << " " << klass_name
+                      << " " << name << " " << sig << std::endl;
             break;
         }
-        case _method_exit_info:
+        case _branch_taken_info:
         {
-            const MethodExitInfo *me;
-            me = (const MethodExitInfo *)buffer;
-            buffer += sizeof(MethodExitInfo);
-            std::cout << "MethodExit: " << me->method << " " << me->tid << std::endl;
+            const BranchTakenInfo *bti;
+            bti = (const BranchTakenInfo *)buffer;
+            buffer += sizeof(BranchTakenInfo);
+            std::cout << "BranchTakenInfo: " << bti->addr << std::endl;
+            break;
+        }
+        case _branch_not_taken_info:
+        {
+            const BranchNotTakenInfo *bnti;
+            bnti = (const BranchNotTakenInfo *)buffer;
+            buffer += sizeof(BranchNotTakenInfo);
+            std::cout << "BranchNotTakenInfo: " << bnti->addr << std::endl;
+            break;
+        }
+        case _exception_handling_info:
+        {
+            const ExceptionHandlingInfo *ehi;
+            ehi = (const ExceptionHandlingInfo *)buffer;
+            buffer += sizeof(ExceptionHandlingInfo);
+            std::cout << "ExceptionHandlingInfo: " << ehi->addr << " " << ehi->current_bci
+                      << " " << ehi->handler_bci << " " << ehi->java_tid << std::endl;
+            break;
+        }
+        case _deoptimization_info:
+        {
+            const DeoptimizationInfo *di;
+            di = (const DeoptimizationInfo *)buffer;
+            buffer += sizeof(DeoptimizationInfo);
+            std::cout << "Deoptimization: " << di->addr << " " << di->bci
+                      << " " << di->java_tid << std::endl;
             break;
         }
         case _compiled_method_load_info:
         {
             buffer += (info->size - sizeof(DumpInfo));
-            if (section_map.count(buffer)) {
-                JitSection* section = section_map[buffer];
-                const Method *mainm = section->mainm();
-                if (!mainm || !mainm->is_jportal())
-                {
-                    std::cerr << "JVMRuntime error: Non jportal method in compiled code" << std::endl;
-                    break;
-                }
-                std::cout << "Compiled Method Load " << section->code_begin() << " "
-                          << section->code_size() << " " << section->entry_point()
-                          << " " << mainm->get_klass()->get_name() << " "
-                          << mainm->get_name() << std::endl;
-            } else {
-                std::cerr << "JVMRuntime error: Print Compiled Method Error" << std::endl;
+            const CompiledMethodLoadInfo *cmi;
+            cmi = (const CompiledMethodLoadInfo *)buffer;
+            buffer += sizeof(CompiledMethodLoadInfo);
+            std::cout << "CompiledMethodLoad: " << cmi->code_begin << " " << cmi->code_size
+                      << " " << cmi->stub_begin << " " << cmi->entry_point
+                      << " " << cmi->verified_entry_point << " " << cmi->osr_entry_point
+                      << " " << cmi->exception_begin << " " << cmi->deopt_begin << std::endl;
+            for (int i = 0; i < cmi->inline_method_cnt; i++)
+            {
+                const InlineMethodInfo *imi;
+                imi = (const InlineMethodInfo *)buffer;
+                buffer += sizeof(InlineMethodInfo);
+                const char *klass_name = (const char *)buffer;
+                buffer += imi->klass_name_length;
+                const char *name = (const char *)buffer;
+                buffer += imi->method_name_length;
+                const char *sig = (const char *)buffer;
+                buffer += imi->method_signature_length;
+                std::string klassName = std::string(klass_name, imi->klass_name_length);
+                std::string methodName = std::string(name, imi->method_name_length) + std::string(sig, imi->method_signature_length);
+                std::cout << "    "
+                          << "Method: " << imi->method_index << " "
+                          << klassName << " " << methodName << std::endl;
             }
+            const uint8_t *insts, *scopes_pc, *scopes_data;
+            insts = (const uint8_t *)buffer;
+            buffer += cmi->code_size;
+            scopes_pc = (const uint8_t *)buffer;
+            buffer += cmi->scopes_pc_size;
+            scopes_data = (const uint8_t *)buffer;
+            buffer += cmi->scopes_data_size;
             break;
         }
         case _compiled_method_unload_info:
         {
-            const CompiledMethodUnloadInfo *cmu = (const CompiledMethodUnloadInfo *)buffer;
+            const CompiledMethodUnloadInfo *cmui = (const CompiledMethodUnloadInfo *)buffer;
             buffer += sizeof(CompiledMethodUnloadInfo);
-            std::cout << "Compiled Method Unload " << cmu->code_begin << std::endl;
+            std::cout << "Compiled Method Unload " << cmui->code_begin << std::endl;
             break;
         }
         case _thread_start_info:
@@ -501,21 +342,22 @@ void JVMRuntime::print()
         }
         case _inline_cache_add_info:
         {
-            const InlineCacheAdd *ica = (const InlineCacheAdd *)buffer;
-            std::cout << "Inline cache Add " << ica->src << " " << ica->dest << std::endl;
-            buffer += sizeof(InlineCacheAdd);
+            const InlineCacheAddInfo *icai = (const InlineCacheAddInfo *)buffer;
+            std::cout << "Inline cache Add " << icai->src << " " << icai->dest << std::endl;
+            buffer += sizeof(InlineCacheAddInfo);
             break;
         }
         case _inline_cache_clear_info:
         {
-            const InlineCacheClear *icc = (const InlineCacheClear *)buffer;
-            std::cout << "Inline cache Clear " << icc->src << std::endl;
-            buffer += sizeof(InlineCacheClear);
+            const InlineCacheClearInfo *icci = (const InlineCacheClearInfo *)buffer;
+            std::cout << "Inline cache Clear " << icci->src << std::endl;
+            buffer += sizeof(InlineCacheClearInfo);
             break;
         }
         default:
         {
             /* error */
+            std::cerr << "JVMRuntime error: Unknown tpye" << std::endl;
             buffer = end;
             return;
         }

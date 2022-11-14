@@ -64,8 +64,10 @@ CompiledMethodLoadInlineRecord::CompiledMethodLoadInlineRecord(const uint8_t *sc
     }
 }
 
-CompiledMethodLoadInlineRecord::~CompiledMethodLoadInlineRecord() {
-    for (int i = 0; i < numpcs; ++i) {
+CompiledMethodLoadInlineRecord::~CompiledMethodLoadInlineRecord()
+{
+    for (int i = 0; i < numpcs; ++i)
+    {
         delete pcinfo[i].methods;
         delete pcinfo[i].bcis;
     }
@@ -73,17 +75,22 @@ CompiledMethodLoadInlineRecord::~CompiledMethodLoadInlineRecord() {
     pcinfo = nullptr;
 }
 
-JitSection::JitSection(const uint8_t *code, uint64_t code_begin, uint32_t code_size,
+JitSection::JitSection(const uint8_t *code, uint64_t code_begin,
+                       uint64_t stub_begin, uint32_t code_size,
                        const uint8_t *scopes_pc, uint32_t scopes_pc_size,
                        const uint8_t *scopes_data, uint32_t scopes_data_size,
                        uint64_t entry_point, uint64_t verified_entry_point,
-                       uint64_t osr_entry_point, uint32_t inline_method_cnt,
+                       uint64_t osr_entry_point, uint64_t exception_begin,
+                       uint64_t deopt_begin, uint64_t deopt_mh_begin,
+                       uint32_t inline_method_cnt,
                        std::map<int, const Method *> &methods,
-                       const Method* mainm, const std::string &name)
-                       : _code(code), _code_begin(code_begin), _entry_point(entry_point),
-                         _verified_entry_point(verified_entry_point), _osr_entry_point(osr_entry_point),
-                         _code_size(code_size), _inline_method_cnt(inline_method_cnt),
-                         _methods(methods), _mainm(mainm), _name(name)
+                       const Method *mainm, const std::string &name)
+    : _code(code), _code_begin(code_begin), _stub_begin(stub_begin),
+      _entry_point(entry_point), _verified_entry_point(verified_entry_point),
+      _osr_entry_point(osr_entry_point), _exception_begin(exception_begin),
+      _deopt_begin(deopt_begin), _deopt_mh_begin(deopt_mh_begin),
+      _code_size(code_size), _inline_method_cnt(inline_method_cnt),
+      _methods(methods), _mainm(mainm), _name(name)
 {
     assert(code != nullptr);
     _record = new CompiledMethodLoadInlineRecord(scopes_pc, scopes_pc_size,
@@ -113,7 +120,7 @@ bool JitSection::read(uint8_t *buffer, uint8_t *size, uint64_t vaddr)
     return true;
 }
 
-PCStackInfo *JitSection::find(uint64_t vaddr, int &idx)
+PCStackInfo *JitSection::find(uint64_t vaddr)
 {
     uint64_t begin = _code_begin;
     uint64_t end = begin + _code_size;
@@ -123,9 +130,8 @@ PCStackInfo *JitSection::find(uint64_t vaddr, int &idx)
 
     for (int i = 0; i < _record->numpcs; i++)
     {
-        if (vaddr < _record->pcinfo[i].pc)
+        if (vaddr == _record->pcinfo[i].pc)
         {
-            idx = i;
             return &_record->pcinfo[i];
         }
     }

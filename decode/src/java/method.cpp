@@ -21,10 +21,12 @@ Method::~Method()
     _bg = nullptr;
 }
 
-BlockGraph *Method::get_bg() const {
+BlockGraph *Method::get_bg() const
+{
     _bg->build_bctlist();
     return _bg;
 }
+
 void Method::print_graph() const
 {
     std::cout << _name_signature << " graph:" << std::endl;

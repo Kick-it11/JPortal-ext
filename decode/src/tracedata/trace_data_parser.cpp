@@ -46,9 +46,21 @@ bool TraceDataParser::parse()
     uint64_t cpu_offset = 0;
     uint32_t sample_type = _trace_header.sample_type;
     if (sample_type & PERF_SAMPLE_TID)
+    {
         sample_size += 8;
+    }
+    else
+    {
+        std::cerr << "TraceDataParser error: Miss perf sample tid" << std::endl;
+        exit(-1);
+    }
     if (sample_type & PERF_SAMPLE_TIME)
         sample_size += 8;
+    else
+    {
+        std::cerr << "TraceDataParser error: Miss perf sample time" << std::endl;
+        exit(-1);
+    }
     if (sample_type & PERF_SAMPLE_ID)
         sample_size += 8;
     if (sample_type & PERF_SAMPLE_STREAM_ID)
@@ -257,7 +269,8 @@ void TraceDataParser::resplit_pt_data()
     _split_pt_offsets = _pt_offsets;
 }
 
-uint64_t TraceDataParser::sync_forward(uint8_t *buffer, uint64_t buffer_size, int &number)
+uint64_t TraceDataParser::sync_forward(uint8_t *buffer, uint64_t buffer_size,
+                                       int &number, std::pair<uint64_t, uint64_t> &time)
 {
     struct pt_config config;
 
@@ -266,8 +279,8 @@ uint64_t TraceDataParser::sync_forward(uint8_t *buffer, uint64_t buffer_size, in
     /** Segment is not a complete trace but totally fine to find sync points */
     config.begin = buffer;
     config.end = buffer + buffer_size;
-    struct pt_packet_decoder *pkt = pt_pkt_alloc_decoder(&config);
-    if (!pkt)
+    struct pt_query_decoder *qry = pt_qry_alloc_decoder(&config);
+    if (!qry)
     {
         std::cerr << "TraceDataParser error: Failt to allocate packet decoder" << std::endl;
         return buffer_size;
@@ -277,7 +290,7 @@ uint64_t TraceDataParser::sync_forward(uint8_t *buffer, uint64_t buffer_size, in
     for (;;)
     {
         int errcode;
-        errcode = pt_pkt_sync_forward(pkt);
+        errcode = pt_qry_sync_forward(qry, NULL);
         if (errcode < 0)
         {
             if (errcode = -pte_eos)
@@ -287,21 +300,27 @@ uint64_t TraceDataParser::sync_forward(uint8_t *buffer, uint64_t buffer_size, in
             std::cerr << "TraceDataParser error: Fail to sync " << pt_errstr(pt_errcode(errcode)) << std::endl;
         }
 
-        ++number;
         if (number >= _sync_split_number)
         {
-            errcode = pt_pkt_get_sync_offset(pkt, &offset);
+            errcode = pt_qry_get_sync_offset(qry, &offset);
             if (errcode < 0)
                 std::cerr << "TraceDataParser error: Fail to sync " << pt_errstr(pt_errcode(errcode)) << std::endl;
+            pt_qry_time(qry, &time.second, NULL, NULL);
         }
+        if (time.first == 0UL)
+        {
+            pt_qry_time(qry, &time.first, NULL, NULL);
+        }
+        ++number;
     }
 
-    pt_pkt_free_decoder(pkt);
+    pt_qry_free_decoder(qry);
 
     return offset;
 }
 
-bool TraceDataParser::next_pt_data(std::pair<uint8_t *, uint64_t> &part_data, uint32_t &cpu)
+bool TraceDataParser::next_pt_data(std::pair<uint8_t *, uint64_t> &part_data, uint32_t &cpu,
+                                   std::pair<uint64_t, uint64_t> &time)
 {
     if (_split_pt_offsets.empty())
         return false;
@@ -328,6 +347,8 @@ bool TraceDataParser::next_pt_data(std::pair<uint8_t *, uint64_t> &part_data, ui
         exit(-1);
     }
 
+    time.first = 0UL;
+    time.second = -(1UL);
     /** Find _split_sync_number sync points or reach to end */
     for (; dest != offs.end(); ++dest)
     {
@@ -336,7 +357,7 @@ bool TraceDataParser::next_pt_data(std::pair<uint8_t *, uint64_t> &part_data, ui
         file.seekg(dest->first, std::ios_base::beg);
         file.read((char *)buffer, buffer_size);
 
-        offset = sync_forward(buffer, buffer_size, number);
+        offset = sync_forward(buffer, buffer_size, number, time);
         size += offset;
         if (number >= _sync_split_number)
             break;

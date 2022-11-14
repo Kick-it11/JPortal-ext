@@ -3,8 +3,6 @@
 
 #include "java/definitions.hpp"
 
-#include <list>
-#include <map>
 #include <string>
 
 class BlockGraph;

@@ -5,8 +5,9 @@
 #include <cstring>
 #include <dirent.h>
 #include <iostream>
+#include <list>
 
-Analyser::Analyser(const std::list<std::string> &class_paths)
+Analyser::Analyser(const std::vector<std::string> &class_paths)
 {
     parse(class_paths);
 }
@@ -45,7 +46,7 @@ const Method *Analyser::get_method(const std::string &klassName, const std::stri
     return _methods.count(klassName + methodName) ? _methods[klassName + methodName] : nullptr;
 }
 
-void Analyser::parse(const std::list<std::string> &class_paths)
+void Analyser::parse(const std::vector<std::string> &class_paths)
 {
     for (auto main_path : class_paths)
     {

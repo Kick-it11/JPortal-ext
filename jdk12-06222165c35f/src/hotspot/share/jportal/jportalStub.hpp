@@ -27,6 +27,8 @@ class JPortalStub: public Stub {
   // Creation
   void set_stub(address dest_addr);
 
+  void set_stub(address dest_addr, uint num);
+
   // Code info
   address code_begin() const                     { return (address)this + align_up(sizeof(JPortalStub), CodeEntryAlignment); }
   address code_end() const                       { return (address)this + size(); }
@@ -54,7 +56,6 @@ inline JPortalStub* JPortalStub_from_destination_address(address destination_add
 class JPortalStubBuffer : AllStatic {
   friend class JPortalStub;
  private:
-  static int jportal_stub_code_size();
 
   static StubQueue* _buffer;
 
@@ -64,6 +65,9 @@ class JPortalStubBuffer : AllStatic {
 
   // Machine-dependent implementation of JPortalStub
   static void    assemble_jportal_buffer_code(address code_begin, address entry_point);
+
+  // Machine-dependent implementation of JPortalStub
+  static void    assemble_jportal_buffer_code(address code_begin, address entry_point, uint num);
 
  public:
 
@@ -80,7 +84,13 @@ class JPortalStubBuffer : AllStatic {
   static bool is_empty();
 
   // New interface
-  static JPortalStub* new_jportal_stub();
+  static JPortalStub *new_jportal_stub();
+
+  static JPortalStub *new_jportal_stub(uint num);
+
+  static int jportal_stub_code_size();
+
+  static int jportal_stub_code_size(uint num);
 };
 #endif
 

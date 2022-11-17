@@ -78,12 +78,12 @@ void JPortalEnable::dump_method_entry(Method *moop) {
   MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
 
   if (!_initialized) {
-    warning("JPortalEnable error: method load before initialize");
+    warning("JPortalEnable error: method entry before initialize");
     return;
   }
 
   if (!moop) {
-    warning("JPortalEnable error: empty method load");
+    warning("JPortalEnable error: empty method entry");
     return;
   }
 
@@ -95,7 +95,7 @@ void JPortalEnable::dump_method_entry(Method *moop) {
   char *method_name = (char *)moop->name()->bytes();
   char *method_signature = (char *)moop->signature()->bytes();
 
-  size = sizeof(MethodEntryInfo) + klass_name_length + name_length + sig_length;
+  size = sizeof(struct MethodEntryInfo) + klass_name_length + name_length + sig_length;
   MethodEntryInfo mei(klass_name_length, name_length, sig_length, (u8)moop->interpreter_entry(), size);
 
   if (!check_data(size)) {
@@ -107,6 +107,26 @@ void JPortalEnable::dump_method_entry(Method *moop) {
   dump_data((address)klass_name, klass_name_length);
   dump_data((address)method_name, name_length);
   dump_data((address)method_signature, sig_length);
+  return;
+}
+
+void JPortalEnable::dump_method_exit(address addr) {
+  MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
+
+  if (!_initialized) {
+    warning("JPortalEnable error: method exit before initialize");
+    return;
+  }
+
+  u4 size = sizeof(struct MethodExitInfo);
+  MethodExitInfo mei((u8)addr, size);
+
+  if (!check_data(size)) {
+    warning("JPortalEnable error: ignore exit for size too big");
+    return;
+  }
+
+  dump_data((address)&mei, sizeof(mei));
   return;
 }
 
@@ -147,6 +167,66 @@ void JPortalEnable::dump_branch_not_taken(address addr) {
   }
 
   dump_data((address)&bnti, sizeof(bnti));
+  return;
+}
+
+void JPortalEnable::dump_switch_case(address addr, u4 num, u4 ssize) {
+  MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
+
+  if (!_initialized) {
+    warning("JPortalEnable error: dump switch case before initialize");
+    return;
+  }
+
+  u4 size = sizeof(struct SwitchCaseInfo);
+  SwitchCaseInfo sci((u8)addr, num, ssize, size);
+
+  if (!check_data(size)) {
+    warning("JPortalEnable error: ignore switch case for size too big");
+    return;
+  }
+
+  dump_data((address)&sci, sizeof(sci));
+  return;
+}
+
+void JPortalEnable::dump_switch_default(address addr) {
+  MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
+
+  if (!_initialized) {
+    warning("JPortalEnable error: dump switch default before initialize");
+    return;
+  }
+
+  u4 size = sizeof(struct SwitchDefaultInfo);
+  SwitchDefaultInfo sdi((u8)addr, size);
+
+  if (!check_data(size)) {
+    warning("JPortalEnable error: ignore switch default for size too big");
+    return;
+  }
+
+  dump_data((address)&sdi, sizeof(sdi));
+  return;
+}
+
+void JPortalEnable::dump_invoke_site(address addr) {
+  MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
+
+  if (!_initialized) {
+    warning("JPortalEnable error: dump invoke site before initialize");
+    return;
+  }
+
+  u4 size = sizeof(struct InvokeSiteInfo);
+  InvokeSiteInfo isi((u8)addr, size);
+
+  if (!check_data(size)) {
+    warning("JPortalEnable error: ignore invoke site for size too big");
+    return;
+  }
+
+  dump_data((address)&isi, sizeof(isi));
   return;
 }
 
@@ -358,7 +438,7 @@ void JPortalEnable::dump_inline_cache_clear(address src) {
 }
 
 void JPortalEnable::trace() {
-  MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
+  JPortalEnable_lock->lock_without_safepoint_check();
 
   if (!JPortal || !_initialized || _tracing)
     return;
@@ -367,6 +447,7 @@ void JPortalEnable::trace() {
   int pipe_fd[2];
   if (pipe(pipe_fd) < 0) {
     warning("JPortalEnable Error: Fail to open pipe, abort");
+    JPortalEnable_lock->unlock();
     vm_exit(1);
   }
 
@@ -386,6 +467,7 @@ void JPortalEnable::trace() {
     close(pipe_fd[1]);
 
     warning("JPortalEnable Error: Fail to write arguments, abort");
+    JPortalEnable_lock->unlock();
     vm_exit(1);
   }
 
@@ -411,6 +493,7 @@ void JPortalEnable::trace() {
     close(pipe_fd[1]);
 
     warning("JPortalEnable Error: Fail to fork process, abort");
+    JPortalEnable_lock->unlock();
     vm_exit(1);
   }
 
@@ -421,10 +504,12 @@ void JPortalEnable::trace() {
     close(pipe_fd[0]);
 
     warning("JPortalEnable Error: Fail to read pipe, abort");
+    JPortalEnable_lock->unlock();
     vm_exit(1);
   }
   close(pipe_fd[0]);
   _tracing = true;
+  JPortalEnable_lock->unlock();
 }
 
 void JPortalEnable::destroy() {
@@ -446,7 +531,7 @@ void JPortalEnable::destroy() {
 }
 
 void JPortalEnable::init() {
-  MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
+  JPortalEnable_lock->lock_without_safepoint_check();
 
   // initialized
   if (!JPortal || _initialized)
@@ -455,6 +540,7 @@ void JPortalEnable::init() {
   // open shared memory
   _shm_id = shmget(IPC_PRIVATE, JPortalShmVolume, IPC_CREAT|0600);
   if (_shm_id < 0) {
+    JPortalEnable_lock->unlock();
     vm_exit_out_of_memory(JPortalShmVolume, INTERNAL_ERROR, "JPortalEnable: out of shared memory");
   }
   // initialize
@@ -466,6 +552,7 @@ void JPortalEnable::init() {
   header->data_size = JPortalShmVolume - sizeof(ShmHeader);
 
   _initialized = true;
+  JPortalEnable_lock->unlock();
 }
 
 #endif // JPORTAL_ENABLE

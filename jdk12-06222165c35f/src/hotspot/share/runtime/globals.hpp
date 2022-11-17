@@ -2520,6 +2520,10 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
           "JPortal Dump Sharing Memory Volume")                             \
           range(1*M, 1*G)                                                   \
                                                                             \
+  product(uintx, JPortalSwitchCaseLimit, 1024,                              \
+          "JPortal Switch Case Limit")                                      \
+          range(16, 1*M)                                                     \
+                                                                            \
   product(bool, RelaxAccessControlCheck, false,                             \
           "Relax the access control checks in the verifier")                \
                                                                             \

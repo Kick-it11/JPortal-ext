@@ -29,6 +29,8 @@
 #include "interpreter/interpreterRuntime.hpp"
 #include "interpreter/interp_masm.hpp"
 #include "interpreter/templateTable.hpp"
+#include "jportal/jportalEnable.hpp"
+#include "jportal/jportalStub.hpp"
 #include "memory/universe.hpp"
 #include "oops/methodData.hpp"
 #include "oops/objArrayKlass.hpp"
@@ -2456,6 +2458,36 @@ void TemplateTable::tableswitch() {
   __ jcc(Assembler::greater, default_case);
   // lookup dispatch offset
   __ subl(rax, rcx);
+
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    JPortalStub *stub = JPortalStubBuffer::new_jportal_stub(JPortalSwitchCaseLimit);
+    __ get_method(rdx);
+    Label non_jportal;
+
+    __ movl(rdx, Address(rdx, Method::access_flags_offset()));
+    __ testl(rdx, JVM_ACC_JPORTAL);
+    __ jcc(Assembler::zero, non_jportal);
+
+    Label not_surpass;
+    __ cmpl(rax, JPortalSwitchCaseLimit);
+    __ jcc(Assembler::less, not_surpass);
+    __ stop("surpass JPortalSwitchCaseLimit");
+
+    __ bind(not_surpass);
+    __ lea(rscratch1, ExternalAddress(stub->code_begin()));
+    __ imulptr(rdx, rax, JPortalStubBuffer::jportal_stub_code_size());
+    __ addptr(rscratch1, rdx);
+    __ jmp(rscratch1);
+
+    __ bind(non_jportal);
+    address addr = __ pc();
+    stub->set_stub(addr, JPortalSwitchCaseLimit);
+    JPortalEnable::dump_switch_case(stub->code_begin(), JPortalSwitchCaseLimit,
+                                    JPortalStubBuffer::jportal_stub_code_size());
+  }
+#endif
+
   __ movl(rdx, Address(rbx, rax, Address::times_4, 3 * BytesPerInt));
   __ profile_switch_case(rax, rbx, rcx);
   // continue execution
@@ -2467,6 +2499,26 @@ void TemplateTable::tableswitch() {
   __ dispatch_only(vtos, true);
   // handle default
   __ bind(default_case);
+
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    JPortalStub *stub = JPortalStubBuffer::new_jportal_stub();
+    __ get_method(rdx);
+    Label non_jportal;
+
+    __ movl(rdx, Address(rdx, Method::access_flags_offset()));
+    __ testl(rdx, JVM_ACC_JPORTAL);
+    __ jcc(Assembler::zero, non_jportal);
+    __ jump(ExternalAddress(stub->code_begin()));
+
+    __ bind(non_jportal);
+
+    address addr = __ pc();
+    stub->set_stub(addr);
+    JPortalEnable::dump_switch_default(stub->code_begin());
+  }
+#endif
+
   __ profile_switch_default(rax);
   __ movl(rdx, Address(rbx, 0));
   __ jmp(continue_execution);
@@ -2499,11 +2551,62 @@ void TemplateTable::fast_linearswitch() {
   __ decrementl(rcx);
   __ jcc(Assembler::greaterEqual, loop);
   // default case
+
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    JPortalStub *stub = JPortalStubBuffer::new_jportal_stub();
+    __ get_method(rdx);
+    Label non_jportal;
+
+    __ movl(rdx, Address(rdx, Method::access_flags_offset()));
+    __ testl(rdx, JVM_ACC_JPORTAL);
+    __ jcc(Assembler::zero, non_jportal);
+
+    __ jump(ExternalAddress(stub->code_begin()));
+
+    __ bind(non_jportal);
+
+    address addr = __ pc();
+    stub->set_stub(addr);
+    JPortalEnable::dump_switch_default(stub->code_begin());
+  }
+#endif
+
   __ profile_switch_default(rax);
   __ movl(rdx, Address(rbx, 0));
   __ jmp(continue_execution);
   // entry found -> get offset
   __ bind(found);
+
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    JPortalStub *stub = JPortalStubBuffer::new_jportal_stub(JPortalSwitchCaseLimit);
+    __ get_method(rdx);
+    Label non_jportal;
+
+    __ movl(rdx, Address(rdx, Method::access_flags_offset()));
+    __ testl(rdx, JVM_ACC_JPORTAL);
+    __ jcc(Assembler::zero, non_jportal);
+
+    Label not_surpass;
+    __ cmpl(rcx, JPortalSwitchCaseLimit);
+    __ jcc(Assembler::less, not_surpass);
+    __ stop("surpass JPortalSwitchCaseLimit");
+
+    __ bind(not_surpass);
+    __ lea(rscratch1, ExternalAddress(stub->code_begin()));
+    __ imulptr(rdx, rcx, JPortalStubBuffer::jportal_stub_code_size());
+    __ addptr(rscratch1, rdx);
+    __ jmp(rscratch1);
+
+    __ bind(non_jportal);
+    address addr = __ pc();
+    stub->set_stub(addr, JPortalSwitchCaseLimit);
+    JPortalEnable::dump_switch_case(stub->code_begin(), JPortalSwitchCaseLimit,
+                                    JPortalStubBuffer::jportal_stub_code_size());
+  }
+#endif
+
   __ movl(rdx, Address(rbx, rcx, Address::times_8, 3 * BytesPerInt));
   __ profile_switch_case(rcx, rax, rbx);
   // continue execution
@@ -2605,6 +2708,35 @@ void TemplateTable::fast_binaryswitch() {
   __ cmpl(key, temp);
   __ jcc(Assembler::notEqual, default_case);
 
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    JPortalStub *stub = JPortalStubBuffer::new_jportal_stub(JPortalSwitchCaseLimit);
+    __ get_method(j);
+    Label non_jportal;
+
+    __ movl(j, Address(j, Method::access_flags_offset()));
+    __ testl(j, JVM_ACC_JPORTAL);
+    __ jcc(Assembler::zero, non_jportal);
+
+    Label not_surpass;
+    __ cmpl(i, JPortalSwitchCaseLimit);
+    __ jcc(Assembler::less, not_surpass);
+    __ stop("surpass JPortalSwitchCaseLimit");
+
+    __ bind(not_surpass);
+    __ lea(rscratch1, ExternalAddress(stub->code_begin()));
+    __ imulptr(j, i, JPortalStubBuffer::jportal_stub_code_size());
+    __ addptr(rscratch1, j);
+    __ jmp(rscratch1);
+
+    __ bind(non_jportal);
+    address addr = __ pc();
+    stub->set_stub(addr, JPortalSwitchCaseLimit);
+    JPortalEnable::dump_switch_case(stub->code_begin(), JPortalSwitchCaseLimit,
+                                    JPortalStubBuffer::jportal_stub_code_size());
+  }
+#endif
+
   // entry found -> j = offset
   __ movl(j , Address(array, i, Address::times_8, BytesPerInt));
   __ profile_switch_case(i, key, array);
@@ -2620,6 +2752,26 @@ void TemplateTable::fast_binaryswitch() {
 
   // default case -> j = default offset
   __ bind(default_case);
+
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    JPortalStub *stub = JPortalStubBuffer::new_jportal_stub();
+    __ get_method(j);
+    Label non_jportal;
+
+    __ movl(j, Address(j, Method::access_flags_offset()));
+    __ testl(j, JVM_ACC_JPORTAL);
+    __ jcc(Assembler::zero, non_jportal);
+    __ jump(ExternalAddress(stub->code_begin()));
+
+    __ bind(non_jportal);
+
+    address addr = __ pc();
+    stub->set_stub(addr);
+    JPortalEnable::dump_switch_default(stub->code_begin());
+  }
+#endif
+
   __ profile_switch_default(i);
   __ movl(j, Address(array, -2 * BytesPerInt));
   __ bswapl(j);
@@ -3736,6 +3888,25 @@ void TemplateTable::invokevirtual_helper(Register index,
 }
 
 void TemplateTable::invokevirtual(int byte_no) {
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    JPortalStub *stub = JPortalStubBuffer::new_jportal_stub();
+    __ get_method(rdx);
+    Label non_jportal;
+
+    __ movl(rdx, Address(rdx, Method::access_flags_offset()));
+    __ testl(rdx, JVM_ACC_JPORTAL);
+    __ jcc(Assembler::zero, non_jportal);
+
+    __ jump(ExternalAddress(stub->code_begin()));
+
+    __ bind(non_jportal);
+    address addr = __ pc();
+    JPortalEnable::dump_invoke_site(stub->code_begin());
+    stub->set_stub(addr);
+  }
+#endif
+
   transition(vtos, vtos);
   assert(byte_no == f2_byte, "use this argument");
   prepare_invoke(byte_no,
@@ -3751,6 +3922,25 @@ void TemplateTable::invokevirtual(int byte_no) {
 }
 
 void TemplateTable::invokespecial(int byte_no) {
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    JPortalStub *stub = JPortalStubBuffer::new_jportal_stub();
+    __ get_method(rdx);
+    Label non_jportal;
+
+    __ movl(rdx, Address(rdx, Method::access_flags_offset()));
+    __ testl(rdx, JVM_ACC_JPORTAL);
+    __ jcc(Assembler::zero, non_jportal);
+
+    __ jump(ExternalAddress(stub->code_begin()));
+
+    __ bind(non_jportal);
+    address addr = __ pc();
+    JPortalEnable::dump_invoke_site(stub->code_begin());
+    stub->set_stub(addr);
+  }
+#endif
+
   transition(vtos, vtos);
   assert(byte_no == f1_byte, "use this argument");
   prepare_invoke(byte_no, rbx, noreg,  // get f1 Method*
@@ -3764,6 +3954,25 @@ void TemplateTable::invokespecial(int byte_no) {
 }
 
 void TemplateTable::invokestatic(int byte_no) {
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    JPortalStub *stub = JPortalStubBuffer::new_jportal_stub();
+    __ get_method(rdx);
+    Label non_jportal;
+
+    __ movl(rdx, Address(rdx, Method::access_flags_offset()));
+    __ testl(rdx, JVM_ACC_JPORTAL);
+    __ jcc(Assembler::zero, non_jportal);
+
+    __ jump(ExternalAddress(stub->code_begin()));
+
+    __ bind(non_jportal);
+    address addr = __ pc();
+    JPortalEnable::dump_invoke_site(stub->code_begin());
+    stub->set_stub(addr);
+  }
+#endif
+
   transition(vtos, vtos);
   assert(byte_no == f1_byte, "use this argument");
   prepare_invoke(byte_no, rbx);  // get f1 Method*
@@ -3775,6 +3984,25 @@ void TemplateTable::invokestatic(int byte_no) {
 
 
 void TemplateTable::fast_invokevfinal(int byte_no) {
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    JPortalStub *stub = JPortalStubBuffer::new_jportal_stub();
+    __ get_method(rdx);
+    Label non_jportal;
+
+    __ movl(rdx, Address(rdx, Method::access_flags_offset()));
+    __ testl(rdx, JVM_ACC_JPORTAL);
+    __ jcc(Assembler::zero, non_jportal);
+
+    __ jump(ExternalAddress(stub->code_begin()));
+
+    __ bind(non_jportal);
+    address addr = __ pc();
+    JPortalEnable::dump_invoke_site(stub->code_begin());
+    stub->set_stub(addr);
+  }
+#endif
+
   transition(vtos, vtos);
   assert(byte_no == f2_byte, "use this argument");
   __ stop("fast_invokevfinal not used on x86");
@@ -3782,6 +4010,25 @@ void TemplateTable::fast_invokevfinal(int byte_no) {
 
 
 void TemplateTable::invokeinterface(int byte_no) {
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    JPortalStub *stub = JPortalStubBuffer::new_jportal_stub();
+    __ get_method(rdx);
+    Label non_jportal;
+
+    __ movl(rdx, Address(rdx, Method::access_flags_offset()));
+    __ testl(rdx, JVM_ACC_JPORTAL);
+    __ jcc(Assembler::zero, non_jportal);
+
+    __ jump(ExternalAddress(stub->code_begin()));
+
+    __ bind(non_jportal);
+    address addr = __ pc();
+    JPortalEnable::dump_invoke_site(stub->code_begin());
+    stub->set_stub(addr);
+  }
+#endif
+
   transition(vtos, vtos);
   assert(byte_no == f1_byte, "use this argument");
   prepare_invoke(byte_no, rax, rbx,  // get f1 Klass*, f2 Method*
@@ -3930,6 +4177,25 @@ void TemplateTable::invokeinterface(int byte_no) {
 }
 
 void TemplateTable::invokehandle(int byte_no) {
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    JPortalStub *stub = JPortalStubBuffer::new_jportal_stub();
+    __ get_method(rdx);
+    Label non_jportal;
+
+    __ movl(rdx, Address(rdx, Method::access_flags_offset()));
+    __ testl(rdx, JVM_ACC_JPORTAL);
+    __ jcc(Assembler::zero, non_jportal);
+
+    __ jump(ExternalAddress(stub->code_begin()));
+
+    __ bind(non_jportal);
+    address addr = __ pc();
+    JPortalEnable::dump_invoke_site(stub->code_begin());
+    stub->set_stub(addr);
+  }
+#endif
+
   transition(vtos, vtos);
   assert(byte_no == f1_byte, "use this argument");
   const Register rbx_method = rbx;
@@ -3955,6 +4221,25 @@ void TemplateTable::invokehandle(int byte_no) {
 }
 
 void TemplateTable::invokedynamic(int byte_no) {
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    JPortalStub *stub = JPortalStubBuffer::new_jportal_stub();
+    __ get_method(rdx);
+    Label non_jportal;
+
+    __ movl(rdx, Address(rdx, Method::access_flags_offset()));
+    __ testl(rdx, JVM_ACC_JPORTAL);
+    __ jcc(Assembler::zero, non_jportal);
+
+    __ jump(ExternalAddress(stub->code_begin()));
+
+    __ bind(non_jportal);
+    address addr = __ pc();
+    JPortalEnable::dump_invoke_site(stub->code_begin());
+    stub->set_stub(addr);
+  }
+#endif
+
   transition(vtos, vtos);
   assert(byte_no == f1_byte, "use this argument");
 

@@ -26,8 +26,12 @@ class JPortalEnable {
     // JVM runtime dump type
     enum DumpType {
       _method_entry_info,             // method entry
+      _method_exit_info,              // method exit
       _branch_taken_info,             // branch taken
       _branch_not_taken_info,         // branch not taken
+      _switch_case_info,              // switch case
+      _switch_default_info,           // switch default
+      _invoke_site_info,              // invoke site
       _exception_handling_info,       // exception handling or maybe unwind
       _deoptimization_info,           // deoptimization point
       _compiled_method_load_info,     // after loading a compiled method: entry, codes, scopes data etc included
@@ -65,6 +69,17 @@ class JPortalEnable {
       }
     };
 
+    struct MethodExitInfo {
+      struct DumpInfo info;
+      u8 addr;
+
+      MethodExitInfo(u8 _addr, u4 _size) : addr(_addr) {
+        info.type = _method_exit_info;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
+    };
+
     struct BranchTakenInfo {
       struct DumpInfo info;
       u8 addr;
@@ -80,6 +95,40 @@ class JPortalEnable {
       u8 addr;
       BranchNotTakenInfo(u8 _addr, u4 _size) : addr(_addr) {
         info.type = _branch_not_taken_info;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
+    };
+
+    struct SwitchCaseInfo {
+      struct DumpInfo info;
+      u8 addr;
+      u4 num;
+      u4 ssize;
+      SwitchCaseInfo(u8 _addr, u8 _num, u4 _ssize, u4 _size)
+        : addr(_addr), num(_num), ssize(_ssize) {
+        info.type = _switch_case_info;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
+    };
+
+    struct SwitchDefaultInfo {
+      struct DumpInfo info;
+      u8 addr;
+
+      SwitchDefaultInfo(u8 _addr, u4 _size) : addr(_addr) {
+        info.type = _switch_default_info;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
+    };
+
+    struct InvokeSiteInfo {
+      struct DumpInfo info;
+      u8 addr;
+      InvokeSiteInfo(u8 _addr, u4 _size) : addr(_addr) {
+        info.type = _invoke_site_info;
         info.size = _size;
         info.time = get_timestamp();
       }
@@ -239,9 +288,17 @@ class JPortalEnable {
 
     static void dump_method_entry(Method *moop);
 
+    static void dump_method_exit(address addr);
+
     static void dump_branch_taken(address addr);
 
     static void dump_branch_not_taken(address addr);
+
+    static void dump_switch_case(address addr, u4 num, u4 ssize);
+
+    static void dump_switch_default(address addr);
+
+    static void dump_invoke_site(address addr);
 
     static void dump_exception_handling(JavaThread *thread, Method *moop, int current_bci, int handler_bci);
 

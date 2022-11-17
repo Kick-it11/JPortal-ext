@@ -19,13 +19,22 @@ int JPortalStubBuffer::jportal_stub_code_size() {
   return MAX2(best, worst);
 }
 
-
+int JPortalStubBuffer::jportal_stub_code_size(uint num) {
+  return jportal_stub_code_size() * num;
+}
 
 void JPortalStubBuffer::assemble_jportal_buffer_code(address code_begin, address entry_point) {
   ResourceMark rm;
   CodeBuffer      code(code_begin, jportal_stub_code_size());
   MacroAssembler* masm            = new MacroAssembler(&code);
   masm->jump(ExternalAddress(entry_point));
+}
+
+void JPortalStubBuffer::assemble_jportal_buffer_code(address code_begin, address entry_point, uint num) {
+  for (uint i = 0; i < num; ++i) {
+    assemble_jportal_buffer_code(code_begin, entry_point);
+    code_begin += jportal_stub_code_size();
+  }
 }
 
 address JPortalStubBuffer::jportal_buffer_entry_point(address code_begin) {

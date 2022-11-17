@@ -3,13 +3,18 @@
 #include "java/analyser.hpp"
 #include "java/block.hpp"
 
-#include <algorithm>
 #include <cassert>
 #include <iostream>
-#include <queue>
-#include <set>
-#include <stack>
-#include <vector>
+#include <fstream>
+
+struct ExecFrame
+{
+    /* for a Interpreter frame, section is nullptr, and prev_frame.size = 1 */
+    const JitSection *section;
+    std::vector<std::pair<const Method *, Block *>> prev_frame;
+    ExecFrame() : section(nullptr) {}
+    ExecFrame(const JitSection *s) : section(s) {}
+};
 
 DecodeDataOutput::DecodeDataOutput(const std::vector<DecodeData *> &data)
 {
@@ -18,12 +23,100 @@ DecodeDataOutput::DecodeDataOutput(const std::vector<DecodeData *> &data)
 
 void DecodeDataOutput::output(const std::string prefix)
 {
-
+    // for (auto &&thread : _splits)
+    // {
+    //     std::vector<ExecFrame *> frames;
+    //     std::ofstream file(prefix + "-" + "thrd" + std::to_string(thread.first));
+    //     for (auto &&split : thread.second)
+    //     {
+    //         DecodeDataAccess access(split);
+    //         DecodeData::DecodeDataType type;
+    //         uint64_t loc;
+    //         while (access.next_trace(type, loc))
+    //         {
+    //             switch (type)
+    //             {
+    //             case DecodeData::_method_entry:
+    //             {
+    //                 const Method *method;
+    //                 if (!access.get_method_entry(loc, method))
+    //                 {
+    //                     std::cerr << "DecodeDataOutput error: Fail to get method entry" << std::endl;
+    //                     exit(1);
+    //                 }
+                    
+    //             }
+    //             case DecodeData::_taken:
+    //                 break;
+    //             case DecodeData::_not_taken:
+    //                 break;
+    //             case DecodeData::_exception:
+    //             {
+    //                 const Method *method;
+    //                 int current_bci, handler_bci;
+    //                 if (!access.get_exception_handling(loc, method, current_bci, handler_bci))
+    //                 {
+    //                     std::cerr << "DecodeDataOutput error: Fail to get exception" << std::endl;
+    //                     exit(1);
+    //                 }
+    //                 break;
+    //             }
+    //             case DecodeData::_deoptimization:
+    //             {
+    //                 const Method *method;
+    //                 int bci;
+    //                 if (!access.get_deoptimization(loc, method, bci))
+    //                 {
+    //                     std::cerr << "DecodeDataOutput error: Fail to get deoptimization" << std::endl;
+    //                     exit(1);
+    //                 }
+    //                 break;
+    //             }
+    //             case DecodeData::_jit_entry:
+    //             case DecodeData::_jit_osr_entry:
+    //             case DecodeData::_jit_code:
+    //             {
+    //                 const JitSection *section;
+    //                 const PCStackInfo **info;
+    //                 uint64_t size;
+    //                 if (!access.get_jit_code(loc, section, info, size))
+    //                 {
+    //                     std::cerr << "DecodeDataOutput error: Fail to get jit code" << std::endl;
+    //                     exit(1);
+    //                 }
+    //                 if (type == DecodeData::_jit_entry)
+    //                 {
+    //                 }
+    //                 if (type == DecodeData::_jit_osr_entry)
+    //                 {
+    //                 }
+    //                 if (type == DecodeData::_jit_code)
+    //                 {
+    //                 }
+    //                 break;
+    //             }
+    //             case DecodeData::_jit_exception:
+    //                 break;
+    //             case DecodeData::_jit_deopt:
+    //                 break;
+    //             case DecodeData::_jit_deopt_mh:
+    //                 break;
+    //             case DecodeData::_data_loss:
+    //                 break;
+    //             case DecodeData::_decode_error:
+    //                 break;
+    //             default:
+    //                 std::cerr << "DecodeDataOutput error: unknown type" << std::endl;
+    //                 exit(1);
+    //             }
+    //         }
+    //     }
+    // }
 }
 
 void DecodeDataOutput::print()
 {
-    for (auto&& thread : _splits)
+    for (auto &&thread : _splits)
     {
         std::cout << "Thread " << thread.first << std::endl;
         for (auto &&split : thread.second)
@@ -49,11 +142,30 @@ void DecodeDataOutput::print()
                               << " " << method->get_name() << std::endl;
                     break;
                 }
+                case DecodeData::_method_exit:
+                    std::cout << "    Method Exit" << std::endl;
+                    break;
                 case DecodeData::_taken:
                     std::cout << "    Branch Taken" << std::endl;
                     break;
                 case DecodeData::_not_taken:
                     std::cout << "    Branch Not Taken" << std::endl;
+                    break;
+                case DecodeData::_switch_case:
+                {
+                    int index;
+                    if (!access.get_switch_case_index(loc, index))
+                    {
+                        std::cerr << "DecodeDataOutput error: Fail to get method entry" << std::endl;
+                        exit(1);
+                    }
+                    std::cout << "    Switch Case Index: " << index << std::endl;
+                }
+                case DecodeData::_switch_default:
+                    std::cout << "    Switch Default" << std::endl;
+                    break;
+                case DecodeData::_invoke_site:
+                    std::cout << "    Invoke Site" << std::endl;
                     break;
                 case DecodeData::_exception:
                 {
@@ -86,7 +198,7 @@ void DecodeDataOutput::print()
                 case DecodeData::_jit_osr_entry:
                 case DecodeData::_jit_code:
                 {
-                    const JitSection* section;
+                    const JitSection *section;
                     const PCStackInfo **info;
                     uint64_t size;
                     if (!access.get_jit_code(loc, section, info, size))
@@ -106,7 +218,7 @@ void DecodeDataOutput::print()
                     {
                         std::cout << "Jit code: ";
                     }
-                    std::cout <<  section->mainm()->get_klass()->get_name()
+                    std::cout << section->mainm()->get_klass()->get_name()
                               << " " << section->mainm()->get_name()
                               << " " << size << std::endl;
                     break;
@@ -134,14 +246,6 @@ void DecodeDataOutput::print()
         }
     }
 }
-
-// struct ExecInfo
-// {
-//     const JitSection *section;
-//     std::vector<std::pair<const Method *, Block *>> prev_frame;
-//     ExecInfo() : section(nullptr) {}
-//     ExecInfo(const JitSection *s) : section(s) {}
-// };
 
 // class JitMatchTree
 // {

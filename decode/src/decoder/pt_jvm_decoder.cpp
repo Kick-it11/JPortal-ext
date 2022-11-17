@@ -147,9 +147,13 @@ void PTJVMDecoder::decoder_drain_jvm_events()
             std::cerr << "PTJVMDecoder error: unknown dump type" << std::endl;
             exit(1);
         }
+        case JVMRuntime::_method_entry_info:
+        case JVMRuntime::_method_exit_info:
         case JVMRuntime::_branch_not_taken_info:
         case JVMRuntime::_branch_taken_info:
-        case JVMRuntime::_method_entry_info:
+        case JVMRuntime::_switch_case_info:
+        case JVMRuntime::_switch_default_info:
+        case JVMRuntime::_invoke_site_info:
         {
             /* do not need to handle */
             break;
@@ -1813,6 +1817,22 @@ void PTJVMDecoder::decoder_process_ip()
     {
         _record.record_method_entry(method);
     }
+    else if (JVMRuntime::method_exit(_ip))
+    {
+        _record.record_method_exit();
+    }
+    else if (JVMRuntime::switch_case(_ip))
+    {
+        _record.record_switch_case(JVMRuntime::switch_case_index(_ip));
+    }
+    else if (JVMRuntime::switch_default(_ip))
+    {
+        _record.record_switch_default();
+    }
+    else if (JVMRuntime::invoke_site(_ip))
+    {
+        _record.record_invoke_site();
+    }
     else if (JitSection *section = _image->find(_ip))
     {
         int errcode = decoder_process_jitcode(section);
@@ -1834,6 +1854,22 @@ void PTJVMDecoder::decoder_process_ip()
         else if (const Method *method = JVMRuntime::method_entry(_ip))
         {
             _record.record_method_entry(method);
+        }
+        else if (JVMRuntime::method_exit(_ip))
+        {
+            _record.record_method_exit();
+        }
+        else if (JVMRuntime::switch_case(_ip))
+        {
+            _record.record_switch_case(JVMRuntime::switch_case_index(_ip));
+        }
+        else if (JVMRuntime::switch_default(_ip))
+        {
+            _record.record_switch_default();
+        }
+        else if (JVMRuntime::invoke_site(_ip))
+        {
+            _record.record_invoke_site();
         }
     }
     else

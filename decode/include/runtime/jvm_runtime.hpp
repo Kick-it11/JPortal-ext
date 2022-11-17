@@ -46,11 +46,23 @@ public:
         /* First method entry: map between ip to method */
         _method_entry_info,
 
+        /* Method exit */
+        _method_exit_info,
+
         /* branch taken */
         _branch_taken_info,
 
         /* branch not taken */
         _branch_not_taken_info,
+
+        /* switch case */
+        _switch_case_info,
+
+        /* switch default */
+        _switch_default_info,
+
+        /* invoke site */
+        _invoke_site_info,
 
         /* exception handling or maybe unwind (throw out) -> runtime event */
         _exception_handling_info,
@@ -90,6 +102,10 @@ public:
         uint64_t addr;
     };
 
+    struct MethodExitInfo {
+        uint64_t addr;
+    };
+
     struct BranchTakenInfo
     {
         uint64_t addr;
@@ -97,6 +113,20 @@ public:
 
     struct BranchNotTakenInfo
     {
+        uint64_t addr;
+    };
+
+    struct SwitchCaseInfo {
+        uint64_t addr;
+        uint32_t num;
+        uint32_t ssize;
+    };
+
+    struct SwitchDefaultInfo {
+        uint64_t addr;
+    };
+
+    struct InvokeSiteInfo {
         uint64_t addr;
     };
 
@@ -180,27 +210,66 @@ public:
 
     static bool not_taken_branch(uint64_t ip)
     {
-        return not_takens.count(ip);
+        return _not_takens.count(ip);
     }
 
     static bool taken_branch(uint64_t ip)
     {
-        return takens.count(ip);
+        return _takens.count(ip);
+    }
+
+    static bool method_exit(uint64_t ip)
+    {
+        return _exits.count(ip);
     }
 
     static const Method *method_entry(uint64_t ip)
     {
-        return md_map.count(ip) ? md_map[ip] : nullptr;
+        return _entry_map.count(ip) ? _entry_map[ip] : nullptr;
+    }
+
+    static bool switch_case(uint64_t ip)
+    {
+        for (auto && c : _switch_cases)
+        {
+            if (ip >= c.first && ip < c.first + c.second.first*c.second.second)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static int switch_case_index(uint64_t ip)
+    {
+        for (auto && c : _switch_cases)
+        {
+            if (ip >= c.first && ip < c.first + c.second.first*c.second.second)
+            {
+                return (ip - c.first)/c.second.second;
+            }
+        }
+        return -1;
+    }
+
+    static bool switch_default(uint64_t ip)
+    {
+        return _switch_defaults.count(ip);
+    }
+
+    static bool invoke_site(uint64_t ip)
+    {
+        return _invoke_sites.count(ip);
     }
 
     static JitSection *jit_section(const uint8_t *pointer)
     {
-        return section_map.count(pointer) ? section_map[pointer] : nullptr;
+        return _section_map.count(pointer) ? _section_map[pointer] : nullptr;
     }
 
     static uint64_t java_tid(uint64_t tid)
     {
-        return tid_map.count(tid) ? tid_map[tid] : 0;
+        return _tid_map.count(tid) ? _tid_map[tid] : 0;
     }
 
     /* print all jvm runtime event */
@@ -211,16 +280,22 @@ private:
     const uint8_t *_current;
 
     /* runtime buffer begin */
-    static uint8_t *begin;
+    static uint8_t *_begin;
 
     /* runtime buffer end */
-    static uint8_t *end;
+    static uint8_t *_end;
 
     /* map between method entry address and method */
-    static std::map<uint64_t, const Method *> md_map;
+    static std::map<uint64_t, const Method *> _entry_map;
 
-    static std::set<uint64_t> takens;
-    static std::set<uint64_t> not_takens;
+    static std::set<uint64_t> _exits;
+    static std::set<uint64_t> _takens;
+    static std::set<uint64_t> _not_takens;
+
+    /*{ code_entry, {num, ssize} }*/
+    static std::set<std::pair<uint64_t, std::pair<int, int>>> _switch_cases;
+    static std::set<uint64_t> _switch_defaults;
+    static std::set<uint64_t> _invoke_sites;
 
     /* map between system tid and java tid
      * A potential bug here: system tid might be reused for different java tid
@@ -228,12 +303,12 @@ private:
      *                       Fix it later. By using sys tid and java tid both
      *                                        and making it a runtime info
      */
-    static std::map<uint64_t, uint64_t> tid_map;
+    static std::map<uint64_t, uint64_t> _tid_map;
 
     /* map between data pointer to sectio, process all in advance */
-    static std::map<const uint8_t *, JitSection *> section_map;
+    static std::map<const uint8_t *, JitSection *> _section_map;
 
-    static bool initialized;
+    static bool _initialized;
 };
 
 #endif /* JVM_RUNTIME_HPP */

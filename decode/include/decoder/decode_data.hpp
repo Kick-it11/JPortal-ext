@@ -59,41 +59,53 @@ public:
         /* method entry in a java method level, follows a method pointer -> for inter */
         _method_entry = 1,
 
+        /* method exit */
+        _method_exit = 2,
+
         /* taken branch in a bytecode level -> for inter */
-        _taken = 2,
+        _taken = 3,
 
         /* untaken branch in a bytecode level -> for inter*/
-        _not_taken = 3,
+        _not_taken = 4,
+
+        /* switch case */
+        _switch_case = 5,
+
+        /* switch default */
+        _switch_default = 6,
+
+        /* invoke site */
+        _invoke_site = 7,
 
         /* exception handling or unwwind -> for inter */
-        _exception = 4,
+        _exception = 8,
 
         /* deoptimization -> for inter */
-        _deoptimization = 5,
+        _deoptimization = 9,
 
         /* following jit code, with a jit entry */
-        _jit_entry = 6,
+        _jit_entry = 10,
 
         /* following jit code, with an osr entry */
-        _jit_osr_entry = 7,
+        _jit_osr_entry = 11,
 
         /* following jit code, JIT description and pcs */
-        _jit_code = 8,
+        _jit_code = 12,
 
         /* jit exception begin */
-        _jit_exception = 9,
+        _jit_exception = 13,
 
         /* jit deopt */
-        _jit_deopt = 10,
+        _jit_deopt = 14,
 
         /* jit deopt mh */
-        _jit_deopt_mh = 11,
+        _jit_deopt_mh = 15,
 
         /* indicate a dataloss might happening */
-        _data_loss = 12,
+        _data_loss = 16,
 
         /* indicate a decode error */
-        _decode_error = 13,
+        _decode_error = 17,
     };
 
 private:
@@ -157,9 +169,17 @@ public:
 
     void record_method_entry(const Method *method);
 
+    void record_method_exit();
+
     void record_branch_taken();
 
     void record_branch_not_taken();
+
+    void record_switch_case(int index);
+
+    void record_switch_default();
+
+    void record_invoke_site();
 
     void record_exception_handling(const Method *method, int current_bci, int handler_bci);
 
@@ -209,6 +229,8 @@ public:
     bool next_trace(DecodeData::DecodeDataType &type, uint64_t &pos);
 
     bool get_method_entry(uint64_t pos, const Method *&method);
+
+    bool get_switch_case_index(uint64_t pos, int &index);
 
     bool get_exception_handling(uint64_t pos, const Method *&method, int &current_bci, int &handler_bci);
 

@@ -104,6 +104,13 @@ void DecodeDataRecord::record_method_entry(const Method *method)
     _data->write(&method, sizeof(method));
 }
 
+void DecodeDataRecord::record_method_exit()
+{
+    assert(_cur_thread != nullptr);
+    _type = DecodeData::_method_exit;
+    _data->write(&_type, 1);
+}
+
 void DecodeDataRecord::record_branch_taken()
 {
     assert(_cur_thread != nullptr);
@@ -115,6 +122,28 @@ void DecodeDataRecord::record_branch_not_taken()
 {
     assert(_cur_thread != nullptr);
     _type = DecodeData::_not_taken;
+    _data->write(&_type, 1);
+}
+
+void DecodeDataRecord::record_switch_case(int index)
+{
+    assert(_cur_thread != nullptr);
+    _type = DecodeData::_switch_case;
+    _data->write(&_type, 1);
+    _data->write(&index, sizeof(index));
+}
+
+void DecodeDataRecord::record_switch_default()
+{
+    assert(_cur_thread != nullptr);
+    _type = DecodeData::_switch_default;
+    _data->write(&_type, 1);
+}
+
+void DecodeDataRecord::record_invoke_site()
+{
+    assert(_cur_thread != nullptr);
+    _type = DecodeData::_invoke_site;
     _data->write(&_type, 1);
 }
 
@@ -246,13 +275,24 @@ bool DecodeDataAccess::next_trace(DecodeData::DecodeDataType &type, uint64_t &po
     type = (DecodeData::DecodeDataType)*_current;
     switch (type)
     {
+    case DecodeData::_method_entry:
+        ++_current;
+        _current += sizeof(const Method *);
+        break;
+    case DecodeData::_method_exit:
     case DecodeData::_taken:
     case DecodeData::_not_taken:
         ++_current;
         break;
-    case DecodeData::_method_entry:
+    case DecodeData::_switch_case:
         ++_current;
-        _current += sizeof(const Method *);
+        _current += sizeof(int);
+        break;
+    case DecodeData::_switch_default:
+        ++_current;
+        break;
+    case DecodeData::_invoke_site:
+        ++_current;
         break;
     case DecodeData::_exception:
         ++_current;
@@ -306,6 +346,24 @@ bool DecodeDataAccess::get_method_entry(uint64_t pos, const Method *&method)
     }
     memcpy(&method, buf, sizeof(method));
     assert(method != nullptr);
+    return true;
+}
+
+bool DecodeDataAccess::get_switch_case_index(uint64_t pos, int &index)
+{
+    if (pos > _data->_data_end - _data->_data_begin)
+    {
+        return false;
+    }
+    uint8_t *buf = _data->_data_begin + pos;
+    DecodeData::DecodeDataType type = (DecodeData::DecodeDataType) * (buf);
+    ++buf;
+    if (type != DecodeData::_switch_case)
+    {
+        return false;
+    }
+    memcpy(&index, buf, sizeof(index));
+    assert(index >= 0);
     return true;
 }
 

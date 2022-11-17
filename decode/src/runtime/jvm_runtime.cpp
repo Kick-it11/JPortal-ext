@@ -7,19 +7,23 @@
 #include <cassert>
 #include <iostream>
 
-uint8_t *JVMRuntime::begin = nullptr;
-uint8_t *JVMRuntime::end = nullptr;
-std::map<uint64_t, const Method *> JVMRuntime::md_map;
-std::set<uint64_t> JVMRuntime::takens;
-std::set<uint64_t> JVMRuntime::not_takens;
-std::map<uint64_t, uint64_t> JVMRuntime::tid_map;
-std::map<const uint8_t *, JitSection *> JVMRuntime::section_map;
-bool JVMRuntime::initialized = false;
+uint8_t *JVMRuntime::_begin = nullptr;
+uint8_t *JVMRuntime::_end = nullptr;
+std::map<uint64_t, const Method *> JVMRuntime::_entry_map;
+std::set<uint64_t> JVMRuntime::_exits;
+std::set<uint64_t> JVMRuntime::_takens;
+std::set<uint64_t> JVMRuntime::_not_takens;
+std::set<std::pair<uint64_t, std::pair<int, int>>> JVMRuntime::_switch_cases;
+std::set<uint64_t> JVMRuntime::_switch_defaults;
+std::set<uint64_t> JVMRuntime::_invoke_sites;
+std::map<uint64_t, uint64_t> JVMRuntime::_tid_map;
+std::map<const uint8_t *, JitSection *> JVMRuntime::_section_map;
+bool JVMRuntime::_initialized = false;
 
 JVMRuntime::JVMRuntime()
 {
-    assert(initialized);
-    _current = begin;
+    assert(_initialized);
+    _current = _begin;
 }
 
 JVMRuntime::~JVMRuntime()
@@ -34,15 +38,15 @@ int JVMRuntime::event(uint64_t time, const uint8_t **data)
         return -pte_internal;
     }
 
-    if (_current >= end)
+    if (_current >= _end)
     {
         return -pte_eos;
     }
 
     const DumpInfo *info = (const struct DumpInfo *)_current;
-    if (_current + info->size > end)
+    if (_current + info->size > _end)
     {
-        _current = end;
+        _current = _end;
         return -pte_internal;
     }
 
@@ -54,22 +58,22 @@ int JVMRuntime::event(uint64_t time, const uint8_t **data)
     *data = _current;
     _current += info->size;
 
-    return 0;
+    return pts_event_pending;
 }
 
 void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
 {
-    begin = buffer;
-    end = buffer + size;
+    _begin = buffer;
+    _end = buffer + size;
     const DumpInfo *info;
-    while (buffer < end)
+    while (buffer < _end)
     {
         uint8_t *event_start = buffer;
         info = (const struct DumpInfo *)buffer;
-        if (buffer + info->size > end)
+        if (buffer + info->size > _end)
         {
             std::cerr << "JVMRuntime error: Read JVMRuntime info" << std::endl;
-            break;
+            exit(1);
         }
         buffer += sizeof(DumpInfo);
         switch (info->type)
@@ -86,7 +90,15 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
             std::string sig((const char *)buffer, mei->method_signature_length);
             buffer += mei->method_signature_length;
             const Method *method = analyser->get_method(klass_name, name + sig);
-            md_map[mei->addr] = method;
+            _entry_map[mei->addr] = method;
+            break;
+        }
+        case _method_exit_info:
+        {
+            const MethodExitInfo *mei;
+            mei = (const MethodExitInfo *)buffer;
+            buffer += sizeof(MethodExitInfo);
+            _exits.insert(mei->addr);
             break;
         }
         case _branch_taken_info:
@@ -94,7 +106,7 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
             const BranchTakenInfo *bti;
             bti = (const BranchTakenInfo *)buffer;
             buffer += sizeof(BranchTakenInfo);
-            takens.insert(bti->addr);
+            _takens.insert(bti->addr);
             break;
         }
         case _branch_not_taken_info:
@@ -102,7 +114,31 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
             const BranchNotTakenInfo *bnti;
             bnti = (const BranchNotTakenInfo *)buffer;
             buffer += sizeof(BranchNotTakenInfo);
-            not_takens.insert(bnti->addr);
+            _not_takens.insert(bnti->addr);
+            break;
+        }
+        case _switch_case_info:
+        {
+            const SwitchCaseInfo *sci;
+            sci = (const SwitchCaseInfo *)buffer;
+            buffer += sizeof(SwitchCaseInfo);
+            _switch_cases.insert({sci->addr, {sci->num, sci->ssize}});
+            break;
+        }
+        case _switch_default_info:
+        {
+            const SwitchDefaultInfo *sdi;
+            sdi = (const SwitchDefaultInfo *)buffer;
+            buffer += sizeof(SwitchDefaultInfo);
+            _switch_defaults.insert({sdi->addr});
+            break;
+        }
+        case _invoke_site_info:
+        {
+            const InvokeSiteInfo *isi;
+            isi = (const InvokeSiteInfo *)buffer;
+            buffer += sizeof(InvokeSiteInfo);
+            _invoke_sites.insert(isi->addr);
             break;
         }
         case _exception_handling_info:
@@ -164,7 +200,7 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
                                                  cmi->deopt_begin, cmi->deopt_mh_begin,
                                                  cmi->inline_method_cnt,
                                                  methods, mainm, mainm->get_name());
-            section_map[buffer] = section;
+            _section_map[buffer] = section;
             break;
         }
         case _compiled_method_unload_info:
@@ -179,8 +215,8 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
             buffer += sizeof(ThreadStartInfo);
 
             /* A potential bug: system tid might get reused */
-            assert(!tid_map.count(thi->sys_tid));
-            tid_map[thi->sys_tid] = thi->java_tid;
+            assert(!_tid_map.count(thi->sys_tid));
+            _tid_map[thi->sys_tid] = thi->java_tid;
             break;
         }
         case _inline_cache_add_info:
@@ -199,32 +235,32 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
         }
         default:
         {
-            buffer = end;
+            buffer = _end;
             std::cerr << "JvmDumpDecoder error: Unknown dump type" << std::endl;
-            return;
+            exit(1);
         }
         }
         assert(info->size == buffer - event_start);
     }
 
-    initialized = true;
+    _initialized = true;
     return;
 }
 
 void JVMRuntime::destroy()
 {
-    for (auto section : section_map)
+    for (auto section : _section_map)
         delete section.second;
-    section_map.clear();
+    _section_map.clear();
 
-    md_map.clear();
+    _entry_map.clear();
 
-    delete[] begin;
+    delete[] _begin;
 
-    begin = nullptr;
-    end = nullptr;
+    _begin = nullptr;
+    _end = nullptr;
 
-    initialized = false;
+    _initialized = false;
 }
 
 void JVMRuntime::print(uint8_t *buffer, uint64_t size)
@@ -238,7 +274,7 @@ void JVMRuntime::print(uint8_t *buffer, uint64_t size)
         if (buffer + info->size > print_end)
         {
             std::cerr << "JVMRuntime error: print out of bounds" << std::endl;
-            break;
+            exit(1);
         }
         buffer += sizeof(DumpInfo);
         switch (info->type)
@@ -258,6 +294,14 @@ void JVMRuntime::print(uint8_t *buffer, uint64_t size)
                       << " " << name << " " << sig << std::endl;
             break;
         }
+        case _method_exit_info:
+        {
+            const MethodExitInfo *mei;
+            mei = (const MethodExitInfo *)buffer;
+            buffer += sizeof(MethodExitInfo);
+            std::cout << "MethodExitInfo: " << mei->addr << std::endl;
+            break;
+        }
         case _branch_taken_info:
         {
             const BranchTakenInfo *bti;
@@ -272,6 +316,30 @@ void JVMRuntime::print(uint8_t *buffer, uint64_t size)
             bnti = (const BranchNotTakenInfo *)buffer;
             buffer += sizeof(BranchNotTakenInfo);
             std::cout << "BranchNotTakenInfo: " << bnti->addr << std::endl;
+            break;
+        }
+        case _switch_case_info:
+        {
+            const SwitchCaseInfo *sci;
+            sci = (const SwitchCaseInfo *)buffer;
+            buffer += sizeof(SwitchCaseInfo);
+            std::cout << "SwitchCaseInfo: " << sci->addr << " " << sci->num << " " << sci->ssize << std::endl;
+            break;
+        }
+        case _switch_default_info:
+        {
+            const SwitchDefaultInfo *sdi;
+            sdi = (const SwitchDefaultInfo *)buffer;
+            buffer += sizeof(SwitchDefaultInfo);
+            std::cout << "SwitchDefaultInfo: " << sdi->addr << std::endl;
+            break;
+        }
+        case _invoke_site_info:
+        {
+            const InvokeSiteInfo *isi;
+            isi = (const InvokeSiteInfo *)buffer;
+            buffer += sizeof(InvokeSiteInfo);
+            std::cout << "InvokeSiteInfo: " << isi->addr <<std::endl;
             break;
         }
         case _exception_handling_info:
@@ -361,7 +429,7 @@ void JVMRuntime::print(uint8_t *buffer, uint64_t size)
             /* error */
             std::cerr << "JVMRuntime error: Unknown tpye" << std::endl;
             buffer = print_end;
-            return;
+            exit(1);
         }
         }
     }

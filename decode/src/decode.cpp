@@ -1,6 +1,6 @@
-#include "decoder/decode_data_output.hpp"
 #include "decoder/pt_jvm_decoder.hpp"
 #include "java/analyser.hpp"
+#include "output/decode_output.hpp"
 #include "runtime/jvm_runtime.hpp"
 #include "sideband/sideband.hpp"
 #include "thread/thread_pool.hpp"
@@ -11,7 +11,7 @@
 #include <thread>
 
 static void decode_part(DecodeData *trace, struct pt_config config,
-                        uint32_t cpu, std::pair<uint64_t, uint64_t> time)
+                        uint32_t cpu, std::pair<uint64_t, uint64_t> &time)
 {
     PTJVMDecoder decoder(&config, trace, cpu, time);
     decoder.decode();
@@ -36,9 +36,9 @@ static void decode(const std::string &file, std::vector<std::string> &paths)
     /** Decoding */
     std::cout << "Decoding..." << std::endl;
     std::pair<uint8_t *, uint64_t> pt_data;
-    uint32_t cpu;
     std::pair<uint64_t, uint64_t> time;
-    ThreadPool pool(16, 32);
+    uint32_t cpu;
+    ThreadPool pool(1, 32);
     while (parser.next_pt_data(pt_data, cpu, time))
     {
         DecodeData *trace = new DecodeData();
@@ -53,7 +53,7 @@ static void decode(const std::string &file, std::vector<std::string> &paths)
 
     /** Output */
     std::cout << "Output..." << std::endl;
-    DecodeDataOutput to_file(results);
+    DecodeOutput to_file(results);
     to_file.output("decode");
     to_file.print();
 

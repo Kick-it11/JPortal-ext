@@ -10,12 +10,13 @@
 uint8_t *JVMRuntime::_begin = nullptr;
 uint8_t *JVMRuntime::_end = nullptr;
 std::map<uint64_t, const Method *> JVMRuntime::_entry_map;
-std::set<uint64_t> JVMRuntime::_exits;
 std::set<uint64_t> JVMRuntime::_takens;
 std::set<uint64_t> JVMRuntime::_not_takens;
 std::set<std::pair<uint64_t, std::pair<int, int>>> JVMRuntime::_switch_cases;
 std::set<uint64_t> JVMRuntime::_switch_defaults;
 std::set<uint64_t> JVMRuntime::_invoke_sites;
+std::set<uint64_t> JVMRuntime::_return_sites;
+std::set<uint64_t> JVMRuntime::_throw_sites;
 std::map<uint64_t, uint64_t> JVMRuntime::_tid_map;
 std::map<const uint8_t *, JitSection *> JVMRuntime::_section_map;
 bool JVMRuntime::_initialized = false;
@@ -93,14 +94,6 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
             _entry_map[mei->addr] = method;
             break;
         }
-        case _method_exit_info:
-        {
-            const MethodExitInfo *mei;
-            mei = (const MethodExitInfo *)buffer;
-            buffer += sizeof(MethodExitInfo);
-            _exits.insert(mei->addr);
-            break;
-        }
         case _branch_taken_info:
         {
             const BranchTakenInfo *bti;
@@ -139,6 +132,22 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
             isi = (const InvokeSiteInfo *)buffer;
             buffer += sizeof(InvokeSiteInfo);
             _invoke_sites.insert(isi->addr);
+            break;
+        }
+        case _return_site_info:
+        {
+            const ReturnSiteInfo *rsi;
+            rsi = (const ReturnSiteInfo *)buffer;
+            buffer += sizeof(ReturnSiteInfo);
+            _return_sites.insert(rsi->addr);
+            break;
+        }
+        case _throw_site_info:
+        {
+            const ThrowSiteInfo *tsi;
+            tsi = (const ThrowSiteInfo *)buffer;
+            buffer += sizeof(ThrowSiteInfo);
+            _throw_sites.insert(tsi->addr);
             break;
         }
         case _exception_handling_info:
@@ -294,14 +303,6 @@ void JVMRuntime::print(uint8_t *buffer, uint64_t size)
                       << " " << name << " " << sig << std::endl;
             break;
         }
-        case _method_exit_info:
-        {
-            const MethodExitInfo *mei;
-            mei = (const MethodExitInfo *)buffer;
-            buffer += sizeof(MethodExitInfo);
-            std::cout << "MethodExitInfo: " << mei->addr << std::endl;
-            break;
-        }
         case _branch_taken_info:
         {
             const BranchTakenInfo *bti;
@@ -340,6 +341,22 @@ void JVMRuntime::print(uint8_t *buffer, uint64_t size)
             isi = (const InvokeSiteInfo *)buffer;
             buffer += sizeof(InvokeSiteInfo);
             std::cout << "InvokeSiteInfo: " << isi->addr <<std::endl;
+            break;
+        }
+        case _return_site_info:
+        {
+            const ReturnSiteInfo *rsi;
+            rsi = (const ReturnSiteInfo *)buffer;
+            buffer += sizeof(ReturnSiteInfo);
+            std::cout << "ReturnSiteInfo: " << rsi->addr <<std::endl;
+            break;
+        }
+        case _throw_site_info:
+        {
+            const ThrowSiteInfo *tsi;
+            tsi = (const ThrowSiteInfo *)buffer;
+            buffer += sizeof(ThrowSiteInfo);
+            std::cout << "ThrowSiteInfo: " << tsi->addr <<std::endl;
             break;
         }
         case _exception_handling_info:

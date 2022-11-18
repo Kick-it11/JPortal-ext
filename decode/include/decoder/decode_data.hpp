@@ -59,53 +59,59 @@ public:
         /* method entry in a java method level, follows a method pointer -> for inter */
         _method_entry = 1,
 
-        /* method exit */
-        _method_exit = 2,
-
         /* taken branch in a bytecode level -> for inter */
-        _taken = 3,
+        _taken = 2,
 
         /* untaken branch in a bytecode level -> for inter*/
-        _not_taken = 4,
+        _not_taken = 3,
 
         /* switch case */
-        _switch_case = 5,
+        _switch_case = 4,
 
         /* switch default */
-        _switch_default = 6,
+        _switch_default = 5,
 
         /* invoke site */
-        _invoke_site = 7,
+        _invoke_site = 6,
+
+        /* return site */
+        _return_site = 7,
+
+        /* throw site */
+        _throw_site = 8,
 
         /* exception handling or unwwind -> for inter */
-        _exception = 8,
+        _exception = 9,
 
         /* deoptimization -> for inter */
-        _deoptimization = 9,
+        _deoptimization = 10,
 
         /* following jit code, with a jit entry */
-        _jit_entry = 10,
+        _jit_entry = 11,
 
         /* following jit code, with an osr entry */
-        _jit_osr_entry = 11,
+        _jit_osr_entry = 12,
 
         /* following jit code, JIT description and pcs */
-        _jit_code = 12,
+        _jit_code = 13,
+
+        /* jit return */
+        _jit_return = 14,
 
         /* jit exception begin */
-        _jit_exception = 13,
+        _jit_exception = 15,
 
         /* jit deopt */
-        _jit_deopt = 14,
+        _jit_deopt = 16,
 
         /* jit deopt mh */
-        _jit_deopt_mh = 15,
+        _jit_deopt_mh = 17,
 
         /* indicate a dataloss might happening */
-        _data_loss = 16,
+        _data_loss = 18,
 
         /* indicate a decode error */
-        _decode_error = 17,
+        _decode_error = 19,
     };
 
 private:
@@ -161,15 +167,14 @@ public:
     }
 
     uint64_t pos() { return _data->_data_end - _data->_data_begin; }
+
     /* must be called before record other information, to set thread info */
-    void record_switch(uint64_t tid, uint64_t time);
+    void switch_thread(uint64_t tid, uint64_t time);
 
     /* end of record */
     void record_mark_end(uint64_t time);
 
     void record_method_entry(const Method *method);
-
-    void record_method_exit();
 
     void record_branch_taken();
 
@@ -180,6 +185,10 @@ public:
     void record_switch_default();
 
     void record_invoke_site();
+
+    void record_return_site();
+
+    void record_throw_site();
 
     void record_exception_handling(const Method *method, int current_bci, int handler_bci);
 
@@ -196,6 +205,8 @@ public:
     void record_jit_deopt();
 
     void record_jit_deopt_mh();
+
+    void record_jit_return();
 
     void record_data_loss();
 

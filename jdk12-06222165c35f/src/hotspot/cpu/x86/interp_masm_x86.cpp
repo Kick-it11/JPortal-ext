@@ -2079,22 +2079,4 @@ void InterpreterMacroAssembler::notify_method_exit(
                  rthread, rarg);
     pop(state);
   }
-
-#ifdef JPORTAL_ENABLE
-  if (JPortal) {
-    get_method(rarg);
-    Label non_jportal;
-    JPortalStub *stub = JPortalStubBuffer::new_jportal_stub();
-
-    movl(rarg, Address(rarg, Method::access_flags_offset()));
-    testl(rarg, JVM_ACC_JPORTAL);
-    jcc(Assembler::zero, non_jportal);
-    jump(ExternalAddress(stub->code_begin()));
-
-    bind(non_jportal);
-    address addr = pc();
-    stub->set_stub(addr);
-    JPortalEnable::dump_method_exit(stub->code_begin());
-  }
-#endif
 }

@@ -53,7 +53,7 @@ void DecodeData::write(void *data, uint64_t size)
     _data_end += size;
 }
 
-void DecodeDataRecord::record_switch(uint64_t tid, uint64_t time)
+void DecodeDataRecord::switch_thread(uint64_t tid, uint64_t time)
 {
     if (_cur_thread)
     {
@@ -104,13 +104,6 @@ void DecodeDataRecord::record_method_entry(const Method *method)
     _data->write(&method, sizeof(method));
 }
 
-void DecodeDataRecord::record_method_exit()
-{
-    assert(_cur_thread != nullptr);
-    _type = DecodeData::_method_exit;
-    _data->write(&_type, 1);
-}
-
 void DecodeDataRecord::record_branch_taken()
 {
     assert(_cur_thread != nullptr);
@@ -144,6 +137,20 @@ void DecodeDataRecord::record_invoke_site()
 {
     assert(_cur_thread != nullptr);
     _type = DecodeData::_invoke_site;
+    _data->write(&_type, 1);
+}
+
+void DecodeDataRecord::record_return_site()
+{
+    assert(_cur_thread != nullptr);
+    _type = DecodeData::_return_site;
+    _data->write(&_type, 1);
+}
+
+void DecodeDataRecord::record_throw_site()
+{
+    assert(_cur_thread != nullptr);
+    _type = DecodeData::_throw_site;
     _data->write(&_type, 1);
 }
 
@@ -229,9 +236,15 @@ void DecodeDataRecord::record_jit_code(const JitSection *section, const PCStackI
     memcpy(_data->_data_begin + _pc_size_pos, &_pc_size, sizeof(_pc_size));
 }
 
-void DecodeDataRecord::record_jit_exception()
+void DecodeDataRecord::record_jit_return()
 {
     assert(_cur_thread != nullptr);
+    _type = DecodeData::_jit_return;
+    _data->write(&_type, 1);
+}
+
+void DecodeDataRecord::record_jit_exception()
+{
     assert(_cur_thread != nullptr);
     _type = DecodeData::_jit_exception;
     _data->write(&_type, 1);
@@ -279,7 +292,6 @@ bool DecodeDataAccess::next_trace(DecodeData::DecodeDataType &type, uint64_t &po
         ++_current;
         _current += sizeof(const Method *);
         break;
-    case DecodeData::_method_exit:
     case DecodeData::_taken:
     case DecodeData::_not_taken:
         ++_current;
@@ -289,9 +301,9 @@ bool DecodeDataAccess::next_trace(DecodeData::DecodeDataType &type, uint64_t &po
         _current += sizeof(int);
         break;
     case DecodeData::_switch_default:
-        ++_current;
-        break;
     case DecodeData::_invoke_site:
+    case DecodeData::_return_site:
+    case DecodeData::_throw_site:
         ++_current;
         break;
     case DecodeData::_exception:
@@ -319,6 +331,7 @@ bool DecodeDataAccess::next_trace(DecodeData::DecodeDataType &type, uint64_t &po
         _current += (sizeof(pc_size) + sizeof(const PCStackInfo *) * pc_size);
         break;
     }
+    case DecodeData::_jit_return:
     case DecodeData::_jit_exception:
     case DecodeData::_jit_deopt:
     case DecodeData::_jit_deopt_mh:

@@ -110,26 +110,6 @@ void JPortalEnable::dump_method_entry(Method *moop) {
   return;
 }
 
-void JPortalEnable::dump_method_exit(address addr) {
-  MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
-
-  if (!_initialized) {
-    warning("JPortalEnable error: method exit before initialize");
-    return;
-  }
-
-  u4 size = sizeof(struct MethodExitInfo);
-  MethodExitInfo mei((u8)addr, size);
-
-  if (!check_data(size)) {
-    warning("JPortalEnable error: ignore exit for size too big");
-    return;
-  }
-
-  dump_data((address)&mei, sizeof(mei));
-  return;
-}
-
 void JPortalEnable::dump_branch_taken(address addr) {
   MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
 
@@ -227,6 +207,46 @@ void JPortalEnable::dump_invoke_site(address addr) {
   }
 
   dump_data((address)&isi, sizeof(isi));
+  return;
+}
+
+void JPortalEnable::dump_return_site(address addr) {
+  MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
+
+  if (!_initialized) {
+    warning("JPortalEnable error: dump invoke site before initialize");
+    return;
+  }
+
+  u4 size = sizeof(struct ReturnSiteInfo);
+  ReturnSiteInfo rsi((u8)addr, size);
+
+  if (!check_data(size)) {
+    warning("JPortalEnable error: ignore invoke site for size too big");
+    return;
+  }
+
+  dump_data((address)&rsi, sizeof(rsi));
+  return;
+}
+
+void JPortalEnable::dump_throw_site(address addr) {
+  MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
+
+  if (!_initialized) {
+    warning("JPortalEnable error: dump invoke site before initialize");
+    return;
+  }
+
+  u4 size = sizeof(struct ThrowSiteInfo);
+  ThrowSiteInfo tsi((u8)addr, size);
+
+  if (!check_data(size)) {
+    warning("JPortalEnable error: ignore invoke site for size too big");
+    return;
+  }
+
+  dump_data((address)&tsi, sizeof(tsi));
   return;
 }
 
@@ -440,7 +460,7 @@ void JPortalEnable::dump_inline_cache_clear(address src) {
 void JPortalEnable::trace() {
   JPortalEnable_lock->lock_without_safepoint_check();
 
-  if (!JPortal || !_initialized || _tracing)
+  if (!_initialized || _tracing)
     return;
 
   // open pipe
@@ -534,8 +554,10 @@ void JPortalEnable::init() {
   JPortalEnable_lock->lock_without_safepoint_check();
 
   // initialized
-  if (!JPortal || _initialized)
+  if (_initialized) {
+    JPortalEnable_lock->unlock();
     return;
+  }
 
   // open shared memory
   _shm_id = shmget(IPC_PRIVATE, JPortalShmVolume, IPC_CREAT|0600);

@@ -83,8 +83,15 @@ private:
     /** PT data list: <cpu, trace data> */
     std::map<uint32_t, std::list<std::pair<uint64_t, uint64_t>>> _pt_offsets;
 
+    struct PTSplit
+    {
+        std::list<std::pair<uint64_t, uint64_t>> offsets;
+        uint32_t cpu;
+        uint64_t start_time;
+        uint64_t end_time;
+    };
     /** PT data offsets remaining, while splitting pt data*/
-    std::map<uint32_t, std::list<std::pair<uint64_t, uint64_t>>> _split_pt_offsets;
+    std::list<PTSplit> _split_pt_offsets;
 
     /** Sideband data list: <cpu, sideband data> */
     std::map<uint32_t, std::list<std::pair<uint64_t, uint64_t>>> _sideband_offsets;
@@ -96,13 +103,6 @@ private:
 
     /** parse pt_offsets & sideband_data & jvm runtime offsets */
     bool parse();
-
-    /** Use pt_pkt_decoder to sync forward until @number gets sync_split_number
-     *
-     *  return last sync_offset
-     */
-    uint64_t sync_forward(uint8_t *buffer, uint64_t size,
-                          int &number, std::pair<uint64_t, uint64_t> &time);
 
 public:
     /** TraceDataParser constructor: initialized from file name */
@@ -121,12 +121,11 @@ public:
     /** return pt data at once, cpou -> <data, size> */
     std::map<uint32_t, std::pair<uint8_t *, uint64_t>> pt_data();
 
-    /** begin to split pt data, set _split_pt_offsets to _pt_offsets*/
+    /** begin to split pt data, set _split_pt_offsets by query decoder and split number, also set time */
     void resplit_pt_data();
 
     /** get next splitted pt data & start to end time, return true if we can still get */
-    bool next_pt_data(std::pair<uint8_t *, uint64_t> &part_data,
-                      uint32_t &cpu, std::pair<uint64_t, uint64_t> &time);
+    bool next_pt_data(std::pair<uint8_t *, uint64_t> &part_data, uint32_t &cpu, std::pair<uint64_t, uint64_t> &time);
 
     uint16_t time_shift() { return _trace_header.time_shift; }
     uint32_t time_mult() { return _trace_header.time_mult; }

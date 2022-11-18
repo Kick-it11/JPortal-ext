@@ -46,9 +46,6 @@ public:
         /* First method entry: map between ip to method */
         _method_entry_info,
 
-        /* Method exit */
-        _method_exit_info,
-
         /* branch taken */
         _branch_taken_info,
 
@@ -63,6 +60,12 @@ public:
 
         /* invoke site */
         _invoke_site_info,
+
+        /* return site */
+        _return_site_info,
+
+        /* throw site */
+        _throw_site_info,
 
         /* exception handling or maybe unwind (throw out) -> runtime event */
         _exception_handling_info,
@@ -102,10 +105,6 @@ public:
         uint64_t addr;
     };
 
-    struct MethodExitInfo {
-        uint64_t addr;
-    };
-
     struct BranchTakenInfo
     {
         uint64_t addr;
@@ -127,6 +126,14 @@ public:
     };
 
     struct InvokeSiteInfo {
+        uint64_t addr;
+    };
+
+    struct ReturnSiteInfo {
+        uint64_t addr;
+    };
+
+    struct ThrowSiteInfo {
         uint64_t addr;
     };
 
@@ -218,11 +225,6 @@ public:
         return _takens.count(ip);
     }
 
-    static bool method_exit(uint64_t ip)
-    {
-        return _exits.count(ip);
-    }
-
     static const Method *method_entry(uint64_t ip)
     {
         return _entry_map.count(ip) ? _entry_map[ip] : nullptr;
@@ -262,6 +264,16 @@ public:
         return _invoke_sites.count(ip);
     }
 
+    static bool return_site(uint64_t ip)
+    {
+        return _return_sites.count(ip);
+    }
+
+    static bool throw_site(uint64_t ip)
+    {
+        return _throw_sites.count(ip);
+    }
+
     static JitSection *jit_section(const uint8_t *pointer)
     {
         return _section_map.count(pointer) ? _section_map[pointer] : nullptr;
@@ -288,7 +300,6 @@ private:
     /* map between method entry address and method */
     static std::map<uint64_t, const Method *> _entry_map;
 
-    static std::set<uint64_t> _exits;
     static std::set<uint64_t> _takens;
     static std::set<uint64_t> _not_takens;
 
@@ -296,6 +307,8 @@ private:
     static std::set<std::pair<uint64_t, std::pair<int, int>>> _switch_cases;
     static std::set<uint64_t> _switch_defaults;
     static std::set<uint64_t> _invoke_sites;
+    static std::set<uint64_t> _return_sites;
+    static std::set<uint64_t> _throw_sites;
 
     /* map between system tid and java tid
      * A potential bug here: system tid might be reused for different java tid

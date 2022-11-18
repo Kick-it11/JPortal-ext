@@ -126,10 +126,10 @@ private:
     int decoder_event_pending();
 
     /* process all jvm runtime events */
-    void decoder_drain_jvm_events();
+    void decoder_drain_jvm_events(uint64_t time);
 
     /* process all sideband events */
-    void decoder_drain_sideband_events();
+    void decoder_drain_sideband_events(uint64_t time);
 
     /* check if time changes & process jvm runtime or sideband event */
     void decoder_time_change();
@@ -238,8 +238,8 @@ private:
     void decoder_process_ip();
 
 public:
-    PTJVMDecoder(const struct pt_config *config, DecodeData *const data, uint32_t cpu,
-                 std::pair<uint64_t, uint64_t> time);
+    PTJVMDecoder(const struct pt_config *config, DecodeData *const data,
+                 uint32_t cpu, std::pair<uint64_t, uint64_t> &time);
     ~PTJVMDecoder();
 
     void decode();

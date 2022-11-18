@@ -26,12 +26,13 @@ class JPortalEnable {
     // JVM runtime dump type
     enum DumpType {
       _method_entry_info,             // method entry
-      _method_exit_info,              // method exit
       _branch_taken_info,             // branch taken
       _branch_not_taken_info,         // branch not taken
       _switch_case_info,              // switch case
       _switch_default_info,           // switch default
       _invoke_site_info,              // invoke site
+      _return_site_info,              // return site
+      _throw_site_info,                   // athrow site
       _exception_handling_info,       // exception handling or maybe unwind
       _deoptimization_info,           // deoptimization point
       _compiled_method_load_info,     // after loading a compiled method: entry, codes, scopes data etc included
@@ -64,17 +65,6 @@ class JPortalEnable {
         method_signature_length(_method_signature_length),
         addr(_addr) {
         info.type = _method_entry_info;
-        info.size = _size;
-        info.time = get_timestamp();
-      }
-    };
-
-    struct MethodExitInfo {
-      struct DumpInfo info;
-      u8 addr;
-
-      MethodExitInfo(u8 _addr, u4 _size) : addr(_addr) {
-        info.type = _method_exit_info;
         info.size = _size;
         info.time = get_timestamp();
       }
@@ -129,6 +119,28 @@ class JPortalEnable {
       u8 addr;
       InvokeSiteInfo(u8 _addr, u4 _size) : addr(_addr) {
         info.type = _invoke_site_info;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
+    };
+
+    struct ReturnSiteInfo {
+      struct DumpInfo info;
+      u8 addr;
+
+      ReturnSiteInfo(u8 _addr, u4 _size) : addr(_addr) {
+        info.type = _return_site_info;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
+    };
+
+    struct ThrowSiteInfo {
+      struct DumpInfo info;
+      u8 addr;
+
+      ThrowSiteInfo(u8 _addr, u4 _size) : addr(_addr) {
+        info.type = _throw_site_info;
         info.size = _size;
         info.time = get_timestamp();
       }
@@ -288,8 +300,6 @@ class JPortalEnable {
 
     static void dump_method_entry(Method *moop);
 
-    static void dump_method_exit(address addr);
-
     static void dump_branch_taken(address addr);
 
     static void dump_branch_not_taken(address addr);
@@ -299,6 +309,10 @@ class JPortalEnable {
     static void dump_switch_default(address addr);
 
     static void dump_invoke_site(address addr);
+
+    static void dump_return_site(address addr);
+
+    static void dump_throw_site(address addr);
 
     static void dump_exception_handling(JavaThread *thread, Method *moop, int current_bci, int handler_bci);
 

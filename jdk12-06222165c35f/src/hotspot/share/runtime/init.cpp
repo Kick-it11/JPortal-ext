@@ -179,7 +179,9 @@ void exit_globals() {
     destructorsCalled = true;
     perfMemory_exit();
 #ifdef JPORTAL_ENABLE
-    JPortalEnable_exit();
+    if (JPortal) {
+      JPortalEnable_exit();
+    }
 #endif
     if (log_is_enabled(Debug, safepoint, stats)) {
       // Print the collected safepoint statistics.

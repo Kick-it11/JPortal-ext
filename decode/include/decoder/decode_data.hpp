@@ -59,63 +59,52 @@ public:
         /* method entry in a java method level, follows a method pointer -> for inter */
         _method_entry = 1,
 
+        /* method exit: return/ exception/ pop frame */
+        _method_exit = 2,
+
         /* taken branch in a bytecode level -> for inter */
-        _taken = 2,
+        _taken = 3,
 
         /* untaken branch in a bytecode level -> for inter*/
-        _not_taken = 3,
+        _not_taken = 4,
 
         /* switch case */
-        _switch_case = 4,
+        _switch_case = 5,
 
         /* switch default */
-        _switch_default = 5,
+        _switch_default = 6,
 
         /* invoke site */
-        _invoke_site = 6,
-
-        /* return site */
-        _return_site = 7,
-
-        /* throw site */
-        _throw_site = 8,
+        _invoke_site = 7,
 
         /* exception handling or unwwind -> for inter */
-        _exception = 9,
+        _exception = 8,
 
         /* deoptimization -> for inter */
-        _deoptimization = 10,
+        _deoptimization = 9,
 
         /* following jit code, with a jit entry */
-        _jit_entry = 11,
+        _jit_entry = 10,
 
         /* following jit code, with an osr entry */
-        _jit_osr_entry = 12,
+        _jit_osr_entry = 11,
 
         /* following jit code, JIT description and pcs */
-        _jit_code = 13,
+        _jit_code = 12,
 
         /* jit return */
-        _jit_return = 14,
-
-        /* jit exception begin */
-        _jit_exception = 15,
-
-        /* jit deopt */
-        _jit_deopt = 16,
-
-        /* jit deopt mh */
-        _jit_deopt_mh = 17,
+        _jit_return = 13,
 
         /* indicate a dataloss might happening */
-        _data_loss = 18,
+        _data_loss = 14,
 
         /* indicate a decode error */
-        _decode_error = 19,
+        _decode_error = 15,
     };
 
 private:
     const static int initial_data_volume = 1024 * 4;
+    uint64_t _id;
     uint8_t *_data_begin;
     uint8_t *_data_end;
     uint64_t _data_volume;
@@ -131,7 +120,7 @@ private:
     DecodeData operator=(DecodeData &data) = delete;
 
 public:
-    DecodeData() : _data_begin(nullptr), _data_end(nullptr), _data_volume(0) {}
+    DecodeData(uint64_t id) : _id(id), _data_begin(nullptr), _data_end(nullptr), _data_volume(0) {}
 
     ~DecodeData() { delete[] _data_begin; }
 
@@ -169,48 +158,41 @@ public:
     uint64_t pos() { return _data->_data_end - _data->_data_begin; }
 
     /* must be called before record other information, to set thread info */
-    void switch_thread(uint64_t tid, uint64_t time);
+    void switch_in(uint64_t tid, uint64_t time);
 
-    /* end of record */
-    void record_mark_end(uint64_t time);
+    void switch_out(uint64_t time);
 
-    void record_method_entry(const Method *method);
+    bool record_method_entry(const Method *method);
 
-    void record_branch_taken();
+    bool record_method_exit();
 
-    void record_branch_not_taken();
+    bool record_branch_taken();
 
-    void record_switch_case(int index);
+    bool record_branch_not_taken();
 
-    void record_switch_default();
+    bool record_switch_case(int index);
 
-    void record_invoke_site();
+    bool record_switch_default();
 
-    void record_return_site();
+    bool record_invoke_site();
 
-    void record_throw_site();
+    bool record_exception_handling(const Method *method, int current_bci, int handler_bci);
 
-    void record_exception_handling(const Method *method, int current_bci, int handler_bci);
+    bool record_deoptimization(const Method *method, int bci, uint8_t use_next_bci, uint8_t is_bottom_frame);
 
-    void record_deoptimization(const Method *method, int bci);
+    bool record_jit_entry(const JitSection *section);
 
-    void record_jit_entry(const JitSection *section);
+    bool record_jit_osr_entry(const JitSection *section);
 
-    void record_jit_osr_entry(const JitSection *section);
+    bool record_jit_code(const JitSection *section, const PCStackInfo *info);
 
-    void record_jit_code(const JitSection *section, const PCStackInfo *info);
+    bool record_jit_return();
 
-    void record_jit_exception();
+    bool record_data_loss();
 
-    void record_jit_deopt();
+    bool record_decode_error();
 
-    void record_jit_deopt_mh();
-
-    void record_jit_return();
-
-    void record_data_loss();
-
-    void record_decode_error();
+    uint64_t id() const { return _data->_id; }
 };
 
 class DecodeDataAccess
@@ -245,9 +227,13 @@ public:
 
     bool get_exception_handling(uint64_t pos, const Method *&method, int &current_bci, int &handler_bci);
 
-    bool get_deoptimization(uint64_t pos, const Method *&method, int &bci);
+    bool get_deoptimization(uint64_t pos, const Method *&method, int &bci, uint8_t &use_next_bci, uint8_t &is_bottom_frame);
 
     bool get_jit_code(uint64_t pos, const JitSection *&section, const PCStackInfo **&pcs, uint64_t &size);
+
+    uint64_t pos() const { return _current - _data->_data_begin; }
+
+    uint64_t id() const { return _data->_id; }
 };
 
 #endif /* DECODE_DATA_HPP */

@@ -53,32 +53,23 @@ void DecodeData::write(void *data, uint64_t size)
     _data_end += size;
 }
 
-void DecodeDataRecord::switch_thread(uint64_t tid, uint64_t time)
+void DecodeDataRecord::switch_in(uint64_t tid, uint64_t time)
 {
     if (_cur_thread)
     {
-        /* the same thread */
         if (_cur_thread->tid == tid)
         {
             return;
         }
-
-        /* set end time and addr of previous thread */
-        _cur_thread->end_addr = pos();
-        _cur_thread->end_time = time;
-
-        /* previous thread contains no data */
-        if (_cur_thread->end_addr == _cur_thread->start_addr)
-        {
-            _data->_splits.pop_back();
-        }
+        switch_out(time);
     }
 
     _data->_splits.push_back(DecodeData::ThreadSplit(tid, pos(), time, _data));
     _cur_thread = &_data->_splits.back();
 }
 
-void DecodeDataRecord::record_mark_end(uint64_t time)
+/* must be called at the end of decoding */
+void DecodeDataRecord::switch_out(uint64_t time)
 {
     if (_cur_thread)
     {
@@ -91,91 +82,104 @@ void DecodeDataRecord::record_mark_end(uint64_t time)
         {
             _data->_splits.pop_back();
         }
-
         _cur_thread = nullptr;
     }
 }
 
-void DecodeDataRecord::record_method_entry(const Method *method)
+bool DecodeDataRecord::record_method_entry(const Method *method)
 {
-    assert(_cur_thread != nullptr && method != nullptr);
+    if (!_cur_thread || !method)
+        return false;
     _type = DecodeData::_method_entry;
     _data->write(&_type, 1);
     _data->write(&method, sizeof(method));
+    return true;
 }
 
-void DecodeDataRecord::record_branch_taken()
+bool DecodeDataRecord::record_method_exit()
 {
-    assert(_cur_thread != nullptr);
+    if (!_cur_thread)
+        return false;
+    _type = DecodeData::_method_exit;
+    _data->write(&_type, 1);
+    return true;
+}
+
+bool DecodeDataRecord::record_branch_taken()
+{
+    if (!_cur_thread)
+        return false;
     _type = DecodeData::_taken;
     _data->write(&_type, 1);
+    return true;
 }
 
-void DecodeDataRecord::record_branch_not_taken()
+bool DecodeDataRecord::record_branch_not_taken()
 {
-    assert(_cur_thread != nullptr);
+    if (!_cur_thread)
+        return false;
     _type = DecodeData::_not_taken;
     _data->write(&_type, 1);
+    return true;
 }
 
-void DecodeDataRecord::record_switch_case(int index)
+bool DecodeDataRecord::record_switch_case(int index)
 {
-    assert(_cur_thread != nullptr);
+    if (!_cur_thread)
+        return false;
     _type = DecodeData::_switch_case;
     _data->write(&_type, 1);
     _data->write(&index, sizeof(index));
+    return true;
 }
 
-void DecodeDataRecord::record_switch_default()
+bool DecodeDataRecord::record_switch_default()
 {
-    assert(_cur_thread != nullptr);
+    if (!_cur_thread)
+        return false;
     _type = DecodeData::_switch_default;
     _data->write(&_type, 1);
+    return true;
 }
 
-void DecodeDataRecord::record_invoke_site()
+bool DecodeDataRecord::record_invoke_site()
 {
-    assert(_cur_thread != nullptr);
+    if (!_cur_thread)
+        return false;
     _type = DecodeData::_invoke_site;
     _data->write(&_type, 1);
+    return true;
 }
 
-void DecodeDataRecord::record_return_site()
+bool DecodeDataRecord::record_exception_handling(const Method *method, int current_bci, int handler_bci)
 {
-    assert(_cur_thread != nullptr);
-    _type = DecodeData::_return_site;
-    _data->write(&_type, 1);
-}
-
-void DecodeDataRecord::record_throw_site()
-{
-    assert(_cur_thread != nullptr);
-    _type = DecodeData::_throw_site;
-    _data->write(&_type, 1);
-}
-
-void DecodeDataRecord::record_exception_handling(const Method *method, int current_bci, int handler_bci)
-{
-    assert(_cur_thread != nullptr && method != nullptr);
+    if (!_cur_thread || !method)
+        return false;
     _type = DecodeData::_exception;
     _data->write(&_type, 1);
     _data->write(&method, sizeof(method));
     _data->write(&current_bci, sizeof(int));
     _data->write(&handler_bci, sizeof(int));
+    return true;
 }
 
-void DecodeDataRecord::record_deoptimization(const Method *method, int bci)
+bool DecodeDataRecord::record_deoptimization(const Method *method, int bci, uint8_t use_next_bci, uint8_t is_bottom_frame)
 {
-    assert(_cur_thread != nullptr && method != nullptr);
+    if (!_cur_thread || !method)
+        return false;
     _type = DecodeData::_deoptimization;
     _data->write(&_type, 1);
     _data->write(&method, sizeof(method));
     _data->write(&bci, sizeof(int));
+    _data->write(&use_next_bci, sizeof(uint8_t));
+    _data->write(&is_bottom_frame, sizeof(uint8_t));
+    return true;
 }
 
-void DecodeDataRecord::record_jit_entry(const JitSection *section)
+bool DecodeDataRecord::record_jit_entry(const JitSection *section)
 {
-    assert(_cur_thread != nullptr && section != nullptr);
+    if (!_cur_thread || !section)
+        return false;
     _type = DecodeData::_jit_entry;
     _data->write(&_type, 1);
     _cur_section = section;
@@ -190,11 +194,13 @@ void DecodeDataRecord::record_jit_entry(const JitSection *section)
         uint8_t padding = DecodeData::_padding;
         _data->write(&padding, 1);
     }
+    return true;
 }
 
-void DecodeDataRecord::record_jit_osr_entry(const JitSection *section)
+bool DecodeDataRecord::record_jit_osr_entry(const JitSection *section)
 {
-    assert(_cur_thread != nullptr && section != nullptr);
+    if (!_cur_thread || !section)
+        return false;
     _type = DecodeData::_jit_osr_entry;
     _data->write(&_type, 1);
     _cur_section = section;
@@ -209,11 +215,13 @@ void DecodeDataRecord::record_jit_osr_entry(const JitSection *section)
         uint8_t padding = DecodeData::_padding;
         _data->write(&padding, 1);
     }
+    return true;
 }
 
-void DecodeDataRecord::record_jit_code(const JitSection *section, const PCStackInfo *info)
+bool DecodeDataRecord::record_jit_code(const JitSection *section, const PCStackInfo *info)
 {
-    assert(_cur_thread != nullptr && section != nullptr && info != nullptr);
+    if (!_cur_thread || !section || !info)
+        return false;
     if ((_type < DecodeData::_jit_entry || _type > DecodeData::_jit_code) || section != _cur_section)
     {
         _type = DecodeData::_jit_code;
@@ -234,48 +242,34 @@ void DecodeDataRecord::record_jit_code(const JitSection *section, const PCStackI
     _data->write(&info, sizeof(info));
     ++_pc_size;
     memcpy(_data->_data_begin + _pc_size_pos, &_pc_size, sizeof(_pc_size));
+    return true;
 }
 
-void DecodeDataRecord::record_jit_return()
+bool DecodeDataRecord::record_jit_return()
 {
-    assert(_cur_thread != nullptr);
+    if (!_cur_thread)
+        return false;
     _type = DecodeData::_jit_return;
     _data->write(&_type, 1);
+    return true;
 }
 
-void DecodeDataRecord::record_jit_exception()
+bool DecodeDataRecord::record_data_loss()
 {
-    assert(_cur_thread != nullptr);
-    _type = DecodeData::_jit_exception;
-    _data->write(&_type, 1);
-}
-
-void DecodeDataRecord::record_jit_deopt()
-{
-    assert(_cur_thread != nullptr);
-    _type = DecodeData::_jit_deopt;
-    _data->write(&_type, 1);
-}
-
-void DecodeDataRecord::record_jit_deopt_mh()
-{
-    assert(_cur_thread != nullptr);
-    _type = DecodeData::_jit_deopt_mh;
-    _data->write(&_type, 1);
-}
-
-void DecodeDataRecord::record_data_loss()
-{
-    assert(_cur_thread != nullptr);
+    if (!_cur_thread)
+        return false;
     _type = DecodeData::_data_loss;
     _data->write(&_type, 1);
+    return true;
 }
 
-void DecodeDataRecord::record_decode_error()
+bool DecodeDataRecord::record_decode_error()
 {
-    assert(_cur_thread != nullptr);
+    if (!_cur_thread)
+        return false;
     _type = DecodeData::_decode_error;
     _data->write(&_type, 1);
+    return true;
 }
 
 bool DecodeDataAccess::next_trace(DecodeData::DecodeDataType &type, uint64_t &pos)
@@ -292,6 +286,7 @@ bool DecodeDataAccess::next_trace(DecodeData::DecodeDataType &type, uint64_t &po
         ++_current;
         _current += sizeof(const Method *);
         break;
+    case DecodeData::_method_exit:
     case DecodeData::_taken:
     case DecodeData::_not_taken:
         ++_current;
@@ -302,8 +297,6 @@ bool DecodeDataAccess::next_trace(DecodeData::DecodeDataType &type, uint64_t &po
         break;
     case DecodeData::_switch_default:
     case DecodeData::_invoke_site:
-    case DecodeData::_return_site:
-    case DecodeData::_throw_site:
         ++_current;
         break;
     case DecodeData::_exception:
@@ -332,13 +325,12 @@ bool DecodeDataAccess::next_trace(DecodeData::DecodeDataType &type, uint64_t &po
         break;
     }
     case DecodeData::_jit_return:
-    case DecodeData::_jit_exception:
-    case DecodeData::_jit_deopt:
-    case DecodeData::_jit_deopt_mh:
+    case DecodeData::_decode_error:
+    case DecodeData::_data_loss:
         ++_current;
         break;
     default:
-        std::cerr << "DecodeData eror: acess unknown type" << std::endl;
+        std::cerr << "DecodeData error: access unknown type" << type << std::endl;
         exit(1);
     }
     return true;
@@ -403,7 +395,8 @@ bool DecodeDataAccess::get_exception_handling(uint64_t pos, const Method *&metho
     return true;
 }
 
-bool DecodeDataAccess::get_deoptimization(uint64_t pos, const Method *&method, int &bci)
+bool DecodeDataAccess::get_deoptimization(uint64_t pos, const Method *&method, int &bci,
+                                          uint8_t &use_next_bci, uint8_t &is_bottom_frame)
 {
     if (pos > _data->_data_end - _data->_data_begin)
     {
@@ -419,6 +412,10 @@ bool DecodeDataAccess::get_deoptimization(uint64_t pos, const Method *&method, i
     memcpy(&method, buf, sizeof(method));
     buf += sizeof(method);
     memcpy(&bci, buf, sizeof(bci));
+    buf += sizeof(int);
+    memcpy(&use_next_bci, buf, sizeof(use_next_bci));
+    buf += sizeof(uint8_t);
+    memcpy(&is_bottom_frame, buf, sizeof(is_bottom_frame));
     assert(method != nullptr);
     return true;
 }

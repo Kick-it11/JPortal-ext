@@ -95,10 +95,12 @@ void Sideband::print()
                 std::cout << "PERF_RECORD_LOST_SAMPLES ";
                 break;
             case PERF_RECORD_SWITCH:
-                std::cout << "PERF_RECORD_SWITCH ";
+                std::cout << "PERF_RECORD_SWITCH." << (ev.misc & PERF_RECORD_MISC_SWITCH_OUT ?"OUT":"IN")
+                          << " " << *ev.sample.tid << " "; 
                 break;
             case PERF_RECORD_SWITCH_CPU_WIDE:
-                std::cout << "PERF_RECORD_SWITCH_CPU_WIDE ";
+                std::cout << "PERF_RECORD_SWITCH_CPU_WIDE." << (ev.misc & PERF_RECORD_MISC_SWITCH_OUT ?"OUT":"IN")
+                          << " " << *ev.sample.tid << " ";
                 break;
             case PERF_RECORD_MAX:
                 std::cout << "PERF_RECORD_MAX ";
@@ -107,8 +109,6 @@ void Sideband::print()
                 std::cout << "PERF_RECORD UNKNOWN ";
                 break;
             }
-            if (ev.sample.tid)
-                std::cout << *ev.sample.tid << " ";
             std::cout << ev.sample.tsc << std::endl;
             buffer += size;
         }

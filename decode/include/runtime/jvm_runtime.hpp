@@ -46,6 +46,9 @@ public:
         /* First method entry: map between ip to method */
         _method_entry_info,
 
+        /* First Method exit */
+        _method_exit_info,
+
         /* branch taken */
         _branch_taken_info,
 
@@ -60,12 +63,6 @@ public:
 
         /* invoke site */
         _invoke_site_info,
-
-        /* return site */
-        _return_site_info,
-
-        /* throw site */
-        _throw_site_info,
 
         /* exception handling or maybe unwind (throw out) -> runtime event */
         _exception_handling_info,
@@ -105,6 +102,10 @@ public:
         uint64_t addr;
     };
 
+    struct MethodExitInfo {
+        uint64_t addr;
+    };
+
     struct BranchTakenInfo
     {
         uint64_t addr;
@@ -129,14 +130,6 @@ public:
         uint64_t addr;
     };
 
-    struct ReturnSiteInfo {
-        uint64_t addr;
-    };
-
-    struct ThrowSiteInfo {
-        uint64_t addr;
-    };
-
     struct ExceptionHandlingInfo
     {
         int32_t current_bci;
@@ -148,7 +141,9 @@ public:
     struct DeoptimizationInfo
     {
         int32_t bci;
-        uint32_t _pending;
+        uint8_t use_next_bci;
+        uint8_t is_bottom_frame;
+        uint16_t __pending;
         uint64_t java_tid;
         uint64_t addr;
     };
@@ -160,9 +155,6 @@ public:
         uint64_t entry_point;
         uint64_t verified_entry_point;
         uint64_t osr_entry_point;
-        uint64_t exception_begin;
-        uint64_t deopt_begin;
-        uint64_t deopt_mh_begin;
         uint32_t inline_method_cnt;
         uint32_t code_size;
         uint32_t scopes_pc_size;
@@ -230,6 +222,11 @@ public:
         return _entry_map.count(ip) ? _entry_map[ip] : nullptr;
     }
 
+    static bool method_exit(uint64_t ip)
+    {
+        return _exits.count(ip);
+    }
+
     static bool switch_case(uint64_t ip)
     {
         for (auto && c : _switch_cases)
@@ -262,16 +259,6 @@ public:
     static bool invoke_site(uint64_t ip)
     {
         return _invoke_sites.count(ip);
-    }
-
-    static bool return_site(uint64_t ip)
-    {
-        return _return_sites.count(ip);
-    }
-
-    static bool throw_site(uint64_t ip)
-    {
-        return _throw_sites.count(ip);
     }
 
     static JitSection *jit_section(const uint8_t *pointer)
@@ -307,8 +294,7 @@ private:
     static std::set<std::pair<uint64_t, std::pair<int, int>>> _switch_cases;
     static std::set<uint64_t> _switch_defaults;
     static std::set<uint64_t> _invoke_sites;
-    static std::set<uint64_t> _return_sites;
-    static std::set<uint64_t> _throw_sites;
+    static std::set<uint64_t> _exits;
 
     /* map between system tid and java tid
      * A potential bug here: system tid might be reused for different java tid

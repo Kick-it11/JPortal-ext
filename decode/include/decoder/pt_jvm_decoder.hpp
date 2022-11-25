@@ -233,7 +233,7 @@ private:
 
     int decoder_process_jitcode(JitSection *section);
 
-    int decoder_record_bytecode(Bytecodes::Code bytecode);
+    int decoder_record_intercode(uint64_t ip);
 
     void decoder_process_ip();
 

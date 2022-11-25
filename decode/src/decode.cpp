@@ -39,9 +39,10 @@ static void decode(const std::string &file, std::vector<std::string> &paths)
     std::pair<uint64_t, uint64_t> time;
     uint32_t cpu;
     ThreadPool pool(1, 32);
+    int id = 0;
     while (parser.next_pt_data(pt_data, cpu, time))
     {
-        DecodeData *trace = new DecodeData();
+        DecodeData *trace = new DecodeData(id++);
         results.push_back(trace);
         struct pt_config config;
         parser.init_pt_config_from_trace(config);
@@ -55,7 +56,7 @@ static void decode(const std::string &file, std::vector<std::string> &paths)
     std::cout << "Output..." << std::endl;
     DecodeOutput to_file(results);
     to_file.output("decode");
-    to_file.print();
+    //to_file.print();
 
     /* Exit */
     JVMRuntime::destroy();

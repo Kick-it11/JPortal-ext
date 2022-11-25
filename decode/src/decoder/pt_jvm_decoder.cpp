@@ -148,13 +148,12 @@ void PTJVMDecoder::decoder_drain_jvm_events(uint64_t time)
             exit(1);
         }
         case JVMRuntime::_method_entry_info:
+        case JVMRuntime::_method_exit_info:
         case JVMRuntime::_branch_not_taken_info:
         case JVMRuntime::_branch_taken_info:
         case JVMRuntime::_switch_case_info:
         case JVMRuntime::_switch_default_info:
         case JVMRuntime::_invoke_site_info:
-        case JVMRuntime::_return_site_info:
-        case JVMRuntime::_throw_site_info:
         {
             /* do not need to handle */
             break;
@@ -165,7 +164,10 @@ void PTJVMDecoder::decoder_drain_jvm_events(uint64_t time)
             const Method *method = JVMRuntime::method_entry(ehi->addr);
             if (info->time > _start_time && _tid == ehi->java_tid)
             {
-                _record.record_exception_handling(method, ehi->current_bci, ehi->handler_bci);
+                if (!_record.record_exception_handling(method, ehi->current_bci, ehi->handler_bci))
+                {
+                    std::cerr << "PTJVMDecoder error: Fail to record exception" << std::endl;
+                }
             }
             break;
         }
@@ -175,7 +177,10 @@ void PTJVMDecoder::decoder_drain_jvm_events(uint64_t time)
             const Method *method = JVMRuntime::method_entry(di->addr);
             if (info->time > _start_time && _tid == di->java_tid)
             {
-                _record.record_deoptimization(method, di->bci);
+                if (!_record.record_deoptimization(method, di->bci, di->use_next_bci, di->is_bottom_frame))
+                {
+                    std::cerr << "PTJVMDecoder error: Fail to record deoptimization" << std::endl;
+                }
             }
             break;
         }
@@ -226,10 +231,13 @@ void PTJVMDecoder::decoder_drain_sideband_events(uint64_t time)
 {
     struct pev_event event;
     bool data_loss = false;
-    uint64_t java_tid = _tid;
 
     for (;;)
     {
+        /* data loss record, might have duplicated or missing record */
+        if (data_loss)
+            _record.record_data_loss();
+
         int status = _sideband->event(time, &event);
         if (status < 0)
         {
@@ -243,9 +251,6 @@ void PTJVMDecoder::decoder_drain_sideband_events(uint64_t time)
         {
             break;
         }
-
-        uint64_t sys_tid = *event.sample.tid;
-        java_tid = JVMRuntime::java_tid(sys_tid);
 
         /* handle sideband event */
         switch (event.type)
@@ -262,33 +267,53 @@ void PTJVMDecoder::decoder_drain_sideband_events(uint64_t time)
             break;
 
         case PERF_RECORD_AUX:
-            if (event.sample.tsc > _start_time && event.record.aux->flags & PERF_AUX_FLAG_TRUNCATED) {
+            if (event.sample.tsc > _start_time && event.record.aux->flags & PERF_AUX_FLAG_TRUNCATED)
+            {
                 std::cerr << "PTJVMDecoder error: data loss around time " << event.sample.tsc << std::endl;
-                std::cerr << "                    output might get stuck in error" << std::endl;
                 data_loss = true;
             }
             break;
 
         case PERF_RECORD_ITRACE_START:
+            _tid = JVMRuntime::java_tid(*event.sample.tid);
+            _record.switch_in(_tid, event.sample.tsc);
+            break;
         case PERF_RECORD_LOST_SAMPLES:
+            std::cerr << "PTJVMDecoder error: perf record lost samples" << std::endl;
+            break;
         case PERF_RECORD_SWITCH:
+            if (event.misc & PERF_RECORD_MISC_SWITCH_OUT)
+            {
+                _record.switch_out(event.sample.tsc);
+                _tid = 0;
+            }
+            else
+            {
+                _tid = JVMRuntime::java_tid(*event.sample.tid);
+                if (_tid == 0)
+                {
+                    std::cerr << "PTJVMDecoder error: Fail to get java tid " << *event.sample.tid << std::endl;
+                }
+                _record.switch_in(_tid, event.sample.tsc);
+            }
+            break;
         case PERF_RECORD_SWITCH_CPU_WIDE:
+            if (event.misc & PERF_RECORD_MISC_SWITCH_OUT)
+            {
+                _tid = JVMRuntime::java_tid(event.record.switch_cpu_wide->next_prev_tid);
+            }
+            else
+            {
+                _tid = JVMRuntime::java_tid(*event.sample.tid);
+            }
+            if (_tid == 0)
+            {
+                std::cerr << "PTJVMDecoder error: Fail to get java tid " << *event.sample.tid << std::endl;
+            }
+            _record.switch_in(_tid, event.sample.tsc);
             break;
         }
-
-        /* for data loss, should mark it in record, so switch here */
-        if (data_loss && java_tid != _tid)
-        {
-            /* cur_thread in _record should not be empty, ignore event before starttime */
-            _record.record_data_loss();
-
-            _tid = java_tid;
-            _record.switch_thread(_tid, _time);
-        }
     }
-
-    _tid = java_tid;
-    _record.switch_thread(_tid, _time);
 }
 
 void PTJVMDecoder::decoder_time_change()
@@ -607,7 +632,6 @@ int PTJVMDecoder::pt_insn_decode_retry(struct pt_insn *insn, struct pt_insn_ext 
 int PTJVMDecoder::pt_insn_decode(struct pt_insn *insn, struct pt_insn_ext *iext)
 {
     int errcode;
-    uint8_t size;
 
     if (!insn)
         return -pte_internal;
@@ -616,6 +640,7 @@ int PTJVMDecoder::pt_insn_decode(struct pt_insn *insn, struct pt_insn_ext *iext)
     if (!section)
         return -pte_bad_insn;
 
+    uint8_t size = sizeof(insn->raw);
     if (!section->read(insn->raw, &size, insn->ip))
     {
         /* We should have gotten an error if we were not able to read at
@@ -1610,40 +1635,33 @@ int PTJVMDecoder::decoder_record_jitcode(JitSection *section, struct pt_insn *in
 
     if (insn->ip >= section->stub_begin())
     {
-        if (insn->ip == section->exception_begin())
-        {
-            _record.record_jit_exception();
-        }
-        if (insn->ip == section->deopt_begin())
-        {
-            _record.record_jit_deopt();
-        }
-        if (insn->ip == section->deopt_begin())
-        {
-            _record.record_jit_deopt_mh();
-        }
         return 0;
     }
 
     if (insn->ip == section->osr_entry_point())
     {
-        _record.record_jit_osr_entry(section);
+        if (!_record.record_jit_osr_entry(section))
+            return -pte_bad_context;
     }
     else if (insn->ip == section->verified_entry_point())
     {
-        _record.record_jit_entry(section);
+        if (!_record.record_jit_entry(section))
+            return -pte_bad_context;
     }
 
     struct PCStackInfo *cur = section->find(insn->ip + insn->size);
     if (cur)
     {
-        _record.record_jit_code(section, cur);
+        if (!_record.record_jit_code(section, cur))
+            return -pte_bad_context;
     }
 
     if (insn->iclass == ptic_return || insn->iclass == ptic_far_return)
     {
-        _record.record_jit_return();
+        if (!_record.record_jit_return())
+            return -pte_bad_context;
     }
+
     return 0;
 }
 
@@ -1731,7 +1749,6 @@ int PTJVMDecoder::pt_insn_next(JitSection *&section, struct pt_insn *insn, struc
 int PTJVMDecoder::decoder_process_jitcode(JitSection *section)
 {
     int status;
-    struct pt_insn insn;
     PCStackInfo *info = nullptr;
     bool tow = false;
 
@@ -1774,13 +1791,6 @@ int PTJVMDecoder::decoder_process_jitcode(JitSection *section)
             break;
         }
 
-        status = decoder_record_jitcode(section, &insn);
-        if (status < 0)
-        {
-            std::cerr << "PTJVMDecoder error: Record jit " << pt_errstr(pt_errcode(status)) << std::endl;
-            break;
-        }
-
         /* event if decoder._status might have event pending
          * it might not be handled this time
          */
@@ -1796,91 +1806,89 @@ int PTJVMDecoder::decoder_process_jitcode(JitSection *section)
                 break;
             }
         }
+
+        status = decoder_record_jitcode(section, &insn);
+        if (status < 0)
+        {
+            std::cerr << "PTJVMDecoder error: Record Jit " << pt_errstr(pt_errcode(status)) << std::endl;
+            break;
+        }
     }
 
     return status;
 }
 
-void PTJVMDecoder::decoder_process_ip()
+int PTJVMDecoder::decoder_record_intercode(uint64_t ip)
 {
-    if (JVMRuntime::not_taken_branch(_ip))
+    bool recorded = true;
+    if (const Method *method = JVMRuntime::method_entry(_ip))
     {
-        _record.record_branch_not_taken();
+        recorded = _record.record_method_entry(method);
+    }
+    else if (JVMRuntime::method_exit(_ip))
+    {
+        recorded = _record.record_method_exit();
+    }
+    else if (JVMRuntime::not_taken_branch(_ip))
+    {
+        recorded = _record.record_branch_not_taken();
     }
     else if (JVMRuntime::taken_branch(_ip))
     {
-        _record.record_branch_taken();
-    }
-    else if (const Method *method = JVMRuntime::method_entry(_ip))
-    {
-        _record.record_method_entry(method);
+        recorded = _record.record_branch_taken();
     }
     else if (JVMRuntime::switch_case(_ip))
     {
-        _record.record_switch_case(JVMRuntime::switch_case_index(_ip));
+        recorded = _record.record_switch_case(JVMRuntime::switch_case_index(_ip));
     }
     else if (JVMRuntime::switch_default(_ip))
     {
-        _record.record_switch_default();
+        recorded = _record.record_switch_default();
     }
     else if (JVMRuntime::invoke_site(_ip))
     {
-        _record.record_invoke_site();
+        recorded = _record.record_invoke_site();
     }
-    else if (JVMRuntime::return_site(_ip))
+    else
     {
-        _record.record_return_site();
+        return -pte_nomap;
     }
-    else if (JVMRuntime::throw_site(_ip))
+    if (!recorded)
     {
-        _record.record_throw_site();
+        return -pte_bad_context;
     }
-    else if (JitSection *section = _image->find(_ip))
+    return 0;
+}
+
+void PTJVMDecoder::decoder_process_ip()
+{
+    if (JitSection *section = _image->find(_ip))
     {
         int errcode = decoder_process_jitcode(section);
-        if (errcode < 0)
+        if (errcode < 0 && errcode != -pte_eos && errcode != -pte_nomap)
         {
-            /* error happens while decoding */
+            /* error happens while decoding, jit process will print this error */
             _record.record_decode_error();
         }
 
         /* while processing jit, decoder might query a non-compiled-code ip */
-        if (JVMRuntime::not_taken_branch(_ip))
+        errcode = decoder_record_intercode(_ip);
+        if (errcode < 0 && errcode != -pte_nomap)
         {
-            _record.record_branch_not_taken();
-        }
-        else if (JVMRuntime::taken_branch(_ip))
-        {
-            _record.record_branch_taken();
-        }
-        else if (const Method *method = JVMRuntime::method_entry(_ip))
-        {
-            _record.record_method_entry(method);
-        }
-        else if (JVMRuntime::switch_case(_ip))
-        {
-            _record.record_switch_case(JVMRuntime::switch_case_index(_ip));
-        }
-        else if (JVMRuntime::switch_default(_ip))
-        {
-            _record.record_switch_default();
-        }
-        else if (JVMRuntime::invoke_site(_ip))
-        {
-            _record.record_invoke_site();
-        }
-        else if (JVMRuntime::return_site(_ip))
-        {
-            _record.record_return_site();
-        }
-        else if (JVMRuntime::throw_site(_ip))
-        {
-            _record.record_throw_site();
+            /* error happens while decoding */
+            std::cerr << "PTJVMDecoder error: Fail to record Inter codes" << std::endl;
+            _record.record_decode_error();
         }
     }
     else
     {
-        std::cerr << "PTJVMDecoder error: unknown instruction pointer" << std::endl;
+        int errcode = decoder_record_intercode(_ip);
+        if (errcode < 0)
+        {
+            /* error happens while decoding */
+            std::cerr << "PTJVMDecoder error: Fail to record Inter codes" << std::endl;
+            _record.record_decode_error();
+        }
     }
 }
 
@@ -2052,8 +2060,7 @@ void PTJVMDecoder::decode()
     _time = _end_time;
     decoder_drain_jvm_events(_end_time);
     decoder_drain_sideband_events(_end_time);
-
-    _record.record_mark_end(_time);
+    _record.switch_out(_end_time);
     return;
 }
 

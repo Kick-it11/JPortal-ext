@@ -26,13 +26,12 @@ class JPortalEnable {
     // JVM runtime dump type
     enum DumpType {
       _method_entry_info,             // method entry
+      _method_exit_info,              // method_exit
       _branch_taken_info,             // branch taken
       _branch_not_taken_info,         // branch not taken
       _switch_case_info,              // switch case
       _switch_default_info,           // switch default
       _invoke_site_info,              // invoke site
-      _return_site_info,              // return site
-      _throw_site_info,                   // athrow site
       _exception_handling_info,       // exception handling or maybe unwind
       _deoptimization_info,           // deoptimization point
       _compiled_method_load_info,     // after loading a compiled method: entry, codes, scopes data etc included
@@ -65,6 +64,17 @@ class JPortalEnable {
         method_signature_length(_method_signature_length),
         addr(_addr) {
         info.type = _method_entry_info;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
+    };
+
+    struct MethodExitInfo {
+      struct DumpInfo info;
+      u8 addr;
+
+      MethodExitInfo(u8 _addr, u4 _size) : addr(_addr) {
+        info.type = _method_exit_info;
         info.size = _size;
         info.time = get_timestamp();
       }
@@ -124,28 +134,6 @@ class JPortalEnable {
       }
     };
 
-    struct ReturnSiteInfo {
-      struct DumpInfo info;
-      u8 addr;
-
-      ReturnSiteInfo(u8 _addr, u4 _size) : addr(_addr) {
-        info.type = _return_site_info;
-        info.size = _size;
-        info.time = get_timestamp();
-      }
-    };
-
-    struct ThrowSiteInfo {
-      struct DumpInfo info;
-      u8 addr;
-
-      ThrowSiteInfo(u8 _addr, u4 _size) : addr(_addr) {
-        info.type = _throw_site_info;
-        info.size = _size;
-        info.time = get_timestamp();
-      }
-    };
-
     struct ExceptionHandlingInfo {
       struct DumpInfo info;
       s4 current_bci;
@@ -163,11 +151,14 @@ class JPortalEnable {
     struct DeoptimizationInfo {
       struct DumpInfo info;
       s4 bci;
-      u4 _pending;
+      u1 use_next_bci;
+      u1 is_bottom_frame;
+      u2 __pending;
       u8 java_tid;
       u8 addr;
-      DeoptimizationInfo(u8 _tid, int _bci, u8 _addr, u4 _size) :
-        bci(_bci), java_tid(_tid), addr(_addr) {
+      DeoptimizationInfo(u8 _tid, int _bci, u2 _use_next_bci, u2 _is_bottom_frame, u8 _addr, u4 _size) :
+        bci(_bci), use_next_bci(_use_next_bci), is_bottom_frame(_is_bottom_frame),
+        java_tid(_tid), addr(_addr) {
         info.type = _deoptimization_info;
         info.size = _size;
         info.time = get_timestamp();
@@ -181,9 +172,6 @@ class JPortalEnable {
       u8 entry_point;
       u8 verified_entry_point;
       u8 osr_entry_point;
-      u8 exception_begin;
-      u8 deopt_begin;
-      u8 deopt_mh_begin;
       u4 inline_method_cnt;
       u4 code_size;
       u4 scopes_pc_size;
@@ -191,19 +179,13 @@ class JPortalEnable {
 
       CompiledMethodLoadInfo(u8 _code_begin, u8 _stub_begin, u8 _entry_point,
                              u8 _verified_entry_point, u8 _osr_entry_point,
-                             u8 _exception_begin, u8 _deopt_begin,
-                             u8 _deopt_mh_begin, u4 _inline_method_cnt, 
-                             u4 _code_size, u4 _scopes_pc_size,
-                             u4 _scopes_data_size,
-                             u4 _size)
+                             u4 _inline_method_cnt, u4 _code_size,
+                             u4 _scopes_pc_size, u4 _scopes_data_size, u4 _size)
                      : code_begin(_code_begin),
                        stub_begin(_stub_begin),
                        entry_point(_entry_point),
                        verified_entry_point(_verified_entry_point),
                        osr_entry_point(_osr_entry_point),
-                       exception_begin(_exception_begin),
-                       deopt_begin(_deopt_begin),
-                       deopt_mh_begin(_deopt_mh_begin),
                        inline_method_cnt(_inline_method_cnt),
                        code_size(_code_size),
                        scopes_pc_size(_scopes_pc_size),
@@ -300,6 +282,8 @@ class JPortalEnable {
 
     static void dump_method_entry(Method *moop);
 
+    static void dump_method_exit(address addr);
+
     static void dump_branch_taken(address addr);
 
     static void dump_branch_not_taken(address addr);
@@ -310,13 +294,9 @@ class JPortalEnable {
 
     static void dump_invoke_site(address addr);
 
-    static void dump_return_site(address addr);
-
-    static void dump_throw_site(address addr);
-
     static void dump_exception_handling(JavaThread *thread, Method *moop, int current_bci, int handler_bci);
 
-    static void dump_deoptimization(JavaThread *thread, Method *moop, int bci);
+    static void dump_deoptimization(JavaThread *thread, Method *moop, int bci, bool use_next_bci, bool is_bottom_frame);
 
     static void dump_compiled_method_load(Method *moop, nmethod *nm);
 

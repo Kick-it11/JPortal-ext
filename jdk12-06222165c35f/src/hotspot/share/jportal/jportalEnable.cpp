@@ -110,6 +110,26 @@ void JPortalEnable::dump_method_entry(Method *moop) {
   return;
 }
 
+void JPortalEnable::dump_method_exit(address addr) {
+  MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
+
+  if (!_initialized) {
+    warning("JPortalEnable error: dump method exit before initialize");
+    return;
+  }
+
+  u4 size = sizeof(struct MethodExitInfo);
+  MethodExitInfo mei((u8)addr, size);
+
+  if (!check_data(size)) {
+    warning("JPortalEnable error: ignore invoke site for size too big");
+    return;
+  }
+
+  dump_data((address)&mei, sizeof(mei));
+  return;
+}
+
 void JPortalEnable::dump_branch_taken(address addr) {
   MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
 
@@ -210,46 +230,6 @@ void JPortalEnable::dump_invoke_site(address addr) {
   return;
 }
 
-void JPortalEnable::dump_return_site(address addr) {
-  MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
-
-  if (!_initialized) {
-    warning("JPortalEnable error: dump invoke site before initialize");
-    return;
-  }
-
-  u4 size = sizeof(struct ReturnSiteInfo);
-  ReturnSiteInfo rsi((u8)addr, size);
-
-  if (!check_data(size)) {
-    warning("JPortalEnable error: ignore invoke site for size too big");
-    return;
-  }
-
-  dump_data((address)&rsi, sizeof(rsi));
-  return;
-}
-
-void JPortalEnable::dump_throw_site(address addr) {
-  MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
-
-  if (!_initialized) {
-    warning("JPortalEnable error: dump invoke site before initialize");
-    return;
-  }
-
-  u4 size = sizeof(struct ThrowSiteInfo);
-  ThrowSiteInfo tsi((u8)addr, size);
-
-  if (!check_data(size)) {
-    warning("JPortalEnable error: ignore invoke site for size too big");
-    return;
-  }
-
-  dump_data((address)&tsi, sizeof(tsi));
-  return;
-}
-
 void JPortalEnable::dump_exception_handling(JavaThread *thread, Method *moop, int current_bci, int handler_bci) {
   MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
 
@@ -275,7 +255,7 @@ void JPortalEnable::dump_exception_handling(JavaThread *thread, Method *moop, in
   return;
 }
 
-void JPortalEnable::dump_deoptimization(JavaThread *thread, Method *moop, int bci) {
+void JPortalEnable::dump_deoptimization(JavaThread *thread, Method *moop, int bci, bool use_next_bci, bool is_bottom_frame) {
   MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
 
   if (!_initialized) {
@@ -289,7 +269,8 @@ void JPortalEnable::dump_deoptimization(JavaThread *thread, Method *moop, int bc
   }
 
   u4 size = sizeof(struct DeoptimizationInfo);
-  DeoptimizationInfo di(get_java_tid(thread), bci, (u8)moop->interpreter_entry(), size);
+  DeoptimizationInfo di(get_java_tid(thread), bci, use_next_bci?1:0,
+                        is_bottom_frame?1:0, (u8)moop->interpreter_entry(), size);
 
   if (!check_data(size)) {
     warning("JPortalEnable error: ignore branch not taken for size too big");
@@ -325,9 +306,6 @@ void JPortalEnable::dump_compiled_method_load(Method *moop, nmethod *nm) {
   address entry_point = nm->entry_point();
   address verified_entry_point = nm->verified_entry_point();
   address osr_entry_point = nm->is_osr_method()?nm->osr_entry():NULL;
-  address exception_begin = nm->exception_begin();
-  address deopt_begin = nm->deopt_handler_begin();
-  address deopt_mh_begin = nm->deopt_mh_handler_begin();
 
   u4 size = sizeof(CompiledMethodLoadInfo) + code_size + scopes_pc_size + scopes_data_size;
   int inline_method_cnt = 0;
@@ -342,8 +320,8 @@ void JPortalEnable::dump_compiled_method_load(Method *moop, nmethod *nm) {
   }
 
   CompiledMethodLoadInfo cmi((u8)code_begin, (u8)stub_begin, (u8)entry_point, (u8)verified_entry_point,
-                             (u8)osr_entry_point, (u8)exception_begin, (u8)deopt_begin, (u8)deopt_mh_begin,
-                             inline_method_cnt, code_size, scopes_pc_size, scopes_data_size, size);
+                             (u8)osr_entry_point, inline_method_cnt, code_size,
+                             scopes_pc_size, scopes_data_size, size);
 
   if (!check_data(size)) {
     warning("JPortalEnable error: ignore compiled code load for size too big");

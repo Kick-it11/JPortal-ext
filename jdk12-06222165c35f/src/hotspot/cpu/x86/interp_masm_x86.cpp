@@ -1498,24 +1498,6 @@ void InterpreterMacroAssembler::update_mdp_for_ret(Register return_bci) {
 
 void InterpreterMacroAssembler::profile_taken_branch(Register mdp,
                                                      Register bumped_count) {
-#ifdef JPORTAL_ENABLE
-  if (JPortal) {
-    get_method(rdx);
-    Label non_jportal;
-    JPortalStub *stub = JPortalStubBuffer::new_jportal_stub();
-
-    movl(rdx, Address(rdx, Method::access_flags_offset()));
-    testl(rdx, JVM_ACC_JPORTAL);
-    jcc(Assembler::zero, non_jportal);
-    jump(ExternalAddress(stub->code_begin()));
-
-    bind(non_jportal);
-    address addr = pc();
-    stub->set_stub(addr);
-    JPortalEnable::dump_branch_taken(stub->code_begin());
-  }
-#endif
-
   if (ProfileInterpreter) {
     Label profile_continue;
 
@@ -1542,25 +1524,6 @@ void InterpreterMacroAssembler::profile_taken_branch(Register mdp,
 
 
 void InterpreterMacroAssembler::profile_not_taken_branch(Register mdp) {
-
-#ifdef JPORTAL_ENABLE
-  if (JPortal) {
-    get_method(rdx);
-    Label non_jportal;
-    JPortalStub *stub = JPortalStubBuffer::new_jportal_stub();
-
-    movl(rdx, Address(rdx, Method::access_flags_offset()));
-    testl(rdx, JVM_ACC_JPORTAL);
-    jcc(Assembler::zero, non_jportal);
-    jump(ExternalAddress(stub->code_begin()));
-
-    bind(non_jportal);
-    address addr = pc();
-    stub->set_stub(addr);
-    JPortalEnable::dump_branch_not_taken(stub->code_begin());
-  }
-#endif
-
   if (ProfileInterpreter) {
     Label profile_continue;
 
@@ -2069,6 +2032,24 @@ void InterpreterMacroAssembler::notify_method_exit(
     bind(L);
     pop(state);
   }
+
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    get_method(rdx);
+    Label non_jportal;
+    JPortalStub *stub = JPortalStubBuffer::new_jportal_stub();
+
+    movl(rdx, Address(rdx, Method::access_flags_offset()));
+    testl(rdx, JVM_ACC_JPORTAL);
+    jcc(Assembler::zero, non_jportal);
+    jump(ExternalAddress(stub->code_begin()));
+
+    bind(non_jportal);
+    address addr = pc();
+    stub->set_stub(addr);
+    JPortalEnable::dump_method_exit(stub->code_begin());
+  }
+#endif
 
   {
     SkipIfEqual skip(this, &DTraceMethodProbes, false);

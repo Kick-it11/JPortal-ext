@@ -371,13 +371,13 @@ void TraceDataParser::resplit_pt_data()
                     {
                         _split_pt_offsets.back().offsets.push_back({dest->first, dest->first + remaining});
                         dest->first += remaining;
+                        remaining = 0;
                         break;
                     }
                     else
                     {
                         _split_pt_offsets.back().offsets.push_back(*dest);
                         remaining -= dest->second - dest->first;
-                        ++dest;
                     }
                 }
                 if (remaining != 0)

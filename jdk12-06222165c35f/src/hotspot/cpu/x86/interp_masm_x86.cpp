@@ -2037,7 +2037,7 @@ void InterpreterMacroAssembler::notify_method_exit(
   if (JPortal) {
     get_method(rdx);
     Label non_jportal;
-    JPortalStub *stub = JPortalStubBuffer::new_jportal_stub();
+    JPortalStub *stub = JPortalStubBuffer::new_jportal_jump_stub();
 
     movl(rdx, Address(rdx, Method::access_flags_offset()));
     testl(rdx, JVM_ACC_JPORTAL);
@@ -2046,7 +2046,7 @@ void InterpreterMacroAssembler::notify_method_exit(
 
     bind(non_jportal);
     address addr = pc();
-    stub->set_stub(addr);
+    stub->set_jump_stub(addr);
     JPortalEnable::dump_method_exit(stub->code_begin());
   }
 #endif

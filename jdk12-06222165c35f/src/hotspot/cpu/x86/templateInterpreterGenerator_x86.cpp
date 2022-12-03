@@ -32,6 +32,7 @@
 #include "interpreter/interpreterRuntime.hpp"
 #include "interpreter/templateInterpreterGenerator.hpp"
 #include "interpreter/templateTable.hpp"
+#include "jportal/jportalStub.hpp"
 #include "oops/arrayOop.hpp"
 #include "oops/methodData.hpp"
 #include "oops/method.hpp"
@@ -1509,6 +1510,64 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
   LP64_ONLY(__ reinit_heapbase());  // restore r12 as heapbase.
   // Entry point for exceptions thrown within interpreter code
   Interpreter::_throw_exception_entry = __ pc();
+
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    __ get_method(rcx);
+    Label non_jportal;
+    Register bcp_register = LP64_ONLY(r13) NOT_LP64(rsi);
+
+    __ movl(rcx, Address(rcx, Method::access_flags_offset()));
+    __ testl(rcx, JVM_ACC_JPORTAL);
+    __ jcc(Assembler::zero, non_jportal);
+
+    __ get_method(rcx);
+    __ movptr(rcx, Address(rcx, Method::const_offset()));   // get ConstMethod*
+    __ lea(rcx, Address(rcx, ConstMethod::codes_offset()));    // get codebase
+    __ movptr(rbx, bcp_register);
+    __ subptr(rbx, rcx);
+    __ lea(rscratch1, ExternalAddress(JPortalStubBuffer::bci_table()->code_begin()));
+    __ imulptr(rbx, rbx, JPortalStubBuffer::jportal_table_stub_entry_size());
+    __ addptr(rscratch1, rbx);
+    __ call(rscratch1);
+
+    // expression stack is undefined here
+    // rax: exception
+    // r13/rsi: exception bcp
+    __ verify_oop(rax);
+    Register rarg = NOT_LP64(rax) LP64_ONLY(c_rarg1);
+    LP64_ONLY(__ mov(c_rarg1, rax));
+    // expression stack must be empty before entering the VM in case of
+    // an exception
+    __ empty_expression_stack();
+    // find exception handler address and preserve exception oop
+    __ call_VM(rdx,
+               CAST_FROM_FN_PTR(address,
+                            InterpreterRuntime::exception_handler_for_exception),
+               rarg);
+
+    __ restore_bcp();    // r13/rsi points to call/send
+
+    __ get_method(rcx);
+    __ movptr(rcx, Address(rcx, Method::const_offset()));   // get ConstMethod*
+    __ lea(rcx, Address(rcx, ConstMethod::codes_offset()));    // get codebase
+    __ movptr(rbx, bcp_register);
+    __ subptr(rbx, rcx);
+    __ lea(rscratch1, ExternalAddress(JPortalStubBuffer::bci_table()->code_begin()));
+    __ imulptr(rbx, rbx, JPortalStubBuffer::jportal_table_stub_entry_size());
+    __ addptr(rscratch1, rbx);
+    __ call(rscratch1);
+
+    // rax: exception handler entry point
+    // rdx: preserved exception oop
+    // r13/rsi: bcp for exception handler
+    __ push_ptr(rdx); // push exception which is now the only value on the stack
+    __ jmp(rax); // jump to exception handler (may be _remove_activation_entry!)
+
+    __ bind(non_jportal);
+  }
+#endif
+
   // expression stack is undefined here
   // rax: exception
   // r13/rsi: exception bcp

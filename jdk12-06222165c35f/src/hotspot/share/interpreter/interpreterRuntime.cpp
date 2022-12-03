@@ -626,12 +626,6 @@ IRT_ENTRY(address, InterpreterRuntime::exception_handler_for_exception(JavaThrea
     JvmtiExport::notice_unwind_due_to_exception(thread, h_method(), handler_pc, h_exception(), (handler_pc != NULL));
   }
 
-#ifdef JPORTAL_ENABLE
-  if (JPortal && h_method->is_jportal()) {
-    JPortalEnable::dump_exception_handling(thread, h_method(), current_bci, handler_pc?handler_bci:-1);
-  }
-#endif
-
   thread->set_vm_result(h_exception());
   return continuation;
 IRT_END

@@ -27,13 +27,13 @@ class JPortalEnable {
     enum DumpType {
       _method_entry_info,             // method entry
       _method_exit_info,              // method_exit
+      _deoptimization_info,           // deopt
+      _bci_table_stub_info,           // jportal table stub, exception handling
+      _switch_table_stub_info,        // jportal table stub, exception handling
+      _switch_default_info,           // switch default
       _branch_taken_info,             // branch taken
       _branch_not_taken_info,         // branch not taken
-      _switch_case_info,              // switch case
-      _switch_default_info,           // switch default
       _invoke_site_info,              // invoke site
-      _exception_handling_info,       // exception handling or maybe unwind
-      _deoptimization_info,           // deoptimization point
       _compiled_method_load_info,     // after loading a compiled method: entry, codes, scopes data etc included
       _compiled_method_unload_info,   // after unloading a compiled method
       _thread_start_info,             // a thread begins, map between system tid and java tid
@@ -80,6 +80,61 @@ class JPortalEnable {
       }
     };
 
+    struct DeoptimizationInfo {
+      struct DumpInfo info;
+      s4 bci;
+      u1 use_next_bci;
+      u1 is_bottom_frame;
+      u2 __pending;
+      u8 java_tid;
+      u8 addr;
+
+      DeoptimizationInfo(u8 _tid, int _bci, u2 _use_next_bci, u2 _is_bottom_frame, u8 _addr, u4 _size) :
+        bci(_bci), use_next_bci(_use_next_bci), is_bottom_frame(_is_bottom_frame),
+        java_tid(_tid), addr(_addr) {
+        info.type = _deoptimization_info;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
+    };
+
+    struct BciTableStubInfo {
+      struct DumpInfo info;
+      u8 addr;
+      u4 num;
+      u4 ssize;
+      BciTableStubInfo(u8 _addr, u8 _num, u4 _ssize, u4 _size)
+        : addr(_addr), num(_num), ssize(_ssize) {
+        info.type = _bci_table_stub_info;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
+    };
+
+    struct SwitchTableStubInfo {
+      struct DumpInfo info;
+      u8 addr;
+      u4 num;
+      u4 ssize;
+      SwitchTableStubInfo(u8 _addr, u8 _num, u4 _ssize, u4 _size)
+        : addr(_addr), num(_num), ssize(_ssize) {
+        info.type = _switch_table_stub_info;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
+    };
+
+    struct SwitchDefaultInfo {
+      struct DumpInfo info;
+      u8 addr;
+
+      SwitchDefaultInfo(u8 _addr, u4 _size) : addr(_addr) {
+        info.type = _switch_default_info;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
+    };
+
     struct BranchTakenInfo {
       struct DumpInfo info;
       u8 addr;
@@ -100,66 +155,11 @@ class JPortalEnable {
       }
     };
 
-    struct SwitchCaseInfo {
-      struct DumpInfo info;
-      u8 addr;
-      u4 num;
-      u4 ssize;
-      SwitchCaseInfo(u8 _addr, u8 _num, u4 _ssize, u4 _size)
-        : addr(_addr), num(_num), ssize(_ssize) {
-        info.type = _switch_case_info;
-        info.size = _size;
-        info.time = get_timestamp();
-      }
-    };
-
-    struct SwitchDefaultInfo {
-      struct DumpInfo info;
-      u8 addr;
-
-      SwitchDefaultInfo(u8 _addr, u4 _size) : addr(_addr) {
-        info.type = _switch_default_info;
-        info.size = _size;
-        info.time = get_timestamp();
-      }
-    };
-
     struct InvokeSiteInfo {
       struct DumpInfo info;
       u8 addr;
       InvokeSiteInfo(u8 _addr, u4 _size) : addr(_addr) {
         info.type = _invoke_site_info;
-        info.size = _size;
-        info.time = get_timestamp();
-      }
-    };
-
-    struct ExceptionHandlingInfo {
-      struct DumpInfo info;
-      s4 current_bci;
-      s4 handler_bci; // -1 for unwind
-      u8 java_tid;
-      u8 addr; // mark for method
-      ExceptionHandlingInfo(s4 _current_bci, s4 _handler_bci, u8 _tid, u8 _addr, u4 _size) :
-        current_bci(_current_bci), handler_bci(_handler_bci), java_tid(_tid), addr(_addr) {
-        info.type = _exception_handling_info;
-        info.size = _size;
-        info.time = get_timestamp();
-      }
-    };
-
-    struct DeoptimizationInfo {
-      struct DumpInfo info;
-      s4 bci;
-      u1 use_next_bci;
-      u1 is_bottom_frame;
-      u2 __pending;
-      u8 java_tid;
-      u8 addr;
-      DeoptimizationInfo(u8 _tid, int _bci, u2 _use_next_bci, u2 _is_bottom_frame, u8 _addr, u4 _size) :
-        bci(_bci), use_next_bci(_use_next_bci), is_bottom_frame(_is_bottom_frame),
-        java_tid(_tid), addr(_addr) {
-        info.type = _deoptimization_info;
         info.size = _size;
         info.time = get_timestamp();
       }
@@ -284,19 +284,19 @@ class JPortalEnable {
 
     static void dump_method_exit(address addr);
 
+    static void dump_deoptimization(JavaThread *thread, Method *moop, int bci, bool use_next_bci, bool is_bottom_frame);
+
+    static void dump_bci_table_stub(address addr, u4 num, u4 ssize);
+
+    static void dump_switch_table_stub(address addr, u4 num, u4 ssize);
+
     static void dump_branch_taken(address addr);
 
     static void dump_branch_not_taken(address addr);
 
-    static void dump_switch_case(address addr, u4 num, u4 ssize);
-
     static void dump_switch_default(address addr);
 
     static void dump_invoke_site(address addr);
-
-    static void dump_exception_handling(JavaThread *thread, Method *moop, int current_bci, int handler_bci);
-
-    static void dump_deoptimization(JavaThread *thread, Method *moop, int bci, bool use_next_bci, bool is_bottom_frame);
 
     static void dump_compiled_method_load(Method *moop, nmethod *nm);
 

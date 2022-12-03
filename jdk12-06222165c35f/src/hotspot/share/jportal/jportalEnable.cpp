@@ -122,11 +122,77 @@ void JPortalEnable::dump_method_exit(address addr) {
   MethodExitInfo mei((u8)addr, size);
 
   if (!check_data(size)) {
-    warning("JPortalEnable error: ignore invoke site for size too big");
+    warning("JPortalEnable error: ignore method exit for size too big");
     return;
   }
 
   dump_data((address)&mei, sizeof(mei));
+  return;
+}
+
+void JPortalEnable::dump_deoptimization(JavaThread *thread, Method *moop, int bci, bool use_next_bci, bool is_bottom_frame) {
+  MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
+
+  if (!_initialized) {
+    warning("JPortalEnable error: dump deoptimization before initialize");
+    return;
+  }
+
+  if (!thread || !moop) {
+    warning("JPortalEnable error: empty deoptimization");
+    return;
+  }
+
+  u4 size = sizeof(struct DeoptimizationInfo);
+  DeoptimizationInfo di(get_java_tid(thread), bci, use_next_bci?1:0,
+                        is_bottom_frame?1:0, (u8)moop->interpreter_entry(), size);
+
+  if (!check_data(size)) {
+    warning("JPortalEnable error: ignore deoptimization for size too big");
+    return;
+  }
+
+  dump_data((address)&di, sizeof(di));
+  return;
+}
+
+void JPortalEnable::dump_bci_table_stub(address addr, u4 num, u4 ssize) {
+  MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
+
+  if (!_initialized) {
+    warning("JPortalEnable error: dump bati table before initialize");
+    return;
+  }
+
+  u4 size = sizeof(struct BciTableStubInfo);
+  BciTableStubInfo btsi((u8)addr, num, ssize, size);
+
+  if (!check_data(size)) {
+    warning("JPortalEnable error: ignore bai table for size too big");
+    return;
+  }
+
+  dump_data((address)&btsi, sizeof(btsi));
+  return;
+}
+
+void JPortalEnable::dump_switch_table_stub(address addr, u4 num, u4 ssize) {
+  MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
+
+  if (!_initialized) {
+    warning("JPortalEnable error: dump switch table before initialize");
+    return;
+  }
+
+  u4 size = sizeof(struct SwitchTableStubInfo);
+  SwitchTableStubInfo stsi((u8)addr, num, ssize, size);
+
+  if (!check_data(size)) {
+    warning("JPortalEnable error: ignore switch table for size too big");
+    return;
+  }
+
+  dump_data((address)&stsi, sizeof(stsi));
   return;
 }
 
@@ -170,25 +236,7 @@ void JPortalEnable::dump_branch_not_taken(address addr) {
   return;
 }
 
-void JPortalEnable::dump_switch_case(address addr, u4 num, u4 ssize) {
-  MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
 
-  if (!_initialized) {
-    warning("JPortalEnable error: dump switch case before initialize");
-    return;
-  }
-
-  u4 size = sizeof(struct SwitchCaseInfo);
-  SwitchCaseInfo sci((u8)addr, num, ssize, size);
-
-  if (!check_data(size)) {
-    warning("JPortalEnable error: ignore switch case for size too big");
-    return;
-  }
-
-  dump_data((address)&sci, sizeof(sci));
-  return;
-}
 
 void JPortalEnable::dump_switch_default(address addr) {
   MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
@@ -227,57 +275,6 @@ void JPortalEnable::dump_invoke_site(address addr) {
   }
 
   dump_data((address)&isi, sizeof(isi));
-  return;
-}
-
-void JPortalEnable::dump_exception_handling(JavaThread *thread, Method *moop, int current_bci, int handler_bci) {
-  MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
-
-  if (!_initialized) {
-    warning("JPortalEnable error: dump exception before initialize");
-    return;
-  }
-
-  if (!thread || !moop) {
-    warning("JPortalEnable error: empty exception");
-    return;
-  }
-
-  u4 size = sizeof(struct ExceptionHandlingInfo);
-  ExceptionHandlingInfo ehi(current_bci, handler_bci, get_java_tid(thread), (u8)moop->interpreter_entry(), size);
-
-  if (!check_data(size)) {
-    warning("JPortalEnable error: ignore exception for size too big");
-    return;
-  }
-
-  dump_data((address)&ehi, sizeof(ehi));
-  return;
-}
-
-void JPortalEnable::dump_deoptimization(JavaThread *thread, Method *moop, int bci, bool use_next_bci, bool is_bottom_frame) {
-  MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
-
-  if (!_initialized) {
-    warning("JPortalEnable error: dump exception before initialize");
-    return;
-  }
-
-  if (!thread || !moop) {
-    warning("JPortalEnable error: empty exception");
-    return;
-  }
-
-  u4 size = sizeof(struct DeoptimizationInfo);
-  DeoptimizationInfo di(get_java_tid(thread), bci, use_next_bci?1:0,
-                        is_bottom_frame?1:0, (u8)moop->interpreter_entry(), size);
-
-  if (!check_data(size)) {
-    warning("JPortalEnable error: ignore branch not taken for size too big");
-    return;
-  }
-
-  dump_data((address)&di, sizeof(di));
   return;
 }
 

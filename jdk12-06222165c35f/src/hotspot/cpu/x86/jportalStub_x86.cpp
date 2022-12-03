@@ -6,7 +6,7 @@
 #include "nativeInst_x86.hpp"
 
 #ifdef JPORTAL_ENABLE
-int JPortalStubBuffer::jportal_stub_code_size() {
+int JPortalStubBuffer::jportal_jump_stub_code_size() {
   // Worst case, if destination is not a near call:
   // lea scratch, lit2
   // jmp scratch
@@ -19,25 +19,32 @@ int JPortalStubBuffer::jportal_stub_code_size() {
   return MAX2(best, worst);
 }
 
-int JPortalStubBuffer::jportal_stub_code_size(uint num) {
-  return jportal_stub_code_size() * num;
+int JPortalStubBuffer::jportal_table_stub_code_size() {
+  return jportal_table_stub_entry_size() * JPortalTableStubLimit;
 }
 
-void JPortalStubBuffer::assemble_jportal_buffer_code(address code_begin, address entry_point) {
+int JPortalStubBuffer::jportal_table_stub_entry_size() {
+  // ret
+  return NativeReturn::instruction_size;
+}
+
+void JPortalStubBuffer::assemble_jportal_jump_buffer_code(address code_begin, address entry_point) {
   ResourceMark rm;
-  CodeBuffer      code(code_begin, jportal_stub_code_size());
+  CodeBuffer      code(code_begin, jportal_jump_stub_code_size());
   MacroAssembler* masm            = new MacroAssembler(&code);
   masm->jump(ExternalAddress(entry_point));
 }
 
-void JPortalStubBuffer::assemble_jportal_buffer_code(address code_begin, address entry_point, uint num) {
-  for (uint i = 0; i < num; ++i) {
-    assemble_jportal_buffer_code(code_begin, entry_point);
-    code_begin += jportal_stub_code_size();
+void JPortalStubBuffer::assemble_jportal_table_buffer_code(address code_begin) {
+  ResourceMark rm;
+  CodeBuffer      code(code_begin, jportal_table_stub_code_size());
+  MacroAssembler* masm            = new MacroAssembler(&code);
+  for (uint i = 0; i < JPortalTableStubLimit; ++i) {
+    masm->ret(0);
   }
 }
 
-address JPortalStubBuffer::jportal_buffer_entry_point(address code_begin) {
+address JPortalStubBuffer::jportal_jump_buffer_entry_point(address code_begin) {
   NativeInstruction* ni = nativeInstruction_at(code_begin);
   if (ni->is_jump()) {
     NativeJump*        jump = nativeJump_at(code_begin);

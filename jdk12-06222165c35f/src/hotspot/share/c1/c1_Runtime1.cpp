@@ -275,6 +275,10 @@ void Runtime1::initialize(BufferBlob* blob) {
 #endif
   BarrierSetC1* bs = BarrierSet::barrier_set()->barrier_set_c1();
   bs->generate_c1_runtime_stubs(blob);
+
+
+
+
 }
 
 CodeBlob* Runtime1::blob_for(StubID id) {

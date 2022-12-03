@@ -8,13 +8,15 @@
 #include "memory/heap.hpp"
 
 #ifdef JPORTAL_ENABLE
+
+/* JPortal Jump Stub, Every stub refers to a jump destination */
 class JPortalStub: public Stub {
  private:
   int                 _size;       // total size of the stub incl. code
   /* stub code follows here */
  protected:
   friend class JPortalStubInterface;
-  // This will be called only by ICStubInterface
+  // This will be called only by JPortalStubInterface
   void    initialize(int size,
                      CodeStrings strings)        { _size = size; /*_ic_site = NULL;*/ }
   void    finalize(); // called when a method is removed
@@ -24,50 +26,38 @@ class JPortalStub: public Stub {
   static  int code_size_to_size(int code_size)   { return align_up((int)sizeof(JPortalStub), CodeEntryAlignment) + code_size; }
 
  public:
-  // Creation
-  void set_stub(address dest_addr);
+  void set_jump_stub(address dest_addr);
 
-  void set_stub(address dest_addr, uint num);
+  void set_table_stub();
+
+  address jump_destination() const;  // destination of jump instruction
 
   // Code info
   address code_begin() const                     { return (address)this + align_up(sizeof(JPortalStub), CodeEntryAlignment); }
   address code_end() const                       { return (address)this + size(); }
 
-  // stub info
-  address destination() const;  // destination of jump instruction
-
   // Debugging
   void    verify()            PRODUCT_RETURN;
   void    print()             PRODUCT_RETURN;
-
-  // Creation
-  friend JPortalStub* JPortalStub_from_destination_address(address destination_address);
 };
-
-// ICStub Creation
-inline JPortalStub* JPortalStub_from_destination_address(address destination_address) {
-  JPortalStub* stub = (JPortalStub*) (destination_address - align_up(sizeof(JPortalStub), CodeEntryAlignment));
-  #ifdef ASSERT
-  stub->verify();
-  #endif
-  return stub;
-}
 
 class JPortalStubBuffer : AllStatic {
   friend class JPortalStub;
  private:
 
-  static StubQueue* _buffer;
+  static StubQueue           *_buffer;
+  static JPortalStub         *_bci_table;
+  static JPortalStub         *_switch_table;
 
-  static StubQueue* buffer()                         { return _buffer; }
+  static StubQueue *buffer()                         { return _buffer; }
 
-  static address jportal_buffer_entry_point  (address code_begin);
+  static address jportal_jump_buffer_entry_point  (address code_begin);
 
   // Machine-dependent implementation of JPortalStub
-  static void    assemble_jportal_buffer_code(address code_begin, address entry_point);
+  static void    assemble_jportal_jump_buffer_code(address code_begin, address entry_point);
 
   // Machine-dependent implementation of JPortalStub
-  static void    assemble_jportal_buffer_code(address code_begin, address entry_point, uint num);
+  static void    assemble_jportal_table_buffer_code(address code_begin);
 
  public:
 
@@ -83,14 +73,19 @@ class JPortalStubBuffer : AllStatic {
   // for debugging
   static bool is_empty();
 
-  // New interface
-  static JPortalStub *new_jportal_stub();
+  static JPortalStub *new_jportal_jump_stub();
 
-  static JPortalStub *new_jportal_stub(uint num);
+  static JPortalStub *new_jportal_table_stub();
 
-  static int jportal_stub_code_size();
+  static int jportal_jump_stub_code_size();
 
-  static int jportal_stub_code_size(uint num);
+  static int jportal_table_stub_code_size();
+
+  static int jportal_table_stub_entry_size();
+
+  static JPortalStub *bci_table() { return _bci_table; }
+
+  static JPortalStub *switch_table() { return _switch_table; }
 };
 #endif
 

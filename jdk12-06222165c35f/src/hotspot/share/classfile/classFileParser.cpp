@@ -2504,6 +2504,13 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
         guarantee_property(code_length > 0 && code_length <= MAX_CODE_SIZE,
                            "Invalid method Code length %u in class file %s",
                            code_length, CHECK_NULL);
+#ifdef JPORTAL_ENABLE
+        if (access_flags.is_jportal()) {
+          guarantee_property(code_length < JPortalTableStubLimit,
+                             "Invalid method Code length %u in class file %s",
+                             code_length, CHECK_NULL);
+        }
+#endif
       }
       // Code pointer
       code_start = cfs->current();

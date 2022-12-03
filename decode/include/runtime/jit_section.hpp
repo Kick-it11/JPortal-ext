@@ -70,8 +70,10 @@ public:
                uint64_t stub_begin, uint32_t code_size,
                const uint8_t *scopes_pc, uint32_t scopes_pc_size,
                const uint8_t *scopes_data, uint32_t scopes_data_size,
-               uint64_t entry_point, uint64_t verified_entry_point,
-               uint64_t osr_entry_point, uint32_t inline_method_cnt,
+               uint64_t entry_point,
+               uint64_t verified_entry_point,
+               uint64_t osr_entry_point,
+               uint32_t inline_method_cnt,
                std::map<int, const Method *> &methods,
                const Method *mainm, const std::string &name);
 

@@ -151,24 +151,12 @@ void PTJVMDecoder::decoder_drain_jvm_events(uint64_t time)
         case JVMRuntime::_method_exit_info:
         case JVMRuntime::_branch_not_taken_info:
         case JVMRuntime::_branch_taken_info:
-        case JVMRuntime::_switch_case_info:
+        case JVMRuntime::_bci_table_stub_info:
+        case JVMRuntime::_switch_table_stub_info:
         case JVMRuntime::_switch_default_info:
         case JVMRuntime::_invoke_site_info:
         {
             /* do not need to handle */
-            break;
-        }
-        case JVMRuntime::_exception_handling_info:
-        {
-            const JVMRuntime::ExceptionHandlingInfo *ehi = (const JVMRuntime::ExceptionHandlingInfo *)data;
-            const Method *method = JVMRuntime::method_entry(ehi->addr);
-            if (info->time > _start_time && _tid == ehi->java_tid)
-            {
-                if (!_record.record_exception_handling(method, ehi->current_bci, ehi->handler_bci))
-                {
-                    std::cerr << "PTJVMDecoder error: Fail to record exception" << std::endl;
-                }
-            }
             break;
         }
         case JVMRuntime::_deoptimization_info:
@@ -1837,9 +1825,13 @@ int PTJVMDecoder::decoder_record_intercode(uint64_t ip)
     {
         recorded = _record.record_branch_taken();
     }
-    else if (JVMRuntime::switch_case(_ip))
+    else if (JVMRuntime::in_bci_table(_ip))
     {
-        recorded = _record.record_switch_case(JVMRuntime::switch_case_index(_ip));
+        recorded = _record.record_bci(JVMRuntime::bci(ip));
+    }
+    else if (JVMRuntime::in_switch_table(_ip))
+    {
+        recorded =  _record.record_switch_case(JVMRuntime::switch_case(ip));
     }
     else if (JVMRuntime::switch_default(_ip))
     {
@@ -1897,7 +1889,7 @@ int PTJVMDecoder::decoder_drain_events()
     int errcode = 0;
     bool unresolved = false;
 
-    uint64_t async_disabled_ip = 0ul;
+    uint64_t disabled_ip = 0ul;
 
     while (decoder_event_pending())
     {
@@ -1914,18 +1906,24 @@ int PTJVMDecoder::decoder_drain_events()
             if (errcode < 0)
                 return errcode;
 
-            /** If tracing was disabled asynchronously, ignore */
-            if (_ip != async_disabled_ip)
+            /** If tracing was disabled & enabled asynchronously, ignore */
+            if (_ip != disabled_ip)
                 unresolved = true;
 
             break;
 
         case ptev_async_disabled:
-            async_disabled_ip = _event.variant.async_disabled.at;
+            disabled_ip = _event.variant.async_disabled.at;
 
-            /* fallthrough */
+            errcode = decoder_process_disabled();
+            if (errcode < 0)
+                return errcode;
+            
+            break;
 
         case ptev_disabled:
+            disabled_ip = 0ul;
+
             errcode = decoder_process_disabled();
             if (errcode < 0)
                 return errcode;

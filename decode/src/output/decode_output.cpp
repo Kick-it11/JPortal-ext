@@ -178,36 +178,26 @@ void DecodeOutput::to_invoke_site(DecodeDataAccess &access, std::ofstream &file)
     output_codes(file, codes);
 }
 
-void DecodeOutput::to_exception_handling(DecodeDataAccess &access, std::ofstream &file,
-                                         const Method *method, int bci, int handler_bci)
+void DecodeOutput::to_exception_handling(DecodeDataAccess &access, std::ofstream &file, int bci1, int bci2)
 {
     if (_frames.empty())
     {
-        _frames.push_back(new InterFrame(method, bci, true));
+        return;
     }
     if (!_frames.back()->is_inter_frame())
     {
         std::cerr << "DecodeOutput error: Fail to find inter frame "
                   << access.id() << " " << access.pos() << std::endl;
         clear_frame();
-        _frames.push_back(new InterFrame(method, bci, true));
-    }
-
-    if (((InterFrame *)(_frames.back()))->method() != method)
-    {
-        std::cerr << "DecodeOutput error: Fail to find inter frame "
-                  << access.id() << " " << access.pos() << std::endl;
-        clear_frame();
-        _frames.push_back(new InterFrame(method, bci, true));
+        return;
     }
 
     std::vector<uint8_t> codes;
-    if (!((InterFrame *)_frames.back())->exception_handling(codes, bci, handler_bci))
+    if (!((InterFrame *)_frames.back())->exception_handling(codes, bci1, bci2))
     {
-        std::cerr << "DecodeOutput error: Fail to reach throw site "
+        std::cerr << "DecodeOutput error: Fail to reach exception site "
                   << access.id() << " " << access.pos() << std::endl;
         clear_frame();
-        _frames.push_back(new InterFrame(method, handler_bci, false));
         return;
     }
     output_codes(file, codes);
@@ -338,6 +328,8 @@ void DecodeOutput::output(const std::string prefix)
 {
     for (auto &&thread : _splits)
     {
+        DecodeData::DecodeDataType prev_type = DecodeData::_illegal;
+        int prev_bci;
         std::ofstream file(prefix + "-" + "thrd" + std::to_string(thread.first));
         for (auto &&split : thread.second)
         {
@@ -387,17 +379,23 @@ void DecodeOutput::output(const std::string prefix)
                 case DecodeData::_invoke_site:
                     to_invoke_site(access, file);
                     break;
-                case DecodeData::_exception:
+                case DecodeData::_bci:
                 {
-                    const Method *method;
-                    int current_bci, handler_bci;
-                    if (!access.get_exception_handling(loc, method, current_bci, handler_bci))
+                    int bci;
+                    if (!access.get_bci(loc, bci))
                     {
-                        std::cerr << "DecodeOutput error: Fail to get exception "
+                        std::cerr << "DecodeOutput error: Fail to get bci "
                                   << access.id() << " " << access.pos() << std::endl;
                         exit(1);
                     }
-                    to_exception_handling(access, file, method, current_bci, handler_bci);
+                    if (prev_type == DecodeData::_bci)
+                    {
+                        to_exception_handling(access, file, prev_bci, bci);
+                    }
+                    else
+                    {
+                        prev_bci = bci;
+                    }
                     break;
                 }
                 case DecodeData::_deoptimization:
@@ -446,6 +444,7 @@ void DecodeOutput::output(const std::string prefix)
                               << access.id() << " " << access.pos() << std::endl;
                     exit(1);
                 }
+                prev_type = type;
             }
         }
     }
@@ -504,18 +503,15 @@ void DecodeOutput::print()
                 case DecodeData::_invoke_site:
                     std::cout << "    Invoke Site" << std::endl;
                     break;
-                case DecodeData::_exception:
+                case DecodeData::_bci:
                 {
-                    const Method *method;
-                    int current_bci, handler_bci;
-                    if (!access.get_exception_handling(loc, method, current_bci, handler_bci))
+                    int bci;
+                    if (!access.get_bci(loc, bci))
                     {
                         std::cerr << "DecodeOutput error: Fail to get exception" << std::endl;
                         exit(1);
                     }
-                    std::cout << "    Exception Handling: " << method->get_klass()->get_name()
-                              << " " << method->get_name() << " " << current_bci
-                              << " " << handler_bci << std::endl;
+                    std::cout << "    Exception Handling: " << bci << std::endl;
                     break;
                 }
                 case DecodeData::_deoptimization:

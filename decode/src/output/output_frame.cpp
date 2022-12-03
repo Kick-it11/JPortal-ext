@@ -248,17 +248,23 @@ bool InterFrame::invoke_site(std::vector<uint8_t> &codes)
     return true;
 }
 
-bool InterFrame::exception_handling(std::vector<uint8_t> &codes, int bci, int handler_bci)
+bool InterFrame::exception_handling(std::vector<uint8_t> &codes, int bci1, int bci2)
 {
     BlockGraph *bg = _method->get_bg();
-    int bct = bg->bct_offset(bci);
+    int bct = bg->bct_offset(bci1);
     forward(codes, bct);
     if (bct != _bct)
         return false;
 
-    _block = bg->block(handler_bci);
-    _bct = bg->bct_offset(handler_bci);
-    _use_next_bct = false;
+    if (bci2 == bci1) {
+        _block = nullptr;
+        _bct = -1;
+        _use_next_bct = false;
+    } else {
+        _block = bg->block(bci2);
+        _bct = bg->bct_offset(bci1);
+        _use_next_bct = false;
+    }
     return true;
 }
 

@@ -38,7 +38,7 @@ static void decode(const std::string &file, std::vector<std::string> &paths)
     std::pair<uint8_t *, uint64_t> pt_data;
     std::pair<uint64_t, uint64_t> time;
     uint32_t cpu;
-    ThreadPool pool(1, 32);
+    ThreadPool pool(8, 32);
     int id = 0;
     while (parser.next_pt_data(pt_data, cpu, time))
     {

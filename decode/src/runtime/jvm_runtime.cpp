@@ -13,7 +13,8 @@ std::map<uint64_t, const Method *> JVMRuntime::_entry_map;
 std::set<uint64_t> JVMRuntime::_exits;
 std::set<uint64_t> JVMRuntime::_takens;
 std::set<uint64_t> JVMRuntime::_not_takens;
-std::set<std::pair<uint64_t, std::pair<int, int>>> JVMRuntime::_switch_cases;
+std::pair<uint64_t, std::pair<int, int>> JVMRuntime::_bci_tables;
+std::pair<uint64_t, std::pair<int, int>> JVMRuntime::_switch_tables;
 std::set<uint64_t> JVMRuntime::_switch_defaults;
 std::set<uint64_t> JVMRuntime::_invoke_sites;
 std::map<uint64_t, uint64_t> JVMRuntime::_tid_map;
@@ -101,6 +102,37 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
             _exits.insert(mei->addr);
             break;
         }
+        case _deoptimization_info:
+        {
+            const DeoptimizationInfo *di;
+            di = (const DeoptimizationInfo *)buffer;
+            buffer += sizeof(DeoptimizationInfo);
+            break;
+        }
+        case _bci_table_stub_info:
+        {
+            const BciTableStubInfo *btsi;
+            btsi = (const BciTableStubInfo *)buffer;
+            _bci_tables = {btsi->addr, {btsi->num, btsi->ssize}};
+            buffer += sizeof(BciTableStubInfo);
+            break;
+        }
+        case _switch_table_stub_info:
+        {
+            const SwitchTableStubInfo *stsi;
+            stsi = (const SwitchTableStubInfo *)buffer;
+            _switch_tables = {stsi->addr, {stsi->num, stsi->ssize}};
+            buffer += sizeof(SwitchTableStubInfo);
+            break;
+        }
+        case _switch_default_info:
+        {
+            const SwitchDefaultInfo *sdi;
+            sdi = (const SwitchDefaultInfo *)buffer;
+            buffer += sizeof(SwitchDefaultInfo);
+            _switch_defaults.insert({sdi->addr});
+            break;
+        }
         case _branch_taken_info:
         {
             const BranchTakenInfo *bti;
@@ -117,42 +149,12 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
             _not_takens.insert(bnti->addr);
             break;
         }
-        case _switch_case_info:
-        {
-            const SwitchCaseInfo *sci;
-            sci = (const SwitchCaseInfo *)buffer;
-            buffer += sizeof(SwitchCaseInfo);
-            _switch_cases.insert({sci->addr, {sci->num, sci->ssize}});
-            break;
-        }
-        case _switch_default_info:
-        {
-            const SwitchDefaultInfo *sdi;
-            sdi = (const SwitchDefaultInfo *)buffer;
-            buffer += sizeof(SwitchDefaultInfo);
-            _switch_defaults.insert({sdi->addr});
-            break;
-        }
         case _invoke_site_info:
         {
             const InvokeSiteInfo *isi;
             isi = (const InvokeSiteInfo *)buffer;
             buffer += sizeof(InvokeSiteInfo);
             _invoke_sites.insert(isi->addr);
-            break;
-        }
-        case _exception_handling_info:
-        {
-            const ExceptionHandlingInfo *ehi;
-            ehi = (const ExceptionHandlingInfo *)buffer;
-            buffer += sizeof(ExceptionHandlingInfo);
-            break;
-        }
-        case _deoptimization_info:
-        {
-            const DeoptimizationInfo *di;
-            di = (const DeoptimizationInfo *)buffer;
-            buffer += sizeof(DeoptimizationInfo);
             break;
         }
         case _compiled_method_load_info:
@@ -195,8 +197,10 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
             JitSection *section = new JitSection(insts, cmi->code_begin, cmi->stub_begin,
                                                  cmi->code_size, scopes_pc, cmi->scopes_pc_size,
                                                  scopes_data, cmi->scopes_data_size,
-                                                 cmi->entry_point, cmi->verified_entry_point,
-                                                 cmi->osr_entry_point, cmi->inline_method_cnt,
+                                                 cmi->entry_point,
+                                                 cmi->verified_entry_point,
+                                                 cmi->osr_entry_point,
+                                                 cmi->inline_method_cnt,
                                                  methods, mainm, mainm->get_name());
             _section_map[buffer] = section;
             break;
@@ -289,7 +293,7 @@ void JVMRuntime::print(uint8_t *buffer, uint64_t size)
             std::string sig((const char *)buffer, mei->method_signature_length);
             buffer += mei->method_signature_length;
             std::cout << "MethodEntryInfo: " << mei->addr << " " << klass_name
-                      << " " << name << " " << sig << std::endl;
+                      << " " << name << " " << sig << " " << info->time << std::endl;
             break;
         }
         case _method_exit_info:
@@ -297,56 +301,7 @@ void JVMRuntime::print(uint8_t *buffer, uint64_t size)
             const MethodExitInfo *mei;
             mei = (const MethodExitInfo *)buffer;
             buffer += sizeof(MethodExitInfo);
-            std::cout << "MethodExitInfo: " << mei->addr << std::endl;
-            break;
-        }
-        case _branch_taken_info:
-        {
-            const BranchTakenInfo *bti;
-            bti = (const BranchTakenInfo *)buffer;
-            buffer += sizeof(BranchTakenInfo);
-            std::cout << "BranchTakenInfo: " << bti->addr << std::endl;
-            break;
-        }
-        case _branch_not_taken_info:
-        {
-            const BranchNotTakenInfo *bnti;
-            bnti = (const BranchNotTakenInfo *)buffer;
-            buffer += sizeof(BranchNotTakenInfo);
-            std::cout << "BranchNotTakenInfo: " << bnti->addr << std::endl;
-            break;
-        }
-        case _switch_case_info:
-        {
-            const SwitchCaseInfo *sci;
-            sci = (const SwitchCaseInfo *)buffer;
-            buffer += sizeof(SwitchCaseInfo);
-            std::cout << "SwitchCaseInfo: " << sci->addr << " " << sci->num << " " << sci->ssize << std::endl;
-            break;
-        }
-        case _switch_default_info:
-        {
-            const SwitchDefaultInfo *sdi;
-            sdi = (const SwitchDefaultInfo *)buffer;
-            buffer += sizeof(SwitchDefaultInfo);
-            std::cout << "SwitchDefaultInfo: " << sdi->addr << std::endl;
-            break;
-        }
-        case _invoke_site_info:
-        {
-            const InvokeSiteInfo *isi;
-            isi = (const InvokeSiteInfo *)buffer;
-            buffer += sizeof(InvokeSiteInfo);
-            std::cout << "InvokeSiteInfo: " << isi->addr <<std::endl;
-            break;
-        }
-        case _exception_handling_info:
-        {
-            const ExceptionHandlingInfo *ehi;
-            ehi = (const ExceptionHandlingInfo *)buffer;
-            buffer += sizeof(ExceptionHandlingInfo);
-            std::cout << "ExceptionHandlingInfo: " << ehi->addr << " " << ehi->current_bci
-                      << " " << ehi->handler_bci << " " << ehi->java_tid << std::endl;
+            std::cout << "MethodExitInfo: " << mei->addr << " " << info->time  << std::endl;
             break;
         }
         case _deoptimization_info:
@@ -354,8 +309,58 @@ void JVMRuntime::print(uint8_t *buffer, uint64_t size)
             const DeoptimizationInfo *di;
             di = (const DeoptimizationInfo *)buffer;
             buffer += sizeof(DeoptimizationInfo);
-            std::cout << "Deoptimization: " << di->addr << " " << di->bci
-                      << " " << di->java_tid << std::endl;
+            std::cout << "DeoptimizationInfo: " << di->addr << " " << di->bci
+                      << " " << di->java_tid << " " << info->time << std::endl;
+            break;
+        }
+        case _bci_table_stub_info:
+        {
+            const BciTableStubInfo *btsi;
+            btsi = (const BciTableStubInfo *)buffer;
+            buffer += sizeof(BciTableStubInfo);
+            std::cout << "BciTableStubInfo: " << btsi->addr << " " << btsi->num
+                      << " " << btsi->ssize << " " << info->time << std::endl;
+            break;
+        }
+        case _switch_table_stub_info:
+        {
+            const SwitchTableStubInfo *stsi;
+            stsi = (const SwitchTableStubInfo *)buffer;
+            buffer += sizeof(SwitchTableStubInfo);
+            std::cout << "SwitchTableStubInfo: " << stsi->addr << " " << stsi->num
+                      << " " << stsi->ssize << " " << info->time << std::endl;
+            break;
+        }
+        case _switch_default_info:
+        {
+            const SwitchDefaultInfo *sdi;
+            sdi = (const SwitchDefaultInfo *)buffer;
+            buffer += sizeof(SwitchDefaultInfo);
+            std::cout << "SwitchDefaultInfo: " << sdi->addr << " " << info->time << std::endl;
+            break;
+        }
+        case _branch_taken_info:
+        {
+            const BranchTakenInfo *bti;
+            bti = (const BranchTakenInfo *)buffer;
+            buffer += sizeof(BranchTakenInfo);
+            std::cout << "BranchTakenInfo: " << bti->addr << " " << info->time << std::endl;
+            break;
+        }
+        case _branch_not_taken_info:
+        {
+            const BranchNotTakenInfo *bnti;
+            bnti = (const BranchNotTakenInfo *)buffer;
+            buffer += sizeof(BranchNotTakenInfo);
+            std::cout << "BranchNotTakenInfo: " << bnti->addr << " " << info->time << std::endl;
+            break;
+        }
+        case _invoke_site_info:
+        {
+            const InvokeSiteInfo *isi;
+            isi = (const InvokeSiteInfo *)buffer;
+            buffer += sizeof(InvokeSiteInfo);
+            std::cout << "InvokeSiteInfo: " << isi->addr << " " << info->time <<std::endl;
             break;
         }
         case _compiled_method_load_info:
@@ -365,7 +370,8 @@ void JVMRuntime::print(uint8_t *buffer, uint64_t size)
             buffer += sizeof(CompiledMethodLoadInfo);
             std::cout << "CompiledMethodLoad: " << cmi->code_begin << " " << cmi->code_size
                       << " " << cmi->stub_begin << " " << cmi->entry_point
-                      << " " << cmi->verified_entry_point << " " << cmi->osr_entry_point << std::endl;
+                      << " " << cmi->verified_entry_point << " " << cmi->osr_entry_point
+                      << " " << info->time << std::endl;
             for (int i = 0; i < cmi->inline_method_cnt; i++)
             {
                 const InlineMethodInfo *imi;
@@ -396,27 +402,30 @@ void JVMRuntime::print(uint8_t *buffer, uint64_t size)
         {
             const CompiledMethodUnloadInfo *cmui = (const CompiledMethodUnloadInfo *)buffer;
             buffer += sizeof(CompiledMethodUnloadInfo);
-            std::cout << "Compiled Method Unload " << cmui->code_begin << std::endl;
+            std::cout << "Compiled Method Unload " << cmui->code_begin << " " << info->time << std::endl;
             break;
         }
         case _thread_start_info:
         {
             const ThreadStartInfo *ths = (const ThreadStartInfo *)buffer;
             buffer += sizeof(ThreadStartInfo);
-            std::cout << "Thread Start " << ths->java_tid << " " << ths->sys_tid << std::endl;
+            std::cout << "Thread Start " << ths->java_tid << " " << ths->sys_tid
+                      << " " << info->time << std::endl;
             break;
         }
         case _inline_cache_add_info:
         {
             const InlineCacheAddInfo *icai = (const InlineCacheAddInfo *)buffer;
-            std::cout << "Inline cache Add " << icai->src << " " << icai->dest << std::endl;
+            std::cout << "Inline cache Add " << icai->src << " " << icai->dest
+                      << " " << info->time << std::endl;
             buffer += sizeof(InlineCacheAddInfo);
             break;
         }
         case _inline_cache_clear_info:
         {
             const InlineCacheClearInfo *icci = (const InlineCacheClearInfo *)buffer;
-            std::cout << "Inline cache Clear " << icci->src << std::endl;
+            std::cout << "Inline cache Clear " << icci->src
+                      << " " << info->time << std::endl;
             buffer += sizeof(InlineCacheClearInfo);
             break;
         }

@@ -24,8 +24,7 @@ private:
     void to_switch_default(DecodeDataAccess &access, std::ofstream &file);
     void to_invoke_site(DecodeDataAccess &access, std::ofstream &file);
 
-    void to_exception_handling(DecodeDataAccess &access, std::ofstream &file,
-                               const Method *method, int bci, int handler_bci);
+    void to_exception_handling(DecodeDataAccess &access, std::ofstream &file, int bci1, int bci2);
     void to_deoptimization(DecodeDataAccess &access, std::ofstream &file, const Method *method,
                            int bci, bool use_next_bci, bool is_bottom_frame);
 

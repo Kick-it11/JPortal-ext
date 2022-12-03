@@ -151,15 +151,13 @@ bool DecodeDataRecord::record_invoke_site()
     return true;
 }
 
-bool DecodeDataRecord::record_exception_handling(const Method *method, int current_bci, int handler_bci)
+bool DecodeDataRecord::record_bci(int bci)
 {
-    if (!_cur_thread || !method)
+    if (!_cur_thread)
         return false;
-    _type = DecodeData::_exception;
+    _type = DecodeData::_bci;
     _data->write(&_type, 1);
-    _data->write(&method, sizeof(method));
-    _data->write(&current_bci, sizeof(int));
-    _data->write(&handler_bci, sizeof(int));
+    _data->write(&bci, sizeof(int));
     return true;
 }
 
@@ -299,9 +297,9 @@ bool DecodeDataAccess::next_trace(DecodeData::DecodeDataType &type, uint64_t &po
     case DecodeData::_invoke_site:
         ++_current;
         break;
-    case DecodeData::_exception:
+    case DecodeData::_bci:
         ++_current;
-        _current += (sizeof(const Method *) + sizeof(int) + sizeof(int));
+        _current += sizeof(int);
         break;
     case DecodeData::_deoptimization:
         ++_current;
@@ -372,8 +370,7 @@ bool DecodeDataAccess::get_switch_case_index(uint64_t pos, int &index)
     return true;
 }
 
-bool DecodeDataAccess::get_exception_handling(uint64_t pos, const Method *&method,
-                                              int &current_bci, int &handler_bci)
+bool DecodeDataAccess::get_bci(uint64_t pos, int &bci)
 {
     if (pos > _data->_data_end - _data->_data_begin)
     {
@@ -382,16 +379,11 @@ bool DecodeDataAccess::get_exception_handling(uint64_t pos, const Method *&metho
     uint8_t *buf = _data->_data_begin + pos;
     DecodeData::DecodeDataType type = (DecodeData::DecodeDataType) * (buf);
     ++buf;
-    if (type != DecodeData::_exception)
+    if (type != DecodeData::_bci)
     {
         return false;
     }
-    memcpy(&method, buf, sizeof(method));
-    buf += sizeof(method);
-    memcpy(&current_bci, buf, sizeof(current_bci));
-    buf += sizeof(current_bci);
-    memcpy(&handler_bci, buf, sizeof(handler_bci));
-    assert(method != nullptr);
+    memcpy(&bci, buf, sizeof(bci));
     return true;
 }
 

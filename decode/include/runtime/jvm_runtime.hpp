@@ -33,8 +33,6 @@ class Analyser;
  *       such as:
  *               inline cache(src ip -> dest ip)(add or clear according to time)
  *               compiled method(jit_iamge will do load and unload according to time -> exclusive)
- *               deoptimization
- *               exception handling
  */
 
 class JVMRuntime
@@ -49,26 +47,26 @@ public:
         /* First Method exit */
         _method_exit_info,
 
-        /* branch taken */
-        _branch_taken_info,
+        /* unpack frames for deopt */
+        _deoptimization_info,
 
-        /* branch not taken */
-        _branch_not_taken_info,
+        /* jportal table stub, exception handling */
+        _bci_table_stub_info,
 
-        /* switch case */
-        _switch_case_info,
+        /* jportal table stub, exception handling */
+        _switch_table_stub_info,
 
         /* switch default */
         _switch_default_info,
 
+        /* branch taken */
+        _branch_taken_info,
+
+        /* branch taken */
+        _branch_not_taken_info,
+
         /* invoke site */
         _invoke_site_info,
-
-        /* exception handling or maybe unwind (throw out) -> runtime event */
-        _exception_handling_info,
-
-        /* deoptimization -> runtime event */
-        _deoptimization_info,
 
         /* After loading a compiled method: entry, codes, scopes data etc included*/
         _compiled_method_load_info,
@@ -106,6 +104,31 @@ public:
         uint64_t addr;
     };
 
+    struct DeoptimizationInfo {
+      int32_t bci;
+      uint8_t use_next_bci;
+      uint8_t is_bottom_frame;
+      uint16_t __pending;
+      uint64_t java_tid;
+      uint64_t addr;
+    };
+
+    struct BciTableStubInfo {
+      u8 addr;
+      u4 num;
+      u4 ssize;
+    };
+
+    struct SwitchTableStubInfo {
+      u8 addr;
+      u4 num;
+      u4 ssize;
+    };
+
+    struct SwitchDefaultInfo {
+      u8 addr;
+    };
+
     struct BranchTakenInfo
     {
         uint64_t addr;
@@ -116,35 +139,7 @@ public:
         uint64_t addr;
     };
 
-    struct SwitchCaseInfo {
-        uint64_t addr;
-        uint32_t num;
-        uint32_t ssize;
-    };
-
-    struct SwitchDefaultInfo {
-        uint64_t addr;
-    };
-
     struct InvokeSiteInfo {
-        uint64_t addr;
-    };
-
-    struct ExceptionHandlingInfo
-    {
-        int32_t current_bci;
-        int32_t handler_bci;
-        uint64_t java_tid;
-        uint64_t addr;
-    };
-
-    struct DeoptimizationInfo
-    {
-        int32_t bci;
-        uint8_t use_next_bci;
-        uint8_t is_bottom_frame;
-        uint16_t __pending;
-        uint64_t java_tid;
         uint64_t addr;
     };
 
@@ -227,27 +222,29 @@ public:
         return _exits.count(ip);
     }
 
-    static bool switch_case(uint64_t ip)
+    static bool in_bci_table(uint64_t ip)
     {
-        for (auto && c : _switch_cases)
-        {
-            if (ip >= c.first && ip < c.first + c.second.first*c.second.second)
-            {
-                return true;
-            }
-        }
-        return false;
+        return ip >= _bci_tables.first && ip < _bci_tables.first +
+                _bci_tables.second.first * _bci_tables.second.second;
     }
 
-    static int switch_case_index(uint64_t ip)
+    static int bci(uint64_t ip)
     {
-        for (auto && c : _switch_cases)
-        {
-            if (ip >= c.first && ip < c.first + c.second.first*c.second.second)
-            {
-                return (ip - c.first)/c.second.second;
-            }
-        }
+        if (in_bci_table(ip))
+            return (ip - _bci_tables.first) / _bci_tables.second.second;
+        return -1;
+    }
+
+    static bool in_switch_table(uint64_t ip)
+    {
+        return ip >= _switch_tables.first && ip < _switch_tables.first +
+                _switch_tables.second.first * _switch_tables.second.second;
+    }
+
+    static int switch_case(uint64_t ip)
+    {
+        if (in_switch_table(ip))
+            return (ip - _switch_tables.first) / _switch_tables.second.second;
         return -1;
     }
 
@@ -291,7 +288,8 @@ private:
     static std::set<uint64_t> _not_takens;
 
     /*{ code_entry, {num, ssize} }*/
-    static std::set<std::pair<uint64_t, std::pair<int, int>>> _switch_cases;
+    static std::pair<uint64_t, std::pair<int, int>> _bci_tables;
+    static std::pair<uint64_t, std::pair<int, int>> _switch_tables;
     static std::set<uint64_t> _switch_defaults;
     static std::set<uint64_t> _invoke_sites;
     static std::set<uint64_t> _exits;

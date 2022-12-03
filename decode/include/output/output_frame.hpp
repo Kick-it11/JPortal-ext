@@ -44,7 +44,7 @@ public:
     bool switch_case(std::vector<uint8_t> &codes, int index);
     bool switch_default(std::vector<uint8_t> &codes);
     bool invoke_site(std::vector<uint8_t> &codes);
-    bool exception_handling(std::vector<uint8_t> &codes, int bci, int handler_bci);
+    bool exception_handling(std::vector<uint8_t> &codes, int bci1, int bci2);
 };
 
 class JitFrame : public OutputFrame

@@ -77,8 +77,8 @@ public:
         /* invoke site */
         _invoke_site = 7,
 
-        /* exception handling or unwwind -> for inter */
-        _exception = 8,
+        /* exception handling or unwwind -> for inter, mostly a pair */
+        _bci = 8,
 
         /* deoptimization -> for inter */
         _deoptimization = 9,
@@ -176,7 +176,7 @@ public:
 
     bool record_invoke_site();
 
-    bool record_exception_handling(const Method *method, int current_bci, int handler_bci);
+    bool record_bci(int bci);
 
     bool record_deoptimization(const Method *method, int bci, uint8_t use_next_bci, uint8_t is_bottom_frame);
 
@@ -225,7 +225,7 @@ public:
 
     bool get_switch_case_index(uint64_t pos, int &index);
 
-    bool get_exception_handling(uint64_t pos, const Method *&method, int &current_bci, int &handler_bci);
+    bool get_bci(uint64_t pos, int &bci);
 
     bool get_deoptimization(uint64_t pos, const Method *&method, int &bci, uint8_t &use_next_bci, uint8_t &is_bottom_frame);
 

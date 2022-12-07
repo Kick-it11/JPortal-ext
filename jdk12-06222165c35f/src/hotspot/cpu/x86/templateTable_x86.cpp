@@ -2369,6 +2369,41 @@ void TemplateTable::branch(bool is_jsr, bool is_wide) {
   }
 }
 
+#ifdef JPORTAL_ENABLE
+void TemplateTable::jportal_taken_branch() {
+  __ get_method(rdx);
+  Label non_jportal;
+  JPortalStub *stub = JPortalStubBuffer::new_jportal_jump_stub();
+
+  __ movl(rdx, Address(rdx, Method::access_flags_offset()));
+  __ testl(rdx, JVM_ACC_JPORTAL);
+  __ jcc(Assembler::zero, non_jportal);
+  __ jump(ExternalAddress(stub->code_begin()));
+
+  __ bind(non_jportal);
+  address addr = __ pc();
+  stub->set_jump_stub(addr);
+  JPortalEnable::dump_branch_taken(stub->code_begin());
+}
+
+void TemplateTable::jportal_not_taken_branch() {
+  __ get_method(rdx);
+  Label non_jportal;
+  JPortalStub *stub = JPortalStubBuffer::new_jportal_jump_stub();
+
+  __ movl(rdx, Address(rdx, Method::access_flags_offset()));
+  __ testl(rdx, JVM_ACC_JPORTAL);
+  __ jcc(Assembler::zero, non_jportal);
+  __ jump(ExternalAddress(stub->code_begin()));
+
+  __ bind(non_jportal);
+  address addr = __ pc();
+  stub->set_jump_stub(addr);
+  JPortalEnable::dump_branch_not_taken(stub->code_begin());
+}
+
+#endif
+
 void TemplateTable::if_0cmp(Condition cc) {
   transition(itos, vtos);
   // assume branch is more often taken than not (loops use backward branches)
@@ -2378,19 +2413,7 @@ void TemplateTable::if_0cmp(Condition cc) {
 
 #ifdef JPORTAL_ENABLE
   if (JPortal) {
-    __ get_method(rdx);
-    Label non_jportal;
-    JPortalStub *stub = JPortalStubBuffer::new_jportal_jump_stub();
-
-    __ movl(rdx, Address(rdx, Method::access_flags_offset()));
-    __ testl(rdx, JVM_ACC_JPORTAL);
-    __ jcc(Assembler::zero, non_jportal);
-    __ jump(ExternalAddress(stub->code_begin()));
-
-    __ bind(non_jportal);
-    address addr = __ pc();
-    stub->set_jump_stub(addr);
-    JPortalEnable::dump_branch_taken(stub->code_begin());
+    jportal_taken_branch();
   }
 #endif
 
@@ -2400,19 +2423,7 @@ void TemplateTable::if_0cmp(Condition cc) {
 
 #ifdef JPORTAL_ENABLE
   if (JPortal) {
-    __ get_method(rdx);
-    Label non_jportal;
-    JPortalStub *stub = JPortalStubBuffer::new_jportal_jump_stub();
-
-    __ movl(rdx, Address(rdx, Method::access_flags_offset()));
-    __ testl(rdx, JVM_ACC_JPORTAL);
-    __ jcc(Assembler::zero, non_jportal);
-    __ jump(ExternalAddress(stub->code_begin()));
-
-    __ bind(non_jportal);
-    address addr = __ pc();
-    stub->set_jump_stub(addr);
-    JPortalEnable::dump_branch_not_taken(stub->code_begin());
+    jportal_not_taken_branch();
   }
 #endif
 
@@ -2429,19 +2440,7 @@ void TemplateTable::if_icmp(Condition cc) {
 
 #ifdef JPORTAL_ENABLE
   if (JPortal) {
-    __ get_method(rdx);
-    Label non_jportal;
-    JPortalStub *stub = JPortalStubBuffer::new_jportal_jump_stub();
-
-    __ movl(rdx, Address(rdx, Method::access_flags_offset()));
-    __ testl(rdx, JVM_ACC_JPORTAL);
-    __ jcc(Assembler::zero, non_jportal);
-    __ jump(ExternalAddress(stub->code_begin()));
-
-    __ bind(non_jportal);
-    address addr = __ pc();
-    stub->set_jump_stub(addr);
-    JPortalEnable::dump_branch_taken(stub->code_begin());
+    jportal_taken_branch();
   }
 #endif
 
@@ -2450,21 +2449,10 @@ void TemplateTable::if_icmp(Condition cc) {
 
 #ifdef JPORTAL_ENABLE
   if (JPortal) {
-    __ get_method(rdx);
-    Label non_jportal;
-    JPortalStub *stub = JPortalStubBuffer::new_jportal_jump_stub();
-
-    __ movl(rdx, Address(rdx, Method::access_flags_offset()));
-    __ testl(rdx, JVM_ACC_JPORTAL);
-    __ jcc(Assembler::zero, non_jportal);
-    __ jump(ExternalAddress(stub->code_begin()));
-
-    __ bind(non_jportal);
-    address addr = __ pc();
-    stub->set_jump_stub(addr);
-    JPortalEnable::dump_branch_not_taken(stub->code_begin());
+    jportal_not_taken_branch();
   }
 #endif
+
   __ profile_not_taken_branch(rax);
 }
 
@@ -2477,19 +2465,7 @@ void TemplateTable::if_nullcmp(Condition cc) {
 
 #ifdef JPORTAL_ENABLE
   if (JPortal) {
-    __ get_method(rdx);
-    Label non_jportal;
-    JPortalStub *stub = JPortalStubBuffer::new_jportal_jump_stub();
-
-    __ movl(rdx, Address(rdx, Method::access_flags_offset()));
-    __ testl(rdx, JVM_ACC_JPORTAL);
-    __ jcc(Assembler::zero, non_jportal);
-    __ jump(ExternalAddress(stub->code_begin()));
-
-    __ bind(non_jportal);
-    address addr = __ pc();
-    stub->set_jump_stub(addr);
-    JPortalEnable::dump_branch_taken(stub->code_begin());
+    jportal_taken_branch();
   }
 #endif
 
@@ -2498,21 +2474,10 @@ void TemplateTable::if_nullcmp(Condition cc) {
 
 #ifdef JPORTAL_ENABLE
   if (JPortal) {
-    __ get_method(rdx);
-    Label non_jportal;
-    JPortalStub *stub = JPortalStubBuffer::new_jportal_jump_stub();
-
-    __ movl(rdx, Address(rdx, Method::access_flags_offset()));
-    __ testl(rdx, JVM_ACC_JPORTAL);
-    __ jcc(Assembler::zero, non_jportal);
-    __ jump(ExternalAddress(stub->code_begin()));
-
-    __ bind(non_jportal);
-    address addr = __ pc();
-    stub->set_jump_stub(addr);
-    JPortalEnable::dump_branch_not_taken(stub->code_begin());
+    jportal_not_taken_branch();
   }
 #endif
+
   __ profile_not_taken_branch(rax);
 }
 
@@ -2526,19 +2491,7 @@ void TemplateTable::if_acmp(Condition cc) {
 
 #ifdef JPORTAL_ENABLE
   if (JPortal) {
-    __ get_method(rdx);
-    Label non_jportal;
-    JPortalStub *stub = JPortalStubBuffer::new_jportal_jump_stub();
-
-    __ movl(rdx, Address(rdx, Method::access_flags_offset()));
-    __ testl(rdx, JVM_ACC_JPORTAL);
-    __ jcc(Assembler::zero, non_jportal);
-    __ jump(ExternalAddress(stub->code_begin()));
-
-    __ bind(non_jportal);
-    address addr = __ pc();
-    stub->set_jump_stub(addr);
-    JPortalEnable::dump_branch_taken(stub->code_begin());
+    jportal_taken_branch();
   }
 #endif
 
@@ -2547,21 +2500,10 @@ void TemplateTable::if_acmp(Condition cc) {
 
 #ifdef JPORTAL_ENABLE
   if (JPortal) {
-    __ get_method(rdx);
-    Label non_jportal;
-    JPortalStub *stub = JPortalStubBuffer::new_jportal_jump_stub();
-
-    __ movl(rdx, Address(rdx, Method::access_flags_offset()));
-    __ testl(rdx, JVM_ACC_JPORTAL);
-    __ jcc(Assembler::zero, non_jportal);
-    __ jump(ExternalAddress(stub->code_begin()));
-
-    __ bind(non_jportal);
-    address addr = __ pc();
-    stub->set_jump_stub(addr);
-    JPortalEnable::dump_branch_not_taken(stub->code_begin());
+    jportal_not_taken_branch();
   }
 #endif
+
   __ profile_not_taken_branch(rax);
 }
 
@@ -2589,6 +2531,42 @@ void TemplateTable::wide_ret() {
   __ dispatch_next(vtos, 0, true);
 }
 
+#ifdef JPORTAL_ENABLE
+void TemplateTable::jportal_switch_case(Register index) {
+  __ get_method(rdx);
+  Label non_jportal;
+
+  __ movl(rdx, Address(rdx, Method::access_flags_offset()));
+  __ testl(rdx, JVM_ACC_JPORTAL);
+  __ jcc(Assembler::zero, non_jportal);
+
+  __ lea(rscratch1, ExternalAddress(JPortalStubBuffer::switch_table()->code_begin()));
+  __ imulptr(rdx, index, JPortalStubBuffer::jportal_table_stub_entry_size());
+  __ addptr(rscratch1, rdx);
+  __ call(rscratch1);
+
+  __ bind(non_jportal);
+}
+
+void TemplateTable::jportal_switch_default() {
+  JPortalStub *stub = JPortalStubBuffer::new_jportal_jump_stub();
+  __ get_method(rdx);
+  Label non_jportal;
+
+  __ movl(rdx, Address(rdx, Method::access_flags_offset()));
+  __ testl(rdx, JVM_ACC_JPORTAL);
+  __ jcc(Assembler::zero, non_jportal);
+
+  __ jump(ExternalAddress(stub->code_begin()));
+
+  __ bind(non_jportal);
+
+  address addr = __ pc();
+  stub->set_jump_stub(addr);
+  JPortalEnable::dump_switch_default(stub->code_begin());
+}
+
+#endif
 void TemplateTable::tableswitch() {
   Label default_case, continue_execution;
   transition(itos, vtos);
@@ -2611,19 +2589,7 @@ void TemplateTable::tableswitch() {
 
 #ifdef JPORTAL_ENABLE
   if (JPortal) {
-    __ get_method(rdx);
-    Label non_jportal;
-
-    __ movl(rdx, Address(rdx, Method::access_flags_offset()));
-    __ testl(rdx, JVM_ACC_JPORTAL);
-    __ jcc(Assembler::zero, non_jportal);
-
-    __ lea(rscratch1, ExternalAddress(JPortalStubBuffer::switch_table()->code_begin()));
-    __ imulptr(rdx, rax, JPortalStubBuffer::jportal_table_stub_entry_size());
-    __ addptr(rscratch1, rdx);
-    __ call(rscratch1);
-
-    __ bind(non_jportal);
+    jportal_switch_case(rax);
   }
 #endif
 
@@ -2641,20 +2607,7 @@ void TemplateTable::tableswitch() {
 
 #ifdef JPORTAL_ENABLE
   if (JPortal) {
-    JPortalStub *stub = JPortalStubBuffer::new_jportal_jump_stub();
-    __ get_method(rdx);
-    Label non_jportal;
-
-    __ movl(rdx, Address(rdx, Method::access_flags_offset()));
-    __ testl(rdx, JVM_ACC_JPORTAL);
-    __ jcc(Assembler::zero, non_jportal);
-    __ jump(ExternalAddress(stub->code_begin()));
-
-    __ bind(non_jportal);
-
-    address addr = __ pc();
-    stub->set_jump_stub(addr);
-    JPortalEnable::dump_switch_default(stub->code_begin());
+    jportal_switch_default();
   }
 #endif
 
@@ -2693,21 +2646,7 @@ void TemplateTable::fast_linearswitch() {
 
 #ifdef JPORTAL_ENABLE
   if (JPortal) {
-    JPortalStub *stub = JPortalStubBuffer::new_jportal_jump_stub();
-    __ get_method(rdx);
-    Label non_jportal;
-
-    __ movl(rdx, Address(rdx, Method::access_flags_offset()));
-    __ testl(rdx, JVM_ACC_JPORTAL);
-    __ jcc(Assembler::zero, non_jportal);
-
-    __ jump(ExternalAddress(stub->code_begin()));
-
-    __ bind(non_jportal);
-
-    address addr = __ pc();
-    stub->set_jump_stub(addr);
-    JPortalEnable::dump_switch_default(stub->code_begin());
+    jportal_switch_default();
   }
 #endif
 
@@ -2719,19 +2658,7 @@ void TemplateTable::fast_linearswitch() {
 
 #ifdef JPORTAL_ENABLE
   if (JPortal) {
-    __ get_method(rdx);
-    Label non_jportal;
-
-    __ movl(rdx, Address(rdx, Method::access_flags_offset()));
-    __ testl(rdx, JVM_ACC_JPORTAL);
-    __ jcc(Assembler::zero, non_jportal);
-
-    __ lea(rscratch1, ExternalAddress(JPortalStubBuffer::switch_table()->code_begin()));
-    __ imulptr(rdx, rcx, JPortalStubBuffer::jportal_table_stub_entry_size());
-    __ addptr(rscratch1, rdx);
-    __ call(rscratch1);
-
-    __ bind(non_jportal);
+    jportal_switch_case(rcx);
   }
 #endif
 
@@ -2838,19 +2765,7 @@ void TemplateTable::fast_binaryswitch() {
 
 #ifdef JPORTAL_ENABLE
   if (JPortal) {
-    __ get_method(j);
-    Label non_jportal;
-
-    __ movl(j, Address(j, Method::access_flags_offset()));
-    __ testl(j, JVM_ACC_JPORTAL);
-    __ jcc(Assembler::zero, non_jportal);
-
-    __ lea(rscratch1, ExternalAddress(JPortalStubBuffer::switch_table()->code_begin()));
-    __ imulptr(j, i, JPortalStubBuffer::jportal_table_stub_entry_size());
-    __ addptr(rscratch1, j);
-    __ call(rscratch1);
-
-    __ bind(non_jportal);
+    jportal_switch_case(i);
   }
 #endif
 
@@ -2872,20 +2787,7 @@ void TemplateTable::fast_binaryswitch() {
 
 #ifdef JPORTAL_ENABLE
   if (JPortal) {
-    JPortalStub *stub = JPortalStubBuffer::new_jportal_jump_stub();
-    __ get_method(j);
-    Label non_jportal;
-
-    __ movl(j, Address(j, Method::access_flags_offset()));
-    __ testl(j, JVM_ACC_JPORTAL);
-    __ jcc(Assembler::zero, non_jportal);
-    __ jump(ExternalAddress(stub->code_begin()));
-
-    __ bind(non_jportal);
-
-    address addr = __ pc();
-    stub->set_jump_stub(addr);
-    JPortalEnable::dump_switch_default(stub->code_begin());
+    jportal_switch_default();
   }
 #endif
 
@@ -4005,25 +3907,6 @@ void TemplateTable::invokevirtual_helper(Register index,
 }
 
 void TemplateTable::invokevirtual(int byte_no) {
-#ifdef JPORTAL_ENABLE
-  if (JPortal) {
-    JPortalStub *stub = JPortalStubBuffer::new_jportal_jump_stub();
-    __ get_method(rdx);
-    Label non_jportal;
-
-    __ movl(rdx, Address(rdx, Method::access_flags_offset()));
-    __ testl(rdx, JVM_ACC_JPORTAL);
-    __ jcc(Assembler::zero, non_jportal);
-
-    __ jump(ExternalAddress(stub->code_begin()));
-
-    __ bind(non_jportal);
-    address addr = __ pc();
-    JPortalEnable::dump_invoke_site(stub->code_begin());
-    stub->set_jump_stub(addr);
-  }
-#endif
-
   transition(vtos, vtos);
   assert(byte_no == f2_byte, "use this argument");
   prepare_invoke(byte_no,
@@ -4039,25 +3922,6 @@ void TemplateTable::invokevirtual(int byte_no) {
 }
 
 void TemplateTable::invokespecial(int byte_no) {
-#ifdef JPORTAL_ENABLE
-  if (JPortal) {
-    JPortalStub *stub = JPortalStubBuffer::new_jportal_jump_stub();
-    __ get_method(rdx);
-    Label non_jportal;
-
-    __ movl(rdx, Address(rdx, Method::access_flags_offset()));
-    __ testl(rdx, JVM_ACC_JPORTAL);
-    __ jcc(Assembler::zero, non_jportal);
-
-    __ jump(ExternalAddress(stub->code_begin()));
-
-    __ bind(non_jportal);
-    address addr = __ pc();
-    JPortalEnable::dump_invoke_site(stub->code_begin());
-    stub->set_jump_stub(addr);
-  }
-#endif
-
   transition(vtos, vtos);
   assert(byte_no == f1_byte, "use this argument");
   prepare_invoke(byte_no, rbx, noreg,  // get f1 Method*
@@ -4071,25 +3935,6 @@ void TemplateTable::invokespecial(int byte_no) {
 }
 
 void TemplateTable::invokestatic(int byte_no) {
-#ifdef JPORTAL_ENABLE
-  if (JPortal) {
-    JPortalStub *stub = JPortalStubBuffer::new_jportal_jump_stub();
-    __ get_method(rdx);
-    Label non_jportal;
-
-    __ movl(rdx, Address(rdx, Method::access_flags_offset()));
-    __ testl(rdx, JVM_ACC_JPORTAL);
-    __ jcc(Assembler::zero, non_jportal);
-
-    __ jump(ExternalAddress(stub->code_begin()));
-
-    __ bind(non_jportal);
-    address addr = __ pc();
-    JPortalEnable::dump_invoke_site(stub->code_begin());
-    stub->set_jump_stub(addr);
-  }
-#endif
-
   transition(vtos, vtos);
   assert(byte_no == f1_byte, "use this argument");
   prepare_invoke(byte_no, rbx);  // get f1 Method*
@@ -4101,25 +3946,6 @@ void TemplateTable::invokestatic(int byte_no) {
 
 
 void TemplateTable::fast_invokevfinal(int byte_no) {
-#ifdef JPORTAL_ENABLE
-  if (JPortal) {
-    JPortalStub *stub = JPortalStubBuffer::new_jportal_jump_stub();
-    __ get_method(rdx);
-    Label non_jportal;
-
-    __ movl(rdx, Address(rdx, Method::access_flags_offset()));
-    __ testl(rdx, JVM_ACC_JPORTAL);
-    __ jcc(Assembler::zero, non_jportal);
-
-    __ jump(ExternalAddress(stub->code_begin()));
-
-    __ bind(non_jportal);
-    address addr = __ pc();
-    JPortalEnable::dump_invoke_site(stub->code_begin());
-    stub->set_jump_stub(addr);
-  }
-#endif
-
   transition(vtos, vtos);
   assert(byte_no == f2_byte, "use this argument");
   __ stop("fast_invokevfinal not used on x86");
@@ -4127,25 +3953,6 @@ void TemplateTable::fast_invokevfinal(int byte_no) {
 
 
 void TemplateTable::invokeinterface(int byte_no) {
-#ifdef JPORTAL_ENABLE
-  if (JPortal) {
-    JPortalStub *stub = JPortalStubBuffer::new_jportal_jump_stub();
-    __ get_method(rdx);
-    Label non_jportal;
-
-    __ movl(rdx, Address(rdx, Method::access_flags_offset()));
-    __ testl(rdx, JVM_ACC_JPORTAL);
-    __ jcc(Assembler::zero, non_jportal);
-
-    __ jump(ExternalAddress(stub->code_begin()));
-
-    __ bind(non_jportal);
-    address addr = __ pc();
-    JPortalEnable::dump_invoke_site(stub->code_begin());
-    stub->set_jump_stub(addr);
-  }
-#endif
-
   transition(vtos, vtos);
   assert(byte_no == f1_byte, "use this argument");
   prepare_invoke(byte_no, rax, rbx,  // get f1 Klass*, f2 Method*
@@ -4294,25 +4101,6 @@ void TemplateTable::invokeinterface(int byte_no) {
 }
 
 void TemplateTable::invokehandle(int byte_no) {
-#ifdef JPORTAL_ENABLE
-  if (JPortal) {
-    JPortalStub *stub = JPortalStubBuffer::new_jportal_jump_stub();
-    __ get_method(rdx);
-    Label non_jportal;
-
-    __ movl(rdx, Address(rdx, Method::access_flags_offset()));
-    __ testl(rdx, JVM_ACC_JPORTAL);
-    __ jcc(Assembler::zero, non_jportal);
-
-    __ jump(ExternalAddress(stub->code_begin()));
-
-    __ bind(non_jportal);
-    address addr = __ pc();
-    JPortalEnable::dump_invoke_site(stub->code_begin());
-    stub->set_jump_stub(addr);
-  }
-#endif
-
   transition(vtos, vtos);
   assert(byte_no == f1_byte, "use this argument");
   const Register rbx_method = rbx;
@@ -4338,25 +4126,6 @@ void TemplateTable::invokehandle(int byte_no) {
 }
 
 void TemplateTable::invokedynamic(int byte_no) {
-#ifdef JPORTAL_ENABLE
-  if (JPortal) {
-    JPortalStub *stub = JPortalStubBuffer::new_jportal_jump_stub();
-    __ get_method(rdx);
-    Label non_jportal;
-
-    __ movl(rdx, Address(rdx, Method::access_flags_offset()));
-    __ testl(rdx, JVM_ACC_JPORTAL);
-    __ jcc(Assembler::zero, non_jportal);
-
-    __ jump(ExternalAddress(stub->code_begin()));
-
-    __ bind(non_jportal);
-    address addr = __ pc();
-    JPortalEnable::dump_invoke_site(stub->code_begin());
-    stub->set_jump_stub(addr);
-  }
-#endif
-
   transition(vtos, vtos);
   assert(byte_no == f1_byte, "use this argument");
 

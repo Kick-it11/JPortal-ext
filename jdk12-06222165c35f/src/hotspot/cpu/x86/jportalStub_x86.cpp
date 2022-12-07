@@ -19,6 +19,11 @@ int JPortalStubBuffer::jportal_jump_stub_code_size() {
   return MAX2(best, worst);
 }
 
+int JPortalStubBuffer::jportal_ret_stub_code_size() {
+  // ret
+  return NativeReturn::instruction_size;
+}
+
 int JPortalStubBuffer::jportal_table_stub_code_size() {
   return jportal_table_stub_entry_size() * JPortalTableStubLimit;
 }
@@ -33,6 +38,13 @@ void JPortalStubBuffer::assemble_jportal_jump_buffer_code(address code_begin, ad
   CodeBuffer      code(code_begin, jportal_jump_stub_code_size());
   MacroAssembler* masm            = new MacroAssembler(&code);
   masm->jump(ExternalAddress(entry_point));
+}
+
+void JPortalStubBuffer::assemble_jportal_ret_buffer_code(address code_begin) {
+  ResourceMark rm;
+  CodeBuffer      code(code_begin, jportal_ret_stub_code_size());
+  MacroAssembler* masm            = new MacroAssembler(&code);
+  masm->ret(0);
 }
 
 void JPortalStubBuffer::assemble_jportal_table_buffer_code(address code_begin) {

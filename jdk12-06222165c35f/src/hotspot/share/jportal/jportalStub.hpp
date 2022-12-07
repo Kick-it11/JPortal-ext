@@ -28,6 +28,8 @@ class JPortalStub: public Stub {
  public:
   void set_jump_stub(address dest_addr);
 
+  void set_ret_stub();
+
   void set_table_stub();
 
   address jump_destination() const;  // destination of jump instruction
@@ -55,8 +57,7 @@ class JPortalStubBuffer : AllStatic {
 
   // Machine-dependent implementation of JPortalStub
   static void    assemble_jportal_jump_buffer_code(address code_begin, address entry_point);
-
-  // Machine-dependent implementation of JPortalStub
+  static void    assemble_jportal_ret_buffer_code(address code_begin);
   static void    assemble_jportal_table_buffer_code(address code_begin);
 
  public:
@@ -75,9 +76,13 @@ class JPortalStubBuffer : AllStatic {
 
   static JPortalStub *new_jportal_jump_stub();
 
+  static JPortalStub *new_jportal_ret_stub();
+
   static JPortalStub *new_jportal_table_stub();
 
   static int jportal_jump_stub_code_size();
+
+  static int jportal_ret_stub_code_size();
 
   static int jportal_table_stub_code_size();
 

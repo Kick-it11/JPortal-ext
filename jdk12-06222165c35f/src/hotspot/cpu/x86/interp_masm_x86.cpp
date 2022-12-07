@@ -26,8 +26,6 @@
 #include "interp_masm_x86.hpp"
 #include "interpreter/interpreter.hpp"
 #include "interpreter/interpreterRuntime.hpp"
-#include "jportal/jportalEnable.hpp"
-#include "jportal/jportalStub.hpp"
 #include "logging/log.hpp"
 #include "oops/arrayOop.hpp"
 #include "oops/markOop.hpp"
@@ -2004,6 +2002,23 @@ void InterpreterMacroAssembler::notify_method_entry() {
       CAST_FROM_FN_PTR(address, SharedRuntime::rc_trace_method_entry),
       rthread, rarg);
   }
+
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    get_method(rarg);
+    Label non_jportal;
+
+    movl(rdx, Address(rarg, Method::access_flags_offset()));
+    testl(rdx, JVM_ACC_JPORTAL);
+    jcc(Assembler::zero, non_jportal);
+
+    movptr(rscratch1, Address(rarg, Method::jportal_entry_offset()));
+    call(rscratch1);
+
+    bind(non_jportal);
+  }
+#endif
+
 }
 
 
@@ -2032,24 +2047,6 @@ void InterpreterMacroAssembler::notify_method_exit(
     bind(L);
     pop(state);
   }
-
-#ifdef JPORTAL_ENABLE
-  if (JPortal) {
-    get_method(rdx);
-    Label non_jportal;
-    JPortalStub *stub = JPortalStubBuffer::new_jportal_jump_stub();
-
-    movl(rdx, Address(rdx, Method::access_flags_offset()));
-    testl(rdx, JVM_ACC_JPORTAL);
-    jcc(Assembler::zero, non_jportal);
-    jump(ExternalAddress(stub->code_begin()));
-
-    bind(non_jportal);
-    address addr = pc();
-    stub->set_jump_stub(addr);
-    JPortalEnable::dump_method_exit(stub->code_begin());
-  }
-#endif
 
   {
     SkipIfEqual skip(this, &DTraceMethodProbes, false);

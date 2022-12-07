@@ -123,6 +123,10 @@ class TemplateInterpreterGenerator: public AbstractInterpreterGenerator {
   void generate_fixed_frame(bool native_call, Register Rsize_of_parameters, Register Rsize_of_locals);
 #endif // PPC
 
+#ifdef JPORTAL_ENABLE
+  void jportal_method_and_bci(int step);
+#endif
+
  public:
   TemplateInterpreterGenerator(StubQueue* _code);
 };

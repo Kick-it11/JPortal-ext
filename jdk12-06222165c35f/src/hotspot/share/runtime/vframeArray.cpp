@@ -279,13 +279,6 @@ void vframeArrayElement::unpack_on_stack(int caller_actual_parameters,
     }
   }
 
-#ifdef JPORTAL_ENABLE
-  if (JPortal && method()->is_jportal()) {
-    JPortalEnable::dump_deoptimization(thread, method(), method()->bci_from(bcp),
-                                       use_next_mdp, is_bottom_frame);
-  }
-#endif
-
   // Setup the interpreter frame
 
   assert(method() != NULL, "method must exist");

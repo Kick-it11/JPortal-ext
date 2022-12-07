@@ -35,6 +35,11 @@ void JPortalStub::set_jump_stub(address dest_addr) {
   assert(jump_destination() == dest_addr,   "can recover destination");
 }
 
+void JPortalStub::set_ret_stub() {
+  // Assemble new stub
+  JPortalStubBuffer::assemble_jportal_ret_buffer_code(code_begin());
+}
+
 void JPortalStub::set_table_stub() {
   // Assemble new stub
   JPortalStubBuffer::assemble_jportal_table_buffer_code(code_begin());
@@ -76,6 +81,14 @@ JPortalStub* JPortalStubBuffer::new_jportal_jump_stub() {
   stub = (JPortalStub*)buffer()->request_committed(jportal_jump_stub_code_size());
   if (stub == NULL)
     vm_exit_out_of_memory(jportal_jump_stub_code_size(), INTERNAL_ERROR, "JPortalStubBuffer: out of memory.");
+  return stub;
+}
+
+JPortalStub* JPortalStubBuffer::new_jportal_ret_stub() {
+  JPortalStub* stub = NULL;
+  stub = (JPortalStub*)buffer()->request_committed(jportal_ret_stub_code_size());
+  if (stub == NULL)
+    vm_exit_out_of_memory(jportal_ret_stub_code_size(), INTERNAL_ERROR, "JPortalStubBuffer: out of memory.");
   return stub;
 }
 

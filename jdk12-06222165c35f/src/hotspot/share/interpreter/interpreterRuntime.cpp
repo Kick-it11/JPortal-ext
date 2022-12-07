@@ -35,7 +35,6 @@
 #include "interpreter/interpreterRuntime.hpp"
 #include "interpreter/linkResolver.hpp"
 #include "interpreter/templateTable.hpp"
-#include "jportal/jportalEnable.hpp"
 #include "logging/log.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"

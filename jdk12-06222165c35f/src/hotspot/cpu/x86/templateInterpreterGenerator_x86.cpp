@@ -74,6 +74,32 @@ const int locals_offset = frame::interpreter_frame_locals_offset * wordSize;
 
 //-----------------------------------------------------------------------------
 
+#ifdef JPORTAL_ENABLE
+void TemplateInterpreterGenerator::jportal_method_and_bci(int step) {
+  __ get_method(rcx);
+  Label non_jportal;
+  Register bcp_register = LP64_ONLY(r13) NOT_LP64(rsi);
+
+  __ movl(rdx, Address(rcx, Method::access_flags_offset()));
+  __ testl(rdx, JVM_ACC_JPORTAL);
+  __ jcc(Assembler::zero, non_jportal);
+
+  __ movptr(rscratch1, Address(rcx, Method::jportal_entry_offset()));
+  __ call(rscratch1);
+
+  __ movptr(rdx, Address(rcx, Method::const_offset()));   // get ConstMethod*
+  __ lea(rdx, Address(rdx, ConstMethod::codes_offset()));    // get codebase
+  __ movptr(rbx, bcp_register);
+  __ addptr(rbx, step);
+  __ subptr(rbx, rdx);
+  __ lea(rscratch1, ExternalAddress(JPortalStubBuffer::bci_table()->code_begin()));
+  __ addptr(rscratch1, rbx);
+  __ call(rscratch1);
+
+  __ bind(non_jportal);
+}
+#endif
+
 address TemplateInterpreterGenerator::generate_StackOverflowError_handler() {
   address entry = __ pc();
 
@@ -234,6 +260,12 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
      __ check_and_handle_earlyret(java_thread);
    }
 
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    jportal_method_and_bci(step);
+  }
+#endif
+
   __ dispatch_next(state, step);
 
   return entry;
@@ -295,6 +327,13 @@ address TemplateInterpreterGenerator::generate_deopt_entry_for(TosState state, i
     __ bind(L);
   }
   if (continuation == NULL) {
+
+#ifdef JPORTAL_ENABLE
+    if (JPortal) {
+      jportal_method_and_bci(step);
+    }
+#endif
+
     __ dispatch_next(state, step);
   } else {
     __ jump_to_entry(continuation);
@@ -1517,17 +1556,18 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
     Label non_jportal;
     Register bcp_register = LP64_ONLY(r13) NOT_LP64(rsi);
 
-    __ movl(rcx, Address(rcx, Method::access_flags_offset()));
-    __ testl(rcx, JVM_ACC_JPORTAL);
+    __ movl(rbx, Address(rcx, Method::access_flags_offset()));
+    __ testl(rbx, JVM_ACC_JPORTAL);
     __ jcc(Assembler::zero, non_jportal);
 
-    __ get_method(rcx);
+    __ movptr(rscratch1, Address(rcx, Method::jportal_entry_offset()));
+    __ call(rscratch1);
+
     __ movptr(rcx, Address(rcx, Method::const_offset()));   // get ConstMethod*
     __ lea(rcx, Address(rcx, ConstMethod::codes_offset()));    // get codebase
     __ movptr(rbx, bcp_register);
     __ subptr(rbx, rcx);
     __ lea(rscratch1, ExternalAddress(JPortalStubBuffer::bci_table()->code_begin()));
-    __ imulptr(rbx, rbx, JPortalStubBuffer::jportal_table_stub_entry_size());
     __ addptr(rscratch1, rbx);
     __ call(rscratch1);
 
@@ -1554,7 +1594,6 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
     __ movptr(rbx, bcp_register);
     __ subptr(rbx, rcx);
     __ lea(rscratch1, ExternalAddress(JPortalStubBuffer::bci_table()->code_begin()));
-    __ imulptr(rbx, rbx, JPortalStubBuffer::jportal_table_stub_entry_size());
     __ addptr(rscratch1, rbx);
     __ call(rscratch1);
 

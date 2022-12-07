@@ -111,6 +111,7 @@ Method::Method(ConstMethod* xconst, AccessFlags access_flags) {
 
 #ifdef JPORTAL_ENABLE
   _jportal_stub = NULL;
+  _jportal_entry = NULL;
 #endif
 
   NOT_PRODUCT(set_compiled_invocation_count(0);)
@@ -934,21 +935,17 @@ void Method::unlink_method() {
   assert(DumpSharedSpaces, "dump time only");
   // Set the values to what they should be at run time. Note that
   // this Method can no longer be executed during dump time.
-#ifdef JPORTAL_ENABLE
-  if (JPortal && is_jportal()) {
-    if (!_jportal_stub) {
-      _jportal_stub = JPortalStubBuffer::new_jportal_jump_stub();
-      _i2i_entry = _jportal_stub->code_begin();
-      JPortalEnable::dump_method_entry(this);
-    }
-    _jportal_stub->set_jump_stub(Interpreter::entry_for_cds_method(this));
-  } else {
-#endif
   _i2i_entry = Interpreter::entry_for_cds_method(this);
+  _from_interpreted_entry = _i2i_entry;
+
 #ifdef JPORTAL_ENABLE
+  if (JPortal && is_jportal() && _jportal_stub == NULL && _jportal_entry == NULL) {
+    _jportal_stub = JPortalStubBuffer::new_jportal_ret_stub();
+    _jportal_stub->set_ret_stub();
+    _jportal_entry = _jportal_stub->code_begin();
+    JPortalEnable::dump_method(this);
   }
 #endif
-  _from_interpreted_entry = _i2i_entry;
 
   if (is_native()) {
     *native_function_addr() = NULL;
@@ -1040,23 +1037,20 @@ void Method::unlink_method() {
 // Called when the method_holder is getting linked. Setup entrypoints so the method
 // is ready to be called from interpreter, compiler, and vtables.
 void Method::link_method(const methodHandle& h_method, TRAPS) {
+
+#ifdef JPORTAL_ENABLE
+  if (JPortal && is_jportal() && _jportal_stub == NULL && _jportal_entry == NULL) {
+    _jportal_stub = JPortalStubBuffer::new_jportal_ret_stub();
+    _jportal_stub->set_ret_stub();
+    _jportal_entry = _jportal_stub->code_begin();
+    JPortalEnable::dump_method(this);
+  }
+#endif
+
   // If the code cache is full, we may reenter this function for the
   // leftover methods that weren't linked.
   if (is_shared()) {
     address entry = Interpreter::entry_for_cds_method(h_method);
-#ifdef JPORTAL_ENABLE
-    if (JPortal && is_jportal()) {
-      assert(_jportal_stub != NULL && entry != NULL &&
-             entry == _jportal_stub->jump_destination() &&
-             _i2i_entry == _jportal_stub->code_begin(),
-             "should be correctly set during dump time");
-      if (adapter() != NULL) {
-        return;
-      }
-      assert(_i2i_entry == _from_interpreted_entry,
-             "should be correctly set during dump time");
-    } else {
-#endif
     assert(entry != NULL && entry == _i2i_entry,
            "should be correctly set during dump time");
     if (adapter() != NULL) {
@@ -1064,9 +1058,6 @@ void Method::link_method(const methodHandle& h_method, TRAPS) {
     }
     assert(entry == _from_interpreted_entry,
            "should be correctly set during dump time");
-#ifdef JPORTAL_ENABLE
-    }
-#endif
   } else if (_i2i_entry != NULL) {
     return;
   }
@@ -1080,20 +1071,7 @@ void Method::link_method(const methodHandle& h_method, TRAPS) {
     address entry = Interpreter::entry_for_method(h_method);
     assert(entry != NULL, "interpreter entry must be non-null");
     // Sets both _i2i_entry and _from_interpreted_entry
-#ifdef JPORTAL_ENABLE
-    if (JPortal && is_jportal()) {
-      if (!_jportal_stub) {
-        _jportal_stub = JPortalStubBuffer::new_jportal_jump_stub();
-        set_interpreter_entry(_jportal_stub->code_begin());
-        JPortalEnable::dump_method_entry(this);
-      }
-      _jportal_stub->set_jump_stub(entry);
-    } else {
-#endif
     set_interpreter_entry(entry);
-#ifdef JPORTAL_ENABLE
-    }
-#endif
   }
 
   // Don't overwrite already registered native entries.

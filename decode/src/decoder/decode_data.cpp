@@ -86,22 +86,13 @@ void DecodeDataRecord::switch_out(uint64_t time)
     }
 }
 
-bool DecodeDataRecord::record_method_entry(const Method *method)
+bool DecodeDataRecord::record_method(const Method *method)
 {
     if (!_cur_thread || !method)
         return false;
-    _type = DecodeData::_method_entry;
+    _type = DecodeData::_method;
     _data->write(&_type, 1);
     _data->write(&method, sizeof(method));
-    return true;
-}
-
-bool DecodeDataRecord::record_method_exit()
-{
-    if (!_cur_thread)
-        return false;
-    _type = DecodeData::_method_exit;
-    _data->write(&_type, 1);
     return true;
 }
 
@@ -142,15 +133,6 @@ bool DecodeDataRecord::record_switch_default()
     return true;
 }
 
-bool DecodeDataRecord::record_invoke_site()
-{
-    if (!_cur_thread)
-        return false;
-    _type = DecodeData::_invoke_site;
-    _data->write(&_type, 1);
-    return true;
-}
-
 bool DecodeDataRecord::record_bci(int bci)
 {
     if (!_cur_thread)
@@ -158,19 +140,6 @@ bool DecodeDataRecord::record_bci(int bci)
     _type = DecodeData::_bci;
     _data->write(&_type, 1);
     _data->write(&bci, sizeof(int));
-    return true;
-}
-
-bool DecodeDataRecord::record_deoptimization(const Method *method, int bci, uint8_t use_next_bci, uint8_t is_bottom_frame)
-{
-    if (!_cur_thread || !method)
-        return false;
-    _type = DecodeData::_deoptimization;
-    _data->write(&_type, 1);
-    _data->write(&method, sizeof(method));
-    _data->write(&bci, sizeof(int));
-    _data->write(&use_next_bci, sizeof(uint8_t));
-    _data->write(&is_bottom_frame, sizeof(uint8_t));
     return true;
 }
 
@@ -280,11 +249,10 @@ bool DecodeDataAccess::next_trace(DecodeData::DecodeDataType &type, uint64_t &po
     type = (DecodeData::DecodeDataType)*_current;
     switch (type)
     {
-    case DecodeData::_method_entry:
+    case DecodeData::_method:
         ++_current;
         _current += sizeof(const Method *);
         break;
-    case DecodeData::_method_exit:
     case DecodeData::_taken:
     case DecodeData::_not_taken:
         ++_current;
@@ -294,16 +262,11 @@ bool DecodeDataAccess::next_trace(DecodeData::DecodeDataType &type, uint64_t &po
         _current += sizeof(int);
         break;
     case DecodeData::_switch_default:
-    case DecodeData::_invoke_site:
         ++_current;
         break;
     case DecodeData::_bci:
         ++_current;
         _current += sizeof(int);
-        break;
-    case DecodeData::_deoptimization:
-        ++_current;
-        _current += (sizeof(const Method *) + sizeof(int));
         break;
     case DecodeData::_jit_entry:
     case DecodeData::_jit_osr_entry:
@@ -334,7 +297,7 @@ bool DecodeDataAccess::next_trace(DecodeData::DecodeDataType &type, uint64_t &po
     return true;
 }
 
-bool DecodeDataAccess::get_method_entry(uint64_t pos, const Method *&method)
+bool DecodeDataAccess::get_method(uint64_t pos, const Method *&method)
 {
     if (pos > _data->_data_end - _data->_data_begin)
     {
@@ -343,7 +306,7 @@ bool DecodeDataAccess::get_method_entry(uint64_t pos, const Method *&method)
     uint8_t *buf = _data->_data_begin + pos;
     DecodeData::DecodeDataType type = (DecodeData::DecodeDataType) * (buf);
     ++buf;
-    if (type != DecodeData::_method_entry)
+    if (type != DecodeData::_method)
     {
         return false;
     }
@@ -384,31 +347,6 @@ bool DecodeDataAccess::get_bci(uint64_t pos, int &bci)
         return false;
     }
     memcpy(&bci, buf, sizeof(bci));
-    return true;
-}
-
-bool DecodeDataAccess::get_deoptimization(uint64_t pos, const Method *&method, int &bci,
-                                          uint8_t &use_next_bci, uint8_t &is_bottom_frame)
-{
-    if (pos > _data->_data_end - _data->_data_begin)
-    {
-        return false;
-    }
-    uint8_t *buf = _data->_data_begin + pos;
-    DecodeData::DecodeDataType type = (DecodeData::DecodeDataType) * (buf);
-    ++buf;
-    if (type != DecodeData::_deoptimization)
-    {
-        return false;
-    }
-    memcpy(&method, buf, sizeof(method));
-    buf += sizeof(method);
-    memcpy(&bci, buf, sizeof(bci));
-    buf += sizeof(int);
-    memcpy(&use_next_bci, buf, sizeof(use_next_bci));
-    buf += sizeof(uint8_t);
-    memcpy(&is_bottom_frame, buf, sizeof(is_bottom_frame));
-    assert(method != nullptr);
     return true;
 }
 

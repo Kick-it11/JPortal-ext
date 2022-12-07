@@ -147,29 +147,14 @@ void PTJVMDecoder::decoder_drain_jvm_events(uint64_t time)
             std::cerr << "PTJVMDecoder error: unknown dump type" << std::endl;
             exit(1);
         }
-        case JVMRuntime::_method_entry_info:
-        case JVMRuntime::_method_exit_info:
+        case JVMRuntime::_method_info:
         case JVMRuntime::_branch_not_taken_info:
         case JVMRuntime::_branch_taken_info:
         case JVMRuntime::_bci_table_stub_info:
         case JVMRuntime::_switch_table_stub_info:
         case JVMRuntime::_switch_default_info:
-        case JVMRuntime::_invoke_site_info:
         {
             /* do not need to handle */
-            break;
-        }
-        case JVMRuntime::_deoptimization_info:
-        {
-            const JVMRuntime::DeoptimizationInfo *di = (const JVMRuntime::DeoptimizationInfo *)data;
-            const Method *method = JVMRuntime::method_entry(di->addr);
-            if (info->time > _start_time && _tid == di->java_tid)
-            {
-                if (!_record.record_deoptimization(method, di->bci, di->use_next_bci, di->is_bottom_frame))
-                {
-                    std::cerr << "PTJVMDecoder error: Fail to record deoptimization" << std::endl;
-                }
-            }
             break;
         }
         case JVMRuntime::_compiled_method_load_info:
@@ -1809,13 +1794,9 @@ int PTJVMDecoder::decoder_process_jitcode(JitSection *section)
 int PTJVMDecoder::decoder_record_intercode(uint64_t ip)
 {
     bool recorded = true;
-    if (const Method *method = JVMRuntime::method_entry(_ip))
+    if (const Method *method = JVMRuntime::method(_ip))
     {
-        recorded = _record.record_method_entry(method);
-    }
-    else if (JVMRuntime::method_exit(_ip))
-    {
-        recorded = _record.record_method_exit();
+        recorded = _record.record_method(method);
     }
     else if (JVMRuntime::not_taken_branch(_ip))
     {
@@ -1836,10 +1817,6 @@ int PTJVMDecoder::decoder_record_intercode(uint64_t ip)
     else if (JVMRuntime::switch_default(_ip))
     {
         recorded = _record.record_switch_default();
-    }
-    else if (JVMRuntime::invoke_site(_ip))
-    {
-        recorded = _record.record_invoke_site();
     }
     else
     {

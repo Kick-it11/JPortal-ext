@@ -9,14 +9,12 @@
 
 uint8_t *JVMRuntime::_begin = nullptr;
 uint8_t *JVMRuntime::_end = nullptr;
-std::map<uint64_t, const Method *> JVMRuntime::_entry_map;
-std::set<uint64_t> JVMRuntime::_exits;
+std::map<uint64_t, const Method *> JVMRuntime::_methods;
 std::set<uint64_t> JVMRuntime::_takens;
 std::set<uint64_t> JVMRuntime::_not_takens;
 std::pair<uint64_t, std::pair<int, int>> JVMRuntime::_bci_tables;
 std::pair<uint64_t, std::pair<int, int>> JVMRuntime::_switch_tables;
 std::set<uint64_t> JVMRuntime::_switch_defaults;
-std::set<uint64_t> JVMRuntime::_invoke_sites;
 std::map<uint64_t, uint64_t> JVMRuntime::_tid_map;
 std::map<const uint8_t *, JitSection *> JVMRuntime::_section_map;
 bool JVMRuntime::_initialized = false;
@@ -79,11 +77,11 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
         buffer += sizeof(DumpInfo);
         switch (info->type)
         {
-        case _method_entry_info:
+        case _method_info:
         {
-            const MethodEntryInfo *mei;
-            mei = (const MethodEntryInfo *)buffer;
-            buffer += sizeof(MethodEntryInfo);
+            const MethodInfo *mei;
+            mei = (const MethodInfo *)buffer;
+            buffer += sizeof(MethodInfo);
             std::string klass_name((const char *)buffer, mei->klass_name_length);
             buffer += mei->klass_name_length;
             std::string name((const char *)buffer, mei->method_name_length);
@@ -91,22 +89,7 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
             std::string sig((const char *)buffer, mei->method_signature_length);
             buffer += mei->method_signature_length;
             const Method *method = analyser->get_method(klass_name, name + sig);
-            _entry_map[mei->addr] = method;
-            break;
-        }
-        case _method_exit_info:
-        {
-            const MethodExitInfo *mei;
-            mei = (const MethodExitInfo *)buffer;
-            buffer += sizeof(MethodExitInfo);
-            _exits.insert(mei->addr);
-            break;
-        }
-        case _deoptimization_info:
-        {
-            const DeoptimizationInfo *di;
-            di = (const DeoptimizationInfo *)buffer;
-            buffer += sizeof(DeoptimizationInfo);
+            _methods[mei->addr] = method;
             break;
         }
         case _bci_table_stub_info:
@@ -147,14 +130,6 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
             bnti = (const BranchNotTakenInfo *)buffer;
             buffer += sizeof(BranchNotTakenInfo);
             _not_takens.insert(bnti->addr);
-            break;
-        }
-        case _invoke_site_info:
-        {
-            const InvokeSiteInfo *isi;
-            isi = (const InvokeSiteInfo *)buffer;
-            buffer += sizeof(InvokeSiteInfo);
-            _invoke_sites.insert(isi->addr);
             break;
         }
         case _compiled_method_load_info:
@@ -255,7 +230,7 @@ void JVMRuntime::destroy()
         delete section.second;
     _section_map.clear();
 
-    _entry_map.clear();
+    _methods.clear();
 
     delete[] _begin;
 
@@ -281,11 +256,11 @@ void JVMRuntime::print(uint8_t *buffer, uint64_t size)
         buffer += sizeof(DumpInfo);
         switch (info->type)
         {
-        case _method_entry_info:
+        case _method_info:
         {
-            const MethodEntryInfo *mei;
-            mei = (const MethodEntryInfo *)buffer;
-            buffer += sizeof(MethodEntryInfo);
+            const MethodInfo *mei;
+            mei = (const MethodInfo *)buffer;
+            buffer += sizeof(MethodInfo);
             std::string klass_name((const char *)buffer, mei->klass_name_length);
             buffer += mei->klass_name_length;
             std::string name((const char *)buffer, mei->method_name_length);
@@ -294,23 +269,6 @@ void JVMRuntime::print(uint8_t *buffer, uint64_t size)
             buffer += mei->method_signature_length;
             std::cout << "MethodEntryInfo: " << mei->addr << " " << klass_name
                       << " " << name << " " << sig << " " << info->time << std::endl;
-            break;
-        }
-        case _method_exit_info:
-        {
-            const MethodExitInfo *mei;
-            mei = (const MethodExitInfo *)buffer;
-            buffer += sizeof(MethodExitInfo);
-            std::cout << "MethodExitInfo: " << mei->addr << " " << info->time  << std::endl;
-            break;
-        }
-        case _deoptimization_info:
-        {
-            const DeoptimizationInfo *di;
-            di = (const DeoptimizationInfo *)buffer;
-            buffer += sizeof(DeoptimizationInfo);
-            std::cout << "DeoptimizationInfo: " << di->addr << " " << di->bci
-                      << " " << di->java_tid << " " << info->time << std::endl;
             break;
         }
         case _bci_table_stub_info:
@@ -353,14 +311,6 @@ void JVMRuntime::print(uint8_t *buffer, uint64_t size)
             bnti = (const BranchNotTakenInfo *)buffer;
             buffer += sizeof(BranchNotTakenInfo);
             std::cout << "BranchNotTakenInfo: " << bnti->addr << " " << info->time << std::endl;
-            break;
-        }
-        case _invoke_site_info:
-        {
-            const InvokeSiteInfo *isi;
-            isi = (const InvokeSiteInfo *)buffer;
-            buffer += sizeof(InvokeSiteInfo);
-            std::cout << "InvokeSiteInfo: " << isi->addr << " " << info->time <<std::endl;
             break;
         }
         case _compiled_method_load_info:

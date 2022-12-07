@@ -57,49 +57,40 @@ public:
         _padding = 0,
 
         /* method entry in a java method level, follows a method pointer -> for inter */
-        _method_entry = 1,
-
-        /* method exit: return/ exception/ pop frame */
-        _method_exit = 2,
+        _method = 1,
 
         /* taken branch in a bytecode level -> for inter */
-        _taken = 3,
+        _taken = 2,
 
         /* untaken branch in a bytecode level -> for inter*/
-        _not_taken = 4,
+        _not_taken = 3,
 
         /* switch case */
-        _switch_case = 5,
+        _switch_case = 4,
 
         /* switch default */
-        _switch_default = 6,
-
-        /* invoke site */
-        _invoke_site = 7,
+        _switch_default = 5,
 
         /* exception handling or unwwind -> for inter, mostly a pair */
-        _bci = 8,
-
-        /* deoptimization -> for inter */
-        _deoptimization = 9,
+        _bci = 6,
 
         /* following jit code, with a jit entry */
-        _jit_entry = 10,
+        _jit_entry = 7,
 
         /* following jit code, with an osr entry */
-        _jit_osr_entry = 11,
+        _jit_osr_entry = 8,
 
         /* following jit code, JIT description and pcs */
-        _jit_code = 12,
+        _jit_code = 9,
 
         /* jit return */
-        _jit_return = 13,
+        _jit_return = 10,
 
         /* indicate a dataloss might happening */
-        _data_loss = 14,
+        _data_loss = 11,
 
         /* indicate a decode error */
-        _decode_error = 15,
+        _decode_error = 12,
     };
 
 private:
@@ -162,9 +153,7 @@ public:
 
     void switch_out(uint64_t time);
 
-    bool record_method_entry(const Method *method);
-
-    bool record_method_exit();
+    bool record_method(const Method *method);
 
     bool record_branch_taken();
 
@@ -174,11 +163,7 @@ public:
 
     bool record_switch_default();
 
-    bool record_invoke_site();
-
     bool record_bci(int bci);
-
-    bool record_deoptimization(const Method *method, int bci, uint8_t use_next_bci, uint8_t is_bottom_frame);
 
     bool record_jit_entry(const JitSection *section);
 
@@ -221,13 +206,11 @@ public:
 
     bool next_trace(DecodeData::DecodeDataType &type, uint64_t &pos);
 
-    bool get_method_entry(uint64_t pos, const Method *&method);
+    bool get_method(uint64_t pos, const Method *&method);
 
     bool get_switch_case_index(uint64_t pos, int &index);
 
     bool get_bci(uint64_t pos, int &bci);
-
-    bool get_deoptimization(uint64_t pos, const Method *&method, int &bci, uint8_t &use_next_bci, uint8_t &is_bottom_frame);
 
     bool get_jit_code(uint64_t pos, const JitSection *&section, const PCStackInfo **&pcs, uint64_t &size);
 

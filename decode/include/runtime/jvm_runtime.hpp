@@ -42,13 +42,7 @@ public:
     enum DumpType
     {
         /* First method entry: map between ip to method */
-        _method_entry_info,
-
-        /* First Method exit */
-        _method_exit_info,
-
-        /* unpack frames for deopt */
-        _deoptimization_info,
+        _method_info,
 
         /* jportal table stub, exception handling */
         _bci_table_stub_info,
@@ -64,9 +58,6 @@ public:
 
         /* branch taken */
         _branch_not_taken_info,
-
-        /* invoke site */
-        _invoke_site_info,
 
         /* After loading a compiled method: entry, codes, scopes data etc included*/
         _compiled_method_load_info,
@@ -91,26 +82,13 @@ public:
         uint64_t time;
     };
 
-    struct MethodEntryInfo
+    struct MethodInfo
     {
         uint32_t klass_name_length;
         uint32_t method_name_length;
         uint32_t method_signature_length;
         uint32_t _pending;
         uint64_t addr;
-    };
-
-    struct MethodExitInfo {
-        uint64_t addr;
-    };
-
-    struct DeoptimizationInfo {
-      int32_t bci;
-      uint8_t use_next_bci;
-      uint8_t is_bottom_frame;
-      uint16_t __pending;
-      uint64_t java_tid;
-      uint64_t addr;
     };
 
     struct BciTableStubInfo {
@@ -136,10 +114,6 @@ public:
 
     struct BranchNotTakenInfo
     {
-        uint64_t addr;
-    };
-
-    struct InvokeSiteInfo {
         uint64_t addr;
     };
 
@@ -212,14 +186,9 @@ public:
         return _takens.count(ip);
     }
 
-    static const Method *method_entry(uint64_t ip)
+    static const Method *method(uint64_t ip)
     {
-        return _entry_map.count(ip) ? _entry_map[ip] : nullptr;
-    }
-
-    static bool method_exit(uint64_t ip)
-    {
-        return _exits.count(ip);
+        return _methods.count(ip) ? _methods[ip] : nullptr;
     }
 
     static bool in_bci_table(uint64_t ip)
@@ -253,11 +222,6 @@ public:
         return _switch_defaults.count(ip);
     }
 
-    static bool invoke_site(uint64_t ip)
-    {
-        return _invoke_sites.count(ip);
-    }
-
     static JitSection *jit_section(const uint8_t *pointer)
     {
         return _section_map.count(pointer) ? _section_map[pointer] : nullptr;
@@ -282,7 +246,7 @@ private:
     static uint8_t *_end;
 
     /* map between method entry address and method */
-    static std::map<uint64_t, const Method *> _entry_map;
+    static std::map<uint64_t, const Method *> _methods;
 
     static std::set<uint64_t> _takens;
     static std::set<uint64_t> _not_takens;
@@ -291,8 +255,6 @@ private:
     static std::pair<uint64_t, std::pair<int, int>> _bci_tables;
     static std::pair<uint64_t, std::pair<int, int>> _switch_tables;
     static std::set<uint64_t> _switch_defaults;
-    static std::set<uint64_t> _invoke_sites;
-    static std::set<uint64_t> _exits;
 
     /* map between system tid and java tid
      * A potential bug here: system tid might be reused for different java tid

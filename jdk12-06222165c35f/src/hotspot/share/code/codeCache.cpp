@@ -328,7 +328,7 @@ void CodeCache::initialize_heaps() {
   // ---------- low ------------
   initialize_heaps_size(normal_cache_size, normal_non_nmethod_size,
                           normal_profiled_size, normal_non_profiled_size, false);
-  if (JPortal) {
+  if (JPortal || JPortalMethod) {
     size_t jportal_cache_size = 0, jportal_non_nmethod_size = 0,
           jportal_profiled_size = 0, jportal_non_profiled_size = 0;
     initialize_heaps_size(jportal_cache_size, jportal_non_nmethod_size,
@@ -421,7 +421,7 @@ ReservedCodeSpace CodeCache::reserve_heap_memory(size_t size) {
 
 // Heaps available for allocation
 bool CodeCache::heap_available(int code_blob_type, bool jportal) {
-  if (!JPortal && jportal)
+  if (!JPortal && !JPortalMethod && jportal)
     return false;
 
   if (!SegmentedCodeCache) {
@@ -429,6 +429,9 @@ bool CodeCache::heap_available(int code_blob_type, bool jportal) {
     return (code_blob_type == CodeBlobType::All);
   } else if (Arguments::is_interpreter_only()) {
     // Interpreter only: we don't need any method code heaps
+    return (code_blob_type == CodeBlobType::NonNMethod);
+  } else if (JPortalMethod && jportal) {
+    // JPortalMethod set only accepts nonnmethod jportal heap
     return (code_blob_type == CodeBlobType::NonNMethod);
   } else if (TieredCompilation && (TieredStopAtLevel > CompLevel_simple)) {
     // Tiered compilation: use all code heaps
@@ -1176,13 +1179,23 @@ void CodeCache::initialize() {
 #endif
   assert(CodeCacheSegmentSize >= sizeof(jdouble),    "CodeCacheSegmentSize must be large enough to align constants");
 
+  // check JPortal && JPortalMethod flag
 #ifndef JPORTAL_ENABLE
   // check if JPortal is supported
   if (JPortal) {
     warning("JPortalEnable error: JPortal not supported");
     FLAG_SET_ERGO(bool, JPortal, false);
   }
+  if (JPortalMethod) {
+    warning("JPortalEnable error: JPortalMethod not supported");
+    FLAG_SET_ERGO(bool, JPortalMethod, false);
+  }
 #endif
+
+  if (JPortal && JPortalMethod) {
+    warning("JPortalEnable error: JPortalMethod and JPortal cannot be set at the same time");
+    FLAG_SET_ERGO(bool, JPortalMethod, false);
+  }
 
   // This was originally just a check of the alignment, causing failure, instead, round
   // the code cache to the page size.  In particular, Solaris is moving to a larger
@@ -1200,7 +1213,7 @@ void CodeCache::initialize() {
     FLAG_SET_ERGO(uintx, JPortalNonNMethodCodeHeapSize, 0);
     FLAG_SET_ERGO(uintx, JPortalProfiledCodeHeapSize, 0);
     FLAG_SET_ERGO(uintx, JPortalNonProfiledCodeHeapSize, 0);
-    if (JPortal) {
+    if (JPortal || JPortalMethod) {
       ReservedCodeSpace rs = reserve_heap_memory(ReservedCodeCacheSize+JPortalReservedCodeCacheSize);
       ReservedSpace normal_code = rs.first_part(ReservedCodeCacheSize);
       ReservedSpace jportal_code = rs.last_part(ReservedCodeCacheSize);

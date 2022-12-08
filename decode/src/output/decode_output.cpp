@@ -8,14 +8,14 @@
 #include <iostream>
 #include <fstream>
 
-DecodeOutput::DecodeOutput(const std::vector<DecodeData *> &data)
+DecodeOutput::DecodeOutput(const std::vector<DecodeData *> &data, Analyser *analyser)
 {
+    _analyser = analyser;
     _splits = DecodeData::sort_all_by_time(data);
 }
 
-
-
-void DecodeOutput::output(const std::string prefix)
+/* Todo: output cfg info: methods and bytecodes */
+void DecodeOutput::output_cfg(const std::string prefix)
 {
     for (auto &&thread : _splits)
     {
@@ -99,6 +99,59 @@ void DecodeOutput::output(const std::string prefix)
     }
 }
 
+/* Todo: use a id of int to refer to method */
+void DecodeOutput::output_func(const std::string prefix)
+{
+    for (auto &&thread : _splits)
+    {
+        std::ofstream file(prefix + "-" + "thrd" + std::to_string(thread.first));
+        for (auto &&split : thread.second)
+        {
+            DecodeDataAccess access(split);
+            DecodeData::DecodeDataType type;
+            uint64_t loc;
+            while (access.next_trace(type, loc))
+            {
+                switch (type)
+                {
+                case DecodeData::_method:
+                {
+                    const Method *method;
+                    if (!access.get_method(loc, method))
+                    {
+                        std::cerr << "DecodeOutput error: Fail to get method entry "
+                                  << access.id() << " " << access.pos() << std::endl;
+                        exit(1);
+                    }
+                    file << "i:" << method->get_klass()->get_name() + " " << method->get_name() << std::endl;
+                    break;
+                }
+                case DecodeData::_method_exit:
+                {
+                    const Method *method;
+                    if (!access.get_method(loc, method))
+                    {
+                        std::cerr << "DecodeOutput error: Fail to get method entry "
+                                  << access.id() << " " << access.pos() << std::endl;
+                        exit(1);
+                    }
+                    file << "i:" << method->get_klass()->get_name() + " " << method->get_name() << std::endl;
+                    break;
+                }
+                case DecodeData::_data_loss:
+                    break;
+                case DecodeData::_decode_error:
+                    break;
+                default:
+                    std::cerr << "DecodeOutput error: unknown type"
+                              << access.id() << " " << access.pos() << std::endl;
+                    exit(1);
+                }
+            }
+        }
+    }
+}
+
 void DecodeOutput::print()
 {
     for (auto &&thread : _splits)
@@ -124,6 +177,18 @@ void DecodeOutput::print()
                         exit(1);
                     }
                     std::cout << "    Method Entry: " << method->get_klass()->get_name()
+                              << " " << method->get_name() << std::endl;
+                    break;
+                }
+                case DecodeData::_method_exit:
+                {
+                    const Method *method;
+                    if (!access.get_method(loc, method))
+                    {
+                        std::cerr << "DecodeOutput error: Fail to get method entry" << std::endl;
+                        exit(1);
+                    }
+                    std::cout << "    Method Exit: " << method->get_klass()->get_name()
                               << " " << method->get_name() << std::endl;
                     break;
                 }

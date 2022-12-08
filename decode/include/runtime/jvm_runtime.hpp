@@ -88,7 +88,8 @@ public:
         uint32_t method_name_length;
         uint32_t method_signature_length;
         uint32_t _pending;
-        uint64_t addr;
+        uint64_t addr1;
+        uint64_t addr2; // only work for JPortalMethod
     };
 
     struct BciTableStubInfo {
@@ -191,6 +192,11 @@ public:
         return _methods.count(ip) ? _methods[ip] : nullptr;
     }
 
+    static const Method *method_exit(uint64_t ip)
+    {
+        return _exits.count(ip) ? _exits[ip] : nullptr;
+    }
+
     static bool in_bci_table(uint64_t ip)
     {
         return ip >= _bci_tables.first && ip < _bci_tables.first +
@@ -247,6 +253,7 @@ private:
 
     /* map between method entry address and method */
     static std::map<uint64_t, const Method *> _methods;
+    static std::map<uint64_t, const Method *> _exits;
 
     static std::set<uint64_t> _takens;
     static std::set<uint64_t> _not_takens;

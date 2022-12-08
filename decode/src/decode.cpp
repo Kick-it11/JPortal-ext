@@ -54,9 +54,8 @@ static void decode(const std::string &file, std::vector<std::string> &paths)
 
     /** Output */
     std::cout << "Output..." << std::endl;
-    DecodeOutput to_file(results);
-    to_file.output("decode");
-    //to_file.print();
+    DecodeOutput to_file(results, analyser);
+    to_file.output_func("decode");
 
     /* Exit */
     JVMRuntime::destroy();

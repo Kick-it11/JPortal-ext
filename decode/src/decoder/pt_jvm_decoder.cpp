@@ -1798,6 +1798,10 @@ int PTJVMDecoder::decoder_record_intercode(uint64_t ip)
     {
         recorded = _record.record_method(method);
     }
+    else if (const Method *method = JVMRuntime::method_exit(_ip))
+    {
+        recorded = _record.record_method_exit(method);
+    }
     else if (JVMRuntime::not_taken_branch(_ip))
     {
         recorded = _record.record_branch_not_taken();

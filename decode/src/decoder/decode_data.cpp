@@ -96,6 +96,16 @@ bool DecodeDataRecord::record_method(const Method *method)
     return true;
 }
 
+bool DecodeDataRecord::record_method_exit(const Method *method)
+{
+    if (!_cur_thread || !method)
+        return false;
+    _type = DecodeData::_method_exit;
+    _data->write(&_type, 1);
+    _data->write(&method, sizeof(method));
+    return true;
+}
+
 bool DecodeDataRecord::record_branch_taken()
 {
     if (!_cur_thread)

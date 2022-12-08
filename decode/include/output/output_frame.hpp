@@ -55,7 +55,7 @@ private:
 
 public:
     JitFrame(const JitSection *section) : _section(section) {}
-    ~JitFrame();
+    ~JitFrame() {};
 
     virtual bool is_jit_frame() { return true; }
     virtual bool is_inter_frame() { return false; }

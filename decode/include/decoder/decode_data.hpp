@@ -59,38 +59,41 @@ public:
         /* method entry in a java method level, follows a method pointer -> for inter */
         _method = 1,
 
+        /* method exit */
+        _method_exit = 2,
+
         /* taken branch in a bytecode level -> for inter */
-        _taken = 2,
+        _taken = 3,
 
         /* untaken branch in a bytecode level -> for inter*/
-        _not_taken = 3,
+        _not_taken = 4,
 
         /* switch case */
-        _switch_case = 4,
+        _switch_case = 5,
 
         /* switch default */
-        _switch_default = 5,
+        _switch_default = 6,
 
         /* exception handling or unwwind -> for inter, mostly a pair */
-        _bci = 6,
+        _bci = 7,
 
         /* following jit code, with a jit entry */
-        _jit_entry = 7,
+        _jit_entry = 8,
 
         /* following jit code, with an osr entry */
-        _jit_osr_entry = 8,
+        _jit_osr_entry = 9,
 
         /* following jit code, JIT description and pcs */
-        _jit_code = 9,
+        _jit_code = 10,
 
         /* jit return */
-        _jit_return = 10,
+        _jit_return = 11,
 
         /* indicate a dataloss might happening */
-        _data_loss = 11,
+        _data_loss = 12,
 
         /* indicate a decode error */
-        _decode_error = 12,
+        _decode_error = 13,
     };
 
 private:
@@ -118,6 +121,7 @@ public:
     static std::map<uint64_t, std::vector<ThreadSplit>> sort_all_by_time(const std::vector<DecodeData *> &data);
 };
 
+/* Todo: Improve: use a global id of int to refer to method, section, pc */
 class DecodeDataRecord
 {
 private:
@@ -154,6 +158,8 @@ public:
     void switch_out(uint64_t time);
 
     bool record_method(const Method *method);
+
+    bool record_method_exit(const Method *method);
 
     bool record_branch_taken();
 

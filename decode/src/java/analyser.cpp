@@ -18,10 +18,12 @@ Analyser::~Analyser()
     {
         delete (k.second);
     }
+    _klasses.clear();
     for (auto m : _methods)
     {
         delete (m.second);
     }
+    _methods.clear();
 }
 
 void Analyser::add_klass(Klass *klass)
@@ -33,7 +35,7 @@ void Analyser::add_klass(Klass *klass)
 void Analyser::add_method(Method *method)
 {
     assert(method && method->get_klass() && !_methods.count(method->get_klass()->get_name() + method->get_name()));
-    _methods[method->get_klass()->get_name() + method->get_name()] = method;
+    _methods[method->get_klass()->get_name() + " " + method->get_name()] = method;
 }
 
 const Klass *Analyser::get_klass(const std::string &klassName)
@@ -43,7 +45,7 @@ const Klass *Analyser::get_klass(const std::string &klassName)
 
 const Method *Analyser::get_method(const std::string &klassName, const std::string &methodName)
 {
-    return _methods.count(klassName + methodName) ? _methods[klassName + methodName] : nullptr;
+    return _methods.count(klassName + " " + methodName) ? _methods[klassName + methodName] : nullptr;
 }
 
 void Analyser::parse(const std::vector<std::string> &class_paths)

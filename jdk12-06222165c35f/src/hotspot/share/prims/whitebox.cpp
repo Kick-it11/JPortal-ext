@@ -1562,7 +1562,7 @@ WB_ENTRY(jobjectArray, WB_GetCodeHeapEntries(JNIEnv* env, jobject o, jint blob_t
       new (stub) CodeBlobStub(cb);
       blobs.append(stub);
     }
-    if (JPortal) {
+    if (JPortal || JPortalMethod) {
       heap = WhiteBox::get_code_heap(blob_type, true);
       if (heap != NULL) {
         for (CodeBlob* cb = (CodeBlob*) heap->first();

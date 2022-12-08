@@ -2505,7 +2505,7 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
                            "Invalid method Code length %u in class file %s",
                            code_length, CHECK_NULL);
 #ifdef JPORTAL_ENABLE
-        if (access_flags.is_jportal()) {
+        if (JPortal && access_flags.is_jportal()) {
           guarantee_property(code_length < JPortalTableStubLimit,
                              "Invalid method Code length %u in class file %s",
                              code_length, CHECK_NULL);

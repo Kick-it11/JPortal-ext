@@ -50,16 +50,17 @@ class JPortalEnable {
       u4 method_name_length;
       u4 method_signature_length;
       u4 _pending;
-      u8 addr;
+      u8 addr1;
+      u8 addr2; // only for JPortalMethod, addr2 is useful, for exit
 
       MethodInfo(u4 _klass_name_length,
-                      u4 _method_name_length,
-                      u4 _method_signature_length,
-                      u8 _addr, u4 _size) :
+                 u4 _method_name_length,
+                 u4 _method_signature_length,
+                 u8 _addr1, u8 _addr2, u4 _size) :
         klass_name_length(_klass_name_length),
         method_name_length(_method_name_length),
         method_signature_length(_method_signature_length),
-        addr(_addr) {
+        addr1(_addr1), addr2(_addr2) {
         info.type = _method_info;
         info.size = _size;
         info.time = get_timestamp();

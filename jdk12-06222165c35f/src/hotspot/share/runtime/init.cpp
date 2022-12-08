@@ -113,7 +113,7 @@ jint init_globals() {
   compilationPolicy_init();
   codeCache_init();
 #ifdef JPORTAL_ENABLE
-  if (JPortal) {
+  if (JPortal || JPortalMethod) {
     JPortalEnable_init();
     JPortalStubBuffer_init();
   }
@@ -179,7 +179,7 @@ void exit_globals() {
     destructorsCalled = true;
     perfMemory_exit();
 #ifdef JPORTAL_ENABLE
-    if (JPortal) {
+    if (JPortal || JPortalMethod) {
       JPortalEnable_exit();
     }
 #endif

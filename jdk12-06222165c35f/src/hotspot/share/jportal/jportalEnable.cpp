@@ -96,7 +96,7 @@ void JPortalEnable::dump_method(Method *moop) {
   char *method_signature = (char *)moop->signature()->bytes();
 
   size = sizeof(struct MethodInfo) + klass_name_length + name_length + sig_length;
-  MethodInfo mei(klass_name_length, name_length, sig_length, (u8)moop->interpreter_entry(), size);
+  MethodInfo mei(klass_name_length, name_length, sig_length, (u8)moop->jportal_entry(), (u8)moop->jportal_exit(), size);
 
   if (!check_data(size)) {
     warning("JPortalEnable error: ignore entry for size too big");

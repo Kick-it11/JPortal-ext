@@ -10,6 +10,7 @@
 uint8_t *JVMRuntime::_begin = nullptr;
 uint8_t *JVMRuntime::_end = nullptr;
 std::map<uint64_t, const Method *> JVMRuntime::_methods;
+std::map<uint64_t, const Method *> JVMRuntime::_exits;
 std::set<uint64_t> JVMRuntime::_takens;
 std::set<uint64_t> JVMRuntime::_not_takens;
 std::pair<uint64_t, std::pair<int, int>> JVMRuntime::_bci_tables;
@@ -89,7 +90,16 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
             std::string sig((const char *)buffer, mei->method_signature_length);
             buffer += mei->method_signature_length;
             const Method *method = analyser->get_method(klass_name, name + sig);
-            _methods[mei->addr] = method;
+            if (!method || !method->is_jportal())
+            {
+                std::cerr << "JvmDumpDecoder error: Unknown or un-jportal method" << std::endl;
+                break;
+            }
+            _methods[mei->addr1] = method;
+            if (mei->addr2)
+            {
+                _exits[mei->addr2] = method;
+            }
             break;
         }
         case _bci_table_stub_info:
@@ -267,7 +277,7 @@ void JVMRuntime::print(uint8_t *buffer, uint64_t size)
             buffer += mei->method_name_length;
             std::string sig((const char *)buffer, mei->method_signature_length);
             buffer += mei->method_signature_length;
-            std::cout << "MethodEntryInfo: " << mei->addr << " " << klass_name
+            std::cout << "MethodEntryInfo: " << mei->addr1 << " " << mei->addr2 << " " << klass_name
                       << " " << name << " " << sig << " " << info->time << std::endl;
             break;
         }

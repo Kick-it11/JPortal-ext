@@ -2004,7 +2004,7 @@ void InterpreterMacroAssembler::notify_method_entry() {
   }
 
 #ifdef JPORTAL_ENABLE
-  if (JPortal) {
+  if (JPortal || JPortalMethod) {
     get_method(rarg);
     Label non_jportal;
 

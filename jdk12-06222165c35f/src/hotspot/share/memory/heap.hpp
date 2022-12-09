@@ -137,7 +137,7 @@ class CodeHeap : public CHeapObj<mtCode> {
   void clear();                                 // clears all heap contents
 
  public:
-  CodeHeap(const char* name, const int code_blob_type, bool jportal);
+  CodeHeap(const char* name, const int code_blob_type, bool jportal = false);
 
   // Heap extents
   bool  reserve(ReservedSpace rs, size_t committed_size, size_t segment_size);

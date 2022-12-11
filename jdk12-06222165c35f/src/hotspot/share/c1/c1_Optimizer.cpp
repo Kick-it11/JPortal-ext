@@ -531,6 +531,9 @@ public:
   void do_ProfileReturnType (ProfileReturnType*  x);
   void do_ProfileInvoke  (ProfileInvoke*   x);
   void do_RuntimeCall    (RuntimeCall*     x);
+#ifdef JPORTAL_ENABLE
+  void do_JPortalCall    (JPortalCall*     x);
+#endif
   void do_MemBar         (MemBar*          x);
   void do_RangeCheckPredicate(RangeCheckPredicate* x);
 #ifdef ASSERT
@@ -718,6 +721,9 @@ void NullCheckVisitor::do_ProfileCall    (ProfileCall*     x) { nce()->clear_las
 void NullCheckVisitor::do_ProfileReturnType (ProfileReturnType* x) { nce()->handle_ProfileReturnType(x); }
 void NullCheckVisitor::do_ProfileInvoke  (ProfileInvoke*   x) {}
 void NullCheckVisitor::do_RuntimeCall    (RuntimeCall*     x) {}
+#ifdef JPORTAL_ENABLE
+void NullCheckVisitor::do_JPortalCall    (JPortalCall*     x) {}
+#endif
 void NullCheckVisitor::do_MemBar         (MemBar*          x) {}
 void NullCheckVisitor::do_RangeCheckPredicate(RangeCheckPredicate* x) {}
 #ifdef ASSERT

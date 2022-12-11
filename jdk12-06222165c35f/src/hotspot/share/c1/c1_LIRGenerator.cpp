@@ -1202,6 +1202,12 @@ void LIRGenerator::do_Return(Return* x) {
     call_runtime(&signature, args, CAST_FROM_FN_PTR(address, SharedRuntime::dtrace_method_exit), voidType, NULL);
   }
 
+#ifdef JPORTAL_ENABLE
+  if (JPortalMethod && method()->is_jportal()) {
+    __ jportal_call(((Method *)(method()->constant_encoding()))->jportal_exit());
+  }
+#endif
+
   if (x->type()->is_void()) {
     __ return_op(LIR_OprFact::illegalOpr);
   } else {
@@ -2675,6 +2681,12 @@ void LIRGenerator::do_Base(Base* x) {
     call_runtime(&signature, args, CAST_FROM_FN_PTR(address, SharedRuntime::dtrace_method_entry), voidType, NULL);
   }
 
+#ifdef JPORTAL_ENABLE
+  if (JPortalMethod && method()->is_jportal()) {
+    __ jportal_call(((Method *)(method()->constant_encoding()))->jportal_entry());
+  }
+#endif
+
   if (method()->is_synchronized()) {
     LIR_Opr obj;
     if (method()->is_static()) {
@@ -3422,6 +3434,12 @@ void LIRGenerator::do_RuntimeCall(RuntimeCall* x) {
     __ move(result, rlock_result(x));
   }
 }
+
+#ifdef JPORTAL_ENABLE
+void LIRGenerator::do_JPortalCall(JPortalCall* x) {
+  __ jportal_call(x->addr());
+}
+#endif
 
 #ifdef ASSERT
 void LIRGenerator::do_Assert(Assert *x) {

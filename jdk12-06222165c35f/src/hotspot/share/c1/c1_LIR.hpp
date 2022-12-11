@@ -872,6 +872,9 @@ class    LIR_OpTypeCheck;
 class    LIR_OpCompareAndSwap;
 class    LIR_OpProfileCall;
 class    LIR_OpProfileType;
+#ifdef JPORTAL_ENABLE
+class    LIR_OpJPortalCall;
+#endif
 #ifdef ASSERT
 class    LIR_OpAssert;
 #endif
@@ -996,6 +999,11 @@ enum LIR_Code {
   , begin_opAssert
     , lir_assert
   , end_opAssert
+#ifdef JPORTAL_ENABLE
+  , begin_jportal
+    , lir_jportal_call
+  , end_jportal
+#endif
 };
 
 
@@ -1137,6 +1145,7 @@ class LIR_Op: public CompilationResourceObj {
   virtual LIR_OpCompareAndSwap* as_OpCompareAndSwap() { return NULL; }
   virtual LIR_OpProfileCall* as_OpProfileCall() { return NULL; }
   virtual LIR_OpProfileType* as_OpProfileType() { return NULL; }
+  virtual LIR_OpJPortalCall* as_OpJPortalCall() { return NULL; }
 #ifdef ASSERT
   virtual LIR_OpAssert* as_OpAssert() { return NULL; }
 #endif
@@ -1963,6 +1972,26 @@ class LIR_OpProfileType : public LIR_Op {
   virtual void print_instr(outputStream* out) const PRODUCT_RETURN;
 };
 
+#ifdef JPORTAL_ENABLE
+class LIR_OpJPortalCall : public LIR_Op {
+  friend class LIR_OpVisitState;
+
+ private:
+  address _addr;
+
+ public:
+  LIR_OpJPortalCall(address addr)
+    : LIR_Op(lir_jportal_call, LIR_OprFact::illegalOpr, NULL)  // no result, no info
+    , _addr(addr) {}
+
+  address addr() { return _addr; }
+
+  virtual void emit_code(LIR_Assembler* masm);
+  virtual LIR_OpJPortalCall* as_OpJPortalCall() { return this; }
+  virtual void print_instr(outputStream* out) const PRODUCT_RETURN;
+};
+#endif
+
 class LIR_InsertionBuffer;
 
 //--------------------------------LIR_List---------------------------------------------------
@@ -2261,6 +2290,12 @@ class LIR_List: public CompilationResourceObj {
   void profile_type(LIR_Address* mdp, LIR_Opr obj, ciKlass* exact_klass, intptr_t current_klass, LIR_Opr tmp, bool not_null, bool no_conflict) {
     append(new LIR_OpProfileType(LIR_OprFact::address(mdp), obj, exact_klass, current_klass, tmp, not_null, no_conflict));
   }
+
+#ifdef JPORTAL_ENABLE
+  void jportal_call(address addr) {
+    append(new LIR_OpJPortalCall(addr));
+  }
+#endif
 
   void xadd(LIR_Opr src, LIR_Opr add, LIR_Opr res, LIR_Opr tmp) { append(new LIR_Op2(lir_xadd, src, add, res, tmp)); }
   void xchg(LIR_Opr src, LIR_Opr set, LIR_Opr res, LIR_Opr tmp) { append(new LIR_Op2(lir_xchg, src, set, res, tmp)); }

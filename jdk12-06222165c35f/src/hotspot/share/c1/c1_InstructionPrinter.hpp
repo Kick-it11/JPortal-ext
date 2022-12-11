@@ -133,6 +133,9 @@ class InstructionPrinter: public InstructionVisitor {
   virtual void do_ProfileReturnType (ProfileReturnType*  x);
   virtual void do_ProfileInvoke  (ProfileInvoke*   x);
   virtual void do_RuntimeCall    (RuntimeCall*     x);
+#ifdef JPORTAL_ENABLE
+  virtual void do_JPortalCall    (JPortalCall*     x);
+#endif
   virtual void do_MemBar         (MemBar*          x);
   virtual void do_RangeCheckPredicate(RangeCheckPredicate* x);
 #ifdef ASSERT

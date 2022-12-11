@@ -1902,15 +1902,15 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
           "Jportal Reserved code cache size (in bytes)")                    \
           range(os::vm_page_size(), max_uintx)                              \
                                                                             \
-  product_pd(uintx, JPortalNonProfiledCodeHeapSize,                                \
+  product_pd(uintx, JPortalNonProfiledCodeHeapSize,                         \
           "Size of Jportal code heap with non-profiled methods (in bytes)") \
           range(0, max_uintx)                                               \
                                                                             \
-  product_pd(uintx, JPortalProfiledCodeHeapSize,                                   \
+  product_pd(uintx, JPortalProfiledCodeHeapSize,                            \
           "Size of JPortal code heap with profiled methods (in bytes)")     \
           range(0, max_uintx)                                               \
                                                                             \
-  product_pd(uintx, JPortalNonNMethodCodeHeapSize,                                 \
+  product_pd(uintx, JPortalNonNMethodCodeHeapSize,                          \
           "Size of Jportal code heap with non-nmethods (in bytes)")         \
           range(os::vm_page_size(), max_uintx)                              \
                                                                             \

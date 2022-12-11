@@ -2057,4 +2057,20 @@ void InterpreterMacroAssembler::notify_method_exit(
                  rthread, rarg);
     pop(state);
   }
+
+#ifdef JPORTAL_ENABLE
+  if (JPortalMethod) {
+    get_method(rarg);
+    Label non_jportal;
+
+    movl(rdx, Address(rarg, Method::access_flags_offset()));
+    testl(rdx, JVM_ACC_JPORTAL);
+    jcc(Assembler::zero, non_jportal);
+
+    movptr(rscratch1, Address(rarg, Method::jportal_exit_offset()));
+    call(rscratch1);
+
+    bind(non_jportal);
+  }
+#endif
 }

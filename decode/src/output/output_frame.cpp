@@ -1,23 +1,272 @@
-#include "decoder/output_decode.hpp"
-#include "decoder/decode_result.hpp"
-#include "java/analyser.hpp"
 #include "java/block.hpp"
+#include "java/bytecodes.hpp"
+#include "java/method.hpp"
+#include "output/output_frame.hpp"
+#include "runtime/jit_section.hpp"
 
 #include <algorithm>
 #include <cassert>
-#include <iostream>
+#include <list>
 #include <queue>
 #include <set>
-#include <stack>
-#include <vector>
 
-struct ExecInfo
+InterFrame::InterFrame(const Method *method, int bci, bool use_next_bci)
 {
-    const JitSection *section;
-    std::vector<std::pair<const Method *, Block *>> prev_frame;
-    ExecInfo() : section(nullptr) {}
-    ExecInfo(const JitSection *s) : section(s) {}
-};
+    assert(method != nullptr);
+    _method = method;
+    _use_next_bct = use_next_bci;
+
+    BlockGraph *bg = method->get_bg();
+    _block = bg->block(bci);
+    _bct = bg->bct_offset(bci);
+    assert(_block != nullptr);
+}
+
+/* go forward until encoutering a branch/call site */
+void InterFrame::forward(std::vector<uint8_t> &codes)
+{
+    BlockGraph *bg = _method->get_bg();
+    const uint8_t *bctcode = bg->bctcode();
+    while (_block)
+    {
+        if (_use_next_bct)
+            ++_bct;
+        int bct_end = _block->get_bct_codeend();
+        for (int i = _bct; i < bct_end; ++i)
+        {
+            codes.push_back(bctcode[i]);
+        }
+        if (_bct < bct_end)
+        {
+            Bytecodes::Code b = Bytecodes::cast(bctcode[bct_end-1]);
+            if (Bytecodes::is_invoke(b)
+                || Bytecodes::is_branch(b)
+                || b == Bytecodes::_tableswitch
+                || b == Bytecodes::_lookupswitch)
+            {
+                _bct = bct_end-1;
+                _use_next_bct = true;
+                return;
+            }
+        }
+        if (_block->get_succs_size() > 1)
+        {
+            return;
+        }
+        else if (_block->get_succs_size() == 1)
+        {
+            _block = *_block->get_succs_begin();            
+            _bct = _block->get_bct_codebegin();
+            _use_next_bct = false;
+        }
+        else
+        {
+            _block = nullptr;
+            _bct = -1;
+            _use_next_bct = false;
+        }
+    }
+    return;
+}
+
+/* go forward until bct */
+void InterFrame::forward(std::vector<uint8_t> &codes, int bct)
+{
+    BlockGraph *bg = _method->get_bg();
+    const uint8_t *bctcode = bg->bctcode();
+    while (_block)
+    {
+        if (_use_next_bct)
+            ++_bct;
+        int bct_begin = _block->get_bct_codebegin();
+        int bct_end = _block->get_bct_codeend();
+        if (bct >= bct_begin && bct < bct_end)
+        {
+            for (int i = _bct; i <= bct; ++i)
+            {
+                codes.push_back(bctcode[i]);
+            }
+            _bct = bct;
+            _use_next_bct = false;
+            return;
+        }
+        for (int i = _bct; i <= bct_end; ++i)
+        {
+            codes.push_back(bctcode[i]);
+        }
+        if (_bct < bct_end)
+        {
+            Bytecodes::Code b = Bytecodes::cast(bctcode[bct_end-1]);
+            if (Bytecodes::is_invoke(b)
+                || Bytecodes::is_branch(b)
+                || b == Bytecodes::_tableswitch
+                || b == Bytecodes::_lookupswitch)
+            {
+                _bct = bct_end-1;
+                _use_next_bct = true;
+                return;
+            }
+        }
+        if (_block->get_succs_size() > 1)
+        {
+            return;
+        }
+        else if (_block->get_succs_size() == 1)
+        {
+            _block = *_block->get_succs_begin();            
+            _bct = _block->get_bct_codebegin();
+            _use_next_bct = false;
+        }
+        else
+        {
+            _block = nullptr;
+            _bct = -1;
+            _use_next_bct = false;
+        }
+    }
+    return;
+}
+
+/* if normal exit/exception, return true;
+ * else early return return false 
+ */
+bool InterFrame::method_exit(std::vector<uint8_t> &codes)
+{
+    if (!_block)
+    {
+        return true;
+    }
+
+    forward(codes);
+    return _block == nullptr;
+}
+
+bool InterFrame::branch_taken(std::vector<uint8_t> &codes)
+{
+    if (!_block)
+    {
+        return false;
+    }
+
+    forward(codes);
+
+    if (codes.empty() || !Bytecodes::is_branch(Bytecodes::cast(codes.back())))
+    {
+        return false;
+    }
+
+    _block = _block->get_succes_block(0);
+    if (!_block)
+        return false;
+    _bct = _block->get_bct_codebegin();
+    _use_next_bct = false;
+    return true;
+}
+
+bool InterFrame::branch_not_taken(std::vector<uint8_t> &codes)
+{
+    if (!_block)
+    {
+        return false;
+    }
+
+    forward(codes);
+
+    if (codes.empty() || !Bytecodes::is_branch(Bytecodes::cast(codes.back())))
+    {
+        return false;
+    }
+
+    _block = _block->get_succes_block(1);
+    if (!_block)
+        return false;
+    _bct = _block->get_bct_codebegin();
+    _use_next_bct = false;
+    return true;
+}
+
+bool InterFrame::switch_case(std::vector<uint8_t> &codes, int index)
+{
+    if (!_block)
+    {
+        return false;
+    }
+
+    forward(codes);
+
+    if (codes.empty() || (Bytecodes::cast(codes.back()) != Bytecodes::_lookupswitch
+                    && Bytecodes::cast(codes.back()) != Bytecodes::_tableswitch))
+    {
+        return false;
+    }
+
+    _block = _block->get_succes_block(index+1);
+    if (!_block)
+        return false;
+    _bct = _block->get_bct_codebegin();
+    _use_next_bct = false;
+    return true;
+}
+
+bool InterFrame::switch_default(std::vector<uint8_t> &codes)
+{
+    if (!_block)
+    {
+        return false;
+    }
+
+    forward(codes);
+
+    if (codes.empty() || (Bytecodes::cast(codes.back()) != Bytecodes::_lookupswitch
+                    && Bytecodes::cast(codes.back()) != Bytecodes::_tableswitch))
+    {
+        return false;
+    }
+
+    _block = _block->get_succes_block(0);
+    if (!_block)
+        return false;
+    _bct = _block->get_bct_codebegin();
+    _use_next_bct = false;
+    return true;
+}
+
+bool InterFrame::invoke_site(std::vector<uint8_t> &codes)
+{
+    if (!_block)
+    {
+        return false;
+    }
+
+    forward(codes);
+
+    if (codes.empty() || !Bytecodes::is_invoke(Bytecodes::cast(codes.back())))
+    {
+        return false;
+    }
+
+    return true;
+}
+
+bool InterFrame::exception_handling(std::vector<uint8_t> &codes, int bci1, int bci2)
+{
+    BlockGraph *bg = _method->get_bg();
+    int bct = bg->bct_offset(bci1);
+    forward(codes, bct);
+    if (bct != _bct)
+        return false;
+
+    if (bci2 == bci1) {
+        _block = nullptr;
+        _bct = -1;
+        _use_next_bct = false;
+    } else {
+        _block = bg->block(bci2);
+        _bct = bg->bct_offset(bci1);
+        _use_next_bct = false;
+    }
+    return true;
+}
 
 class JitMatchTree
 {
@@ -245,38 +494,24 @@ public:
     }
 };
 
-static bool output_bytecode(FILE *fp, const uint8_t *codes, uint64_t size)
+bool JitFrame::jit_code(std::vector<uint8_t> &codes, const JitSection *section,
+                        const PCStackInfo **pcs, uint64_t size, bool entry)
 {
-    /* output bytecode */
-    for (int i = 0; i < size; i++)
-        fprintf(fp, "%hhu\n", *(codes + i));
-    return true;
-}
-
-static void output_jitcode(FILE *fp, std::vector<std::pair<const Method *, Block *>> &blocks)
-{
-    for (auto block : blocks)
-    {
-        const Method *method = block.first;
-        Block *blc = block.second;
-        assert(method && method->is_jportal() && blc);
-        const uint8_t *codes = method->get_bg()->bctcode();
-        for (int i = blc->get_bct_codebegin(); i < blc->get_bct_codeend(); ++i)
-            fprintf(fp, "%hhu\n", *(codes + i));
-    }
-}
-
-static bool handle_jitcode(ExecInfo *exec, const PCStackInfo **pcs, int size,
-                           std::vector<std::pair<const Method *, Block *>> &ans)
-{
-    const JitSection *section = exec->section;
     std::set<const PCStackInfo *> pc_execs;
     std::set<std::pair<const Method *, Block *>> block_execs;
     bool notRetry = true;
     JitMatchTree *tree = new JitMatchTree(section->mainm(), nullptr);
-    auto call_match = [&exec, &tree, &block_execs, &pc_execs, &ans, section](bool newtree) -> void
+    std::vector<std::pair<const Method *, Block *>> ans;
+    if (entry)
     {
-        tree->match(exec->prev_frame, 0, block_execs, ans);
+        assert(_iframes.empty());
+        _iframes.push_back({section->mainm(), section->mainm()->get_bg()->block(0)});
+        ans.push_back(_iframes.back());
+    }
+    auto &cur_frames = _iframes;
+    auto call_match = [&cur_frames, &tree, &block_execs, &pc_execs, &ans, section](bool newtree) -> void
+    {
+        tree->match(cur_frames, 0, block_execs, ans);
         delete tree;
         tree = newtree ? new JitMatchTree(section->mainm(), nullptr) : nullptr;
         block_execs.clear();
@@ -293,16 +528,18 @@ static bool handle_jitcode(ExecInfo *exec, const PCStackInfo **pcs, int size,
             int mi = pc->methods[j];
             int bci = pc->bcis[j];
             const Method *method = section->method(mi);
-            Block *block = (method && method->is_jportal()) ? method->get_bg()->block(bci) : (Block *)(uint64_t)bci;
+            Block *block = (method && method->is_jportal()) ?
+                            method->get_bg()->block(bci) :
+                            (Block *)(uint64_t)bci;
             frame.push_back({method, block});
             block_execs.insert({method, block});
         }
-        if (exec->prev_frame.empty())
+        if (_iframes.empty())
         {
             for (auto blc : frame)
                 if (blc.first && blc.first->is_jportal() && blc.second)
                     ans.push_back(blc);
-            exec->prev_frame = frame;
+            _iframes = frame;
             block_execs.clear();
             notRetry = false;
         }
@@ -314,170 +551,30 @@ static bool handle_jitcode(ExecInfo *exec, const PCStackInfo **pcs, int size,
         pc_execs.insert(pc);
     }
     call_match(false);
+
+    for (auto &&block: ans)
+    {
+        const uint8_t *bctcode = block.first->get_bg()->bctcode();
+        int bct_begin = block.second->get_bct_codebegin();
+        int bct_end = block.second->get_bct_codeend();
+        for (int i = bct_begin; i < bct_end; ++i)
+            codes.push_back(bctcode[i]);
+    }
     return notRetry;
 }
 
-static void return_exec(std::stack<ExecInfo *> &exec_st, const JitSection *section,
-                        std::vector<std::pair<const Method *, Block *>> &ans)
+bool JitFrame::jit_return(std::vector<u1> &codes)
 {
-    while (!exec_st.empty() && exec_st.top()->section != section)
-    {
-        JitMatchTree::return_frame(exec_st.top()->prev_frame, exec_st.top()->prev_frame.size(), ans);
-        delete exec_st.top();
-        exec_st.pop();
-    }
-    if (exec_st.empty())
-    {
-        exec_st.push(new ExecInfo(section));
-    }
-}
+    std::vector<std::pair<const Method *, Block *>> ans;
+    JitMatchTree::return_frame(_iframes, _iframes.size(), ans);
 
-static void output_trace(TraceData *trace, uint64_t start, uint64_t end, FILE *fp)
-{
-    TraceDataAccess access(*trace, start, end);
-    JVMRuntime::Codelet codelet, prev_codelet = JVMRuntime::_illegal;
-    uint64_t loc;
-    std::stack<ExecInfo *> exec_st;
-    while (access.next_trace(codelet, loc))
+    for (auto &&block: ans)
     {
-        switch (codelet)
-        {
-        default:
-        {
-            fprintf(stderr, "output_trace: unknown codelet(%d)\n", codelet);
-            exec_st = std::stack<ExecInfo *>();
-            break;
-        }
-        case JVMRuntime::_method_entry_point:
-        {
-            if (exec_st.empty() || exec_st.top()->section)
-                exec_st.push(new ExecInfo(nullptr));
-            break;
-        }
-        case JVMRuntime::_throw_ArrayIndexOutOfBoundsException:
-        case JVMRuntime::_throw_ArrayStoreException:
-        case JVMRuntime::_throw_ArithmeticException:
-        case JVMRuntime::_throw_ClassCastException:
-        case JVMRuntime::_throw_NullPointerException:
-        case JVMRuntime::_throw_StackOverflowError:
-        {
-            break;
-        }
-        case JVMRuntime::_rethrow_exception:
-        {
-            break;
-        }
-        case JVMRuntime::_deopt:
-        case JVMRuntime::_deopt_reexecute_return:
-        {
-            if (!exec_st.empty() && exec_st.top()->section)
-            {
-                delete exec_st.top();
-                exec_st.pop();
-            }
-            if (exec_st.empty() || exec_st.top()->section)
-                exec_st.push(new ExecInfo(nullptr));
-            break;
-        }
-        case JVMRuntime::_throw_exception:
-        {
-            /* exception handling or throw */
-            break;
-        }
-        case JVMRuntime::_remove_activation:
-        case JVMRuntime::_remove_activation_preserving_args:
-        {
-            /* after throw exception or deoptimize */
-            break;
-        }
-        case JVMRuntime::_invoke_return:
-        case JVMRuntime::_invokedynamic_return:
-        case JVMRuntime::_invokeinterface_return:
-        {
-            break;
-        }
-        case JVMRuntime::_bytecode:
-        {
-            const uint8_t *codes;
-            uint64_t size;
-            assert(trace->get_inter(loc, codes, size) && codes);
-            std::vector<std::pair<const Method *, Block *>> blocks;
-            return_exec(exec_st, nullptr, blocks);
-            output_jitcode(fp, blocks);
-            output_bytecode(fp, codes, size);
-            break;
-        }
-        case JVMRuntime::_jitcode_entry:
-        case JVMRuntime::_jitcode_osr_entry:
-        case JVMRuntime::_jitcode:
-        {
-            const JitSection *section = nullptr;
-            const PCStackInfo **pcs = nullptr;
-            uint64_t size;
-            assert(trace->get_jit(loc, pcs, size, section) && pcs && section);
-            std::vector<std::pair<const Method *, Block *>> blocks;
-            if (codelet == JVMRuntime::_jitcode_entry)
-            {
-                ExecInfo *exec = new ExecInfo(section);
-                const Method *method = section->mainm();
-                Block *block = method->get_bg()->block(0);
-                blocks.push_back({method, block});
-                exec->prev_frame.push_back({method, block});
-                exec_st.push(exec);
-            }
-            else if (codelet == JVMRuntime::_jitcode_osr_entry)
-            {
-                ExecInfo *exec = new ExecInfo(section);
-                exec_st.push(exec);
-            }
-            else
-            {
-                return_exec(exec_st, section, blocks);
-            }
-            handle_jitcode(exec_st.top(), pcs, size, blocks);
-            output_jitcode(fp, blocks);
-            break;
-        }
-        }
+        const uint8_t *bctcode = block.first->get_bg()->bctcode();
+        int bct_begin = block.second->get_bct_codebegin();
+        int bct_end = block.second->get_bct_codeend();
+        for (int i = bct_begin; i < bct_end; ++i)
+            codes.push_back(bctcode[i]);
     }
-    while (!exec_st.empty())
-    {
-        std::vector<std::pair<const Method *, Block *>> blocks;
-        JitMatchTree::return_frame(exec_st.top()->prev_frame, exec_st.top()->prev_frame.size(), blocks);
-        output_jitcode(fp, blocks);
-        delete exec_st.top();
-        exec_st.pop();
-    }
-}
-
-/* per thread output */
-void output_decode(std::list<TraceData *> &traces)
-{
-    std::map<uint32_t, std::vector<std::pair<ThreadSplit, TraceData *>>> threads_data;
-    for (auto &&trace : traces)
-        for (auto &&threads : trace->get_thread_map())
-            for (auto &&thread : threads.second)
-                if (thread.end_addr > thread.start_addr)
-                    threads_data[threads.first].push_back({thread, trace});
-
-    for (auto iter = threads_data.begin(); iter != threads_data.end(); ++iter)
-        sort(iter->second.begin(), iter->second.end(),
-             [](const std::pair<ThreadSplit, TraceData *> &x,
-                const std::pair<ThreadSplit, TraceData *> &y) -> bool
-             { return x.first.start_time < y.first.start_time || x.first.start_time == y.first.start_time && x.first.end_time < y.first.end_time; });
-
-    for (auto iter1 = threads_data.begin(); iter1 != threads_data.end(); ++iter1)
-    {
-        char name[32];
-        sprintf(name, "thrd%ld", iter1->first);
-        FILE *fp = fopen(name, "w");
-        if (!fp)
-        {
-            fprintf(stderr, "Decode output: open decode file(%s) error\n", name);
-            continue;
-        }
-        for (auto iter2 = iter1->second.begin(); iter2 != iter1->second.end(); ++iter2)
-            output_trace(iter2->second, iter2->first.start_addr, iter2->first.end_addr, fp);
-        fclose(fp);
-    }
+    return true;
 }

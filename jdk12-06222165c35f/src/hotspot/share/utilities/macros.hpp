@@ -640,4 +640,9 @@
 #define NOT_CDS_JAVA_HEAP_RETURN_(code) { return code; }
 #endif
 
+// currently JPortal is supported only on linux & _x86_64
+#if defined(__linux__) && defined(__x86_64__) && defined(_LP64) && not defined(CC_INTERP)
+#define JPORTAL_ENABLE 1
+#endif
+
 #endif // SHARE_VM_UTILITIES_MACROS_HPP

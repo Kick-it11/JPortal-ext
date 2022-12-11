@@ -83,11 +83,8 @@ void InterpreterCodelet::print_on(outputStream* st) const {
 
 CodeletMark::CodeletMark(InterpreterMacroAssembler*& masm,
                          const char* description,
-                         bool mirror, bool jportal,
                          Bytecodes::Code bytecode) :
-  _mirror(mirror), _jportal(jportal),
-  _clet((InterpreterCodelet*)(mirror?AbstractInterpreter::mirror_code():
-         (jportal?Interpreter::jportal_code():Interpreter::normal_code()))->request(codelet_size())),
+  _clet((InterpreterCodelet*)AbstractInterpreter::code()->request(codelet_size())),
   _cb(_clet->code_begin(), _clet->code_size()) {
   // Request all space (add some slack for Codelet data).
   assert(_clet != NULL, "we checked not enough space already");
@@ -108,8 +105,7 @@ CodeletMark::~CodeletMark() {
   // Commit Codelet.
   int committed_code_size = (*_masm)->code()->pure_insts_size();
   if (committed_code_size) {
-    (_mirror?AbstractInterpreter::mirror_code():(_jportal?Interpreter::jportal_code():
-      Interpreter::normal_code()))->commit(committed_code_size, (*_masm)->code()->strings());
+    AbstractInterpreter::code()->commit(committed_code_size, (*_masm)->code()->strings());
   }
   // Make sure nobody can use _masm outside a CodeletMark lifespan.
   *_masm = NULL;
@@ -125,33 +121,14 @@ void interpreter_init() {
   // register the interpreter
   Forte::register_stub(
     "Interpreter",
-    AbstractInterpreter::normal_code()->code_start(),
-    AbstractInterpreter::normal_code()->code_end()
+    AbstractInterpreter::code()->code_start(),
+    AbstractInterpreter::code()->code_end()
   );
-  if (JPortal) {
-    Forte::register_stub(
-      "Interpreter",
-      AbstractInterpreter::mirror_code()->code_start(),
-      AbstractInterpreter::mirror_code()->code_end()
-    );
-    Forte::register_stub(
-      "Interpreter",
-      AbstractInterpreter::jportal_code()->code_start(),
-      AbstractInterpreter::jportal_code()->code_end()
-    );
-  }
+
   // notify JVMTI profiler
   if (JvmtiExport::should_post_dynamic_code_generated()) {
     JvmtiExport::post_dynamic_code_generated("Interpreter",
-                                             AbstractInterpreter::normal_code()->code_start(),
-                                             AbstractInterpreter::normal_code()->code_end());
-    if (JPortal) {
-      JvmtiExport::post_dynamic_code_generated("Interpreter",
-                                              AbstractInterpreter::mirror_code()->code_start(),
-                                              AbstractInterpreter::mirror_code()->code_end());
-      JvmtiExport::post_dynamic_code_generated("Interpreter",
-                                              AbstractInterpreter::jportal_code()->code_start(),
-                                              AbstractInterpreter::jportal_code()->code_end());
-    }
+                                             AbstractInterpreter::code()->code_start(),
+                                             AbstractInterpreter::code()->code_end());
   }
 }

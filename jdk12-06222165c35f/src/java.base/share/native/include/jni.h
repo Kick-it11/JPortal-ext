@@ -1967,9 +1967,7 @@ JNI_GetCreatedJavaVMs(JavaVM **, jsize, jsize *);
 
 // JPortal
 _JNI_IMPORT_OR_EXPORT_ void JNICALL
-JNI_JPortalEnableInit();
-_JNI_IMPORT_OR_EXPORT_ void JNICALL
-JNI_JPortalEnableDestroy();
+JNI_JPortalEnableTrace();
 
 /* Defined by native libraries. */
 JNIEXPORT jint JNICALL

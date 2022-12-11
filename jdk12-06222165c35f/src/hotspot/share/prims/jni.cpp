@@ -3968,6 +3968,13 @@ static jint JNI_CreateJavaVM_inner(JavaVM **vm, void **penv, void *args) {
 
     post_thread_start_event(thread);
 
+#ifdef JPORTAL_ENABLE
+    // JPortal
+    if (JPortal) {
+      JPortalEnable::dump_thread_start(thread);
+    }
+#endif
+
 #ifndef PRODUCT
     if (ReplayCompiles) ciReplay::replay(thread);
 
@@ -4045,12 +4052,12 @@ _JNI_IMPORT_OR_EXPORT_ jint JNICALL JNI_GetCreatedJavaVMs(JavaVM **vm_buf, jsize
 }
 
 // JPortal
-_JNI_IMPORT_OR_EXPORT_ void JNICALL JNI_JPortalEnableInit() {
-  JPortalEnable::init();
-}
-
-_JNI_IMPORT_OR_EXPORT_ void JNICALL JNI_JPortalEnableDestroy() {
-  JPortalEnable::destroy();
+_JNI_IMPORT_OR_EXPORT_ void JNICALL JNI_JPortalEnableTrace() {
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    JPortalEnable::trace();
+  }
+#endif
 }
 
 extern "C" {

@@ -4,7 +4,7 @@
 #include "java/klass.hpp"
 #include "java/method.hpp"
 
-#include <list>
+#include <vector>
 #include <map>
 #include <string>
 
@@ -14,10 +14,10 @@ private:
     std::map<std::string, Klass *> _klasses;
     std::map<std::string, Method *> _methods;
 
-    void parse(const std::list<std::string> &class_paths);
+    void parse(const std::vector<std::string> &class_paths);
 
 public:
-    Analyser(const std::list<std::string> &class_paths);
+    Analyser(const std::vector<std::string> &class_paths);
     ~Analyser();
     void add_klass(Klass *klass);
     void add_method(Method *method);

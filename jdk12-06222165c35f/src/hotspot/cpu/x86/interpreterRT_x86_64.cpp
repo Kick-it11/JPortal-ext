@@ -42,7 +42,6 @@
 InterpreterRuntime::SignatureHandlerGenerator::SignatureHandlerGenerator(const methodHandle& method, CodeBuffer* buffer) :
     NativeSignatureIterator(method) {
   _masm = new MacroAssembler(buffer);
-  _jportal = JPortal && method->is_jportal();
 #ifdef AMD64
 #ifdef _WIN64
   _num_args = (method->is_static() ? 1 : 0);
@@ -297,7 +296,7 @@ void InterpreterRuntime::SignatureHandlerGenerator::generate(uint64_t fingerprin
   iterate(fingerprint);
 
   // return result handler
-  __ lea(rax, ExternalAddress(Interpreter::result_handler(method()->result_type(), _jportal)));
+  __ lea(rax, ExternalAddress(Interpreter::result_handler(method()->result_type())));
   __ ret(0);
 
   __ flush();
@@ -509,5 +508,5 @@ IRT_ENTRY(address,
   SlowSignatureHandler(m, (address)from, to + 1).iterate((uint64_t)CONST64(-1));
 
   // return result handler
-  return Interpreter::result_handler(m->result_type(), JPortal && m->is_jportal());
+  return Interpreter::result_handler(m->result_type());
 IRT_END

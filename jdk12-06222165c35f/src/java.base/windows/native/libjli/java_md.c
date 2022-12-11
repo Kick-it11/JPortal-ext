@@ -383,15 +383,9 @@ LoadJavaVM(const char *jvmpath, InvocationFunctions *ifn)
     }
 
     // JPortal
-    ifn->JPortalEnableInit =
-        (void *)GetProcAddress(handle, "JNI_JPortalEnableInit");
-    if (ifn->JPortalEnableInit == 0) {
-        JLI_ReportErrorMessage(JNI_ERROR1, (char *)jvmpath);
-        return JNI_FALSE;
-    }
-    ifn->JPortalEnableDestroy =
-        (void *)GetProcAddress(handle, "JNI_JPortalEnableDestroy");
-    if (ifn->JPortalEnableDestroy == 0) {
+    ifn->JPortalEnableTrace =
+        (void *)GetProcAddress(handle, "JNI_JPortalEnableTrace");
+    if (ifn->JPortalEnableTrace == 0) {
         JLI_ReportErrorMessage(JNI_ERROR1, (char *)jvmpath);
         return JNI_FALSE;
     }

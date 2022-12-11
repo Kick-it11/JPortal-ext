@@ -88,7 +88,6 @@ class TemplateInterpreter: public AbstractInterpreter {
   friend class TemplateInterpreterGenerator;
   friend class TemplateTable;
   friend class CodeCacheExtensions;
-  friend class JPortalEnable;
   // friend class Interpreter;
  public:
 
@@ -102,134 +101,79 @@ class TemplateInterpreter: public AbstractInterpreter {
 
  protected:
 
-  static address    _normal_throw_ArrayIndexOutOfBoundsException_entry;
-  static address    _normal_throw_ArrayStoreException_entry;
-  static address    _normal_throw_ArithmeticException_entry;
-  static address    _normal_throw_ClassCastException_entry;
-  static address    _normal_throw_NullPointerException_entry;
-  static address    _normal_throw_StackOverflowError_entry;
-  static address    _normal_throw_exception_entry;
+  static address    _throw_ArrayIndexOutOfBoundsException_entry;
+  static address    _throw_ArrayStoreException_entry;
+  static address    _throw_ArithmeticException_entry;
+  static address    _throw_ClassCastException_entry;
+  static address    _throw_NullPointerException_entry;
+  static address    _throw_exception_entry;
 
-  static address    _normal_remove_activation_entry;                   // continuation address if an exception is not handled by current frame
-  static address    _normal_remove_activation_preserving_args_entry;   // continuation address when current frame is being popped
+  static address    _throw_StackOverflowError_entry;
+
+  static address    _remove_activation_entry;                   // continuation address if an exception is not handled by current frame
+  static address    _remove_activation_preserving_args_entry;   // continuation address when current frame is being popped
 
 #ifndef PRODUCT
-  static EntryPoint _normal_trace_code;
+  static EntryPoint _trace_code;
 #endif // !PRODUCT
+  static EntryPoint _return_entry[number_of_return_entries];    // entry points to return to from a call
+  static EntryPoint _earlyret_entry;                            // entry point to return early from a call
+  static EntryPoint _deopt_entry[number_of_deopt_entries];      // entry points to return to from a deoptimization
+  static address    _deopt_reexecute_return_entry;
+  static EntryPoint _safept_entry;
 
-  static EntryPoint _normal_return_entry[number_of_return_entries];    // entry points to return to from a call
-  static EntryPoint _normal_earlyret_entry;                            // entry point to return early from a call
-  static EntryPoint _normal_deopt_entry[number_of_deopt_entries];      // entry points to return to from a deoptimization
-  static address    _normal_deopt_reexecute_return_entry;
-  static EntryPoint _normal_safept_entry;
+  static address _invoke_return_entry[number_of_return_addrs];           // for invokestatic, invokespecial, invokevirtual return entries
+  static address _invokeinterface_return_entry[number_of_return_addrs];  // for invokeinterface return entries
+  static address _invokedynamic_return_entry[number_of_return_addrs];    // for invokedynamic return entries
 
-  static address _normal_invoke_return_entry[number_of_return_addrs];           // for invokestatic, invokespecial, invokevirtual return entries
-  static address _normal_invokeinterface_return_entry[number_of_return_addrs];  // for invokeinterface return entries
-  static address _normal_invokedynamic_return_entry[number_of_return_addrs];    // for invokedynamic return entries
+  static DispatchTable _active_table;                           // the active    dispatch table (used by the interpreter for dispatch)
+  static DispatchTable _normal_table;                           // the normal    dispatch table (used to set the active table in normal mode)
+  static DispatchTable _safept_table;                           // the safepoint dispatch table (used to set the active table for safepoints)
+  static address       _wentry_point[DispatchTable::length];    // wide instructions only (vtos tosca always)
 
-  static DispatchTable _normal_active_table;                           // the active    dispatch table (used by the interpreter for dispatch)
-  static DispatchTable _normal_normal_table;                           // the normal    dispatch table (used to set the active table in normal mode)
-  static DispatchTable _normal_safept_table;                           // the safepoint dispatch table (used to set the active table for safepoints)
-  static address       _normal_wentry_point[DispatchTable::length];    // wide instructions only (vtos tosca always)
-
-  static address    _mirror_throw_ArrayIndexOutOfBoundsException_entry;
-  static address    _mirror_throw_ArrayStoreException_entry;
-  static address    _mirror_throw_ArithmeticException_entry;
-  static address    _mirror_throw_ClassCastException_entry;
-  static address    _mirror_throw_NullPointerException_entry;
-  static address    _mirror_throw_StackOverflowError_entry;
-  static address    _mirror_throw_exception_entry;
-
-  static address    _mirror_remove_activation_entry;                   // continuation address if an exception is not handled by current frame
-  static address    _mirror_remove_activation_preserving_args_entry;   // continuation address when current frame is being popped
-
-#ifndef PRODUCT
-  static EntryPoint _mirror_trace_code;
-#endif
-
-  static EntryPoint _mirror_return_entry[number_of_return_entries];    // entry points to return to from a call
-  static EntryPoint _mirror_earlyret_entry;                            // entry point to return early from a call
-  static EntryPoint _mirror_deopt_entry[number_of_deopt_entries];      // entry points to return to from a deoptimization
-  static address    _mirror_deopt_reexecute_return_entry;
-  static EntryPoint _mirror_safept_entry;
-
-  static address _mirror_invoke_return_entry[number_of_return_addrs];           // for invokestatic, invokespecial, invokevirtual return entries
-  static address _mirror_invokeinterface_return_entry[number_of_return_addrs];  // for invokeinterface return entries
-  static address _mirror_invokedynamic_return_entry[number_of_return_addrs];    // for invokedynamic return entries
-
-  static DispatchTable _mirror_active_table;                           // the active    dispatch table (used by the interpreter for dispatch)
-  static DispatchTable _mirror_normal_table;                           // the normal    dispatch table (used to set the active table in normal mode)
-  static DispatchTable _mirror_safept_table;                           // the safepoint dispatch table (used to set the active table for safepoints)
-  static address       _mirror_wentry_point[DispatchTable::length];    // wide instructions only (vtos tosca always)
-
-  static address    _jportal_throw_ArrayIndexOutOfBoundsException_entry;
-  static address    _jportal_throw_ArrayStoreException_entry;
-  static address    _jportal_throw_ArithmeticException_entry;
-  static address    _jportal_throw_ClassCastException_entry;
-  static address    _jportal_throw_NullPointerException_entry;
-  static address    _jportal_throw_StackOverflowError_entry;
-  static address    _jportal_throw_exception_entry;
-
-  static address    _jportal_remove_activation_entry;                   // continuation address if an exception is not handled by current frame
-  static address    _jportal_remove_activation_preserving_args_entry;   // continuation address when current frame is being popped
-
-  static address    _jportal_unimplemented_bytecode;
-  static address    _jportal_illegal_bytecode_sequence;
-  static EntryPoint _jportal_return_entry[number_of_return_entries];    // entry points to return to from a call
-  static EntryPoint _jportal_earlyret_entry;                            // entry point to return early from a call
-  static EntryPoint _jportal_deopt_entry[number_of_deopt_entries];      // entry points to return to from a deoptimization
-  static address    _jportal_deopt_reexecute_return_entry;
-
-  static address _jportal_invoke_return_entry[number_of_return_addrs];           // for invokestatic, invokespecial, invokevirtual return entries
-  static address _jportal_invokeinterface_return_entry[number_of_return_addrs];  // for invokeinterface return entries
-  static address _jportal_invokedynamic_return_entry[number_of_return_addrs];    // for invokedynamic return entries
-
-  static DispatchTable _jportal_normal_table;                           // the normal    dispatch table (used to set the active table in normal mode)
-  static address       _jportal_wentry_point[DispatchTable::length];    // wide instructions only (vtos tosca always)
 
  public:
   // Initialization/debugging
   static void       initialize();
   // this only returns whether a pc is within generated code for the interpreter.
-  static bool       contains(address pc)                        { return (_normal_code != NULL && _normal_code->contains(pc) || _mirror_code != NULL && _mirror_code->contains(pc) || _jportal_code != NULL && _jportal_code->contains(pc)); }
+  static bool       contains(address pc)                        { return _code != NULL && _code->contains(pc); }
   // Debugging/printing
   static InterpreterCodelet* codelet_containing(address pc);
 
 
  public:
 
-  // have binary code call
-  static address    remove_activation_early_entry(TosState state, bool jportal)         { return jportal?_jportal_earlyret_entry.entry(state):_normal_earlyret_entry.entry(state); }
-  static address    remove_activation_preserving_args_entry(bool jportal)               { return jportal?_jportal_remove_activation_preserving_args_entry:_normal_remove_activation_preserving_args_entry; }
+  static address    remove_activation_early_entry(TosState state) { return _earlyret_entry.entry(state); }
+  static address    remove_activation_preserving_args_entry()     { return _remove_activation_preserving_args_entry; }
 
-  static address    remove_activation_entry(bool jportal = false)                   { return jportal?_jportal_remove_activation_entry:_normal_remove_activation_entry; }
-  static address    throw_exception_entry(bool jportal = false)                     { return jportal?_jportal_throw_exception_entry:_normal_throw_exception_entry; }
-  static address    throw_ArithmeticException_entry(bool jportal = false)           { return jportal?_jportal_throw_ArithmeticException_entry:_normal_throw_ArithmeticException_entry; }
-  static address    throw_NullPointerException_entry(bool jportal = false)          { return jportal?_jportal_throw_NullPointerException_entry:_normal_throw_NullPointerException_entry; }
-  static address    throw_StackOverflowError_entry(bool jportal = false)            { return jportal?_jportal_throw_StackOverflowError_entry:_normal_throw_StackOverflowError_entry; }
+  static address    remove_activation_entry()                   { return _remove_activation_entry; }
+  static address    throw_exception_entry()                     { return _throw_exception_entry; }
+  static address    throw_ArithmeticException_entry()           { return _throw_ArithmeticException_entry; }
+  static address    throw_NullPointerException_entry()          { return _throw_NullPointerException_entry; }
+  static address    throw_StackOverflowError_entry()            { return _throw_StackOverflowError_entry; }
 
   // Code generation
 #ifndef PRODUCT
-  static address    trace_code    (TosState state, bool mirror = false)              { return mirror?_mirror_trace_code.entry(state):_normal_trace_code.entry(state); }
+  static address    trace_code    (TosState state)              { return _trace_code.entry(state); }
 #endif // !PRODUCT
-  static address*   dispatch_table(TosState state, bool mirror = false)              { return mirror?_mirror_active_table.table_for(state):_normal_active_table.table_for(state); }
-  static address*   dispatch_table(bool mirror)                                      { return mirror?_mirror_active_table.table_for():_normal_active_table.table_for(); }
-  static int        distance_from_dispatch_table(TosState state, bool mirror = false){ return mirror?_mirror_active_table.distance_from(state):_normal_active_table.distance_from(state); }
-  static address*   normal_table(TosState state, bool jportal = false)               { return jportal?_jportal_normal_table.table_for(state):_normal_normal_table.table_for(state); }
-  static address*   normal_table(bool jportal = false)                               { return jportal?_jportal_normal_table.table_for():_normal_normal_table.table_for(); }
-  static address*   safept_table(TosState state, bool mirror = false)                { return mirror?_mirror_safept_table.table_for(state):_normal_safept_table.table_for(state); }
+  static address*   dispatch_table(TosState state)              { return _active_table.table_for(state); }
+  static address*   dispatch_table()                            { return _active_table.table_for(); }
+  static int        distance_from_dispatch_table(TosState state){ return _active_table.distance_from(state); }
+  static address*   normal_table(TosState state)                { return _normal_table.table_for(state); }
+  static address*   normal_table()                              { return _normal_table.table_for(); }
+  static address*   safept_table(TosState state)                { return _safept_table.table_for(state); }
 
   // Support for invokes
-  static address*   invoke_return_entry_table(bool jportal = false)                 { return jportal?_jportal_invoke_return_entry:_normal_invoke_return_entry; }
-  static address*   invokeinterface_return_entry_table(bool jportal = false)        { return jportal?_jportal_invokeinterface_return_entry:_normal_invokeinterface_return_entry; }
-  static address*   invokedynamic_return_entry_table(bool jportal = false)          { return jportal?_jportal_invokedynamic_return_entry:_normal_invokedynamic_return_entry; }
+  static address*   invoke_return_entry_table()                 { return _invoke_return_entry; }
+  static address*   invokeinterface_return_entry_table()        { return _invokeinterface_return_entry; }
+  static address*   invokedynamic_return_entry_table()          { return _invokedynamic_return_entry; }
   static int        TosState_as_index(TosState state);
 
-  static address* invoke_return_entry_table_for(Bytecodes::Code code, bool jportal = false);
+  static address* invoke_return_entry_table_for(Bytecodes::Code code);
 
-  static address deopt_entry(TosState state, int length, bool jportal = false);
-  static address deopt_reexecute_return_entry(bool jportal = false)                 { return jportal?_jportal_deopt_reexecute_return_entry:_normal_deopt_reexecute_return_entry; }
-  static address return_entry(TosState state, int length, Bytecodes::Code code, bool jportal = false);
+  static address deopt_entry(TosState state, int length);
+  static address deopt_reexecute_return_entry()                 { return _deopt_reexecute_return_entry; }
+  static address return_entry(TosState state, int length, Bytecodes::Code code);
 
   // Safepoint support
   static void       notice_safepoints();                        // stops the thread when reaching a safepoint

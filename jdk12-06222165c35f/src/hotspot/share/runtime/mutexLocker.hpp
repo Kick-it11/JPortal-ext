@@ -37,6 +37,7 @@ extern Mutex*   SharedDictionary_lock;           // a lock on the CDS shared dic
 extern Mutex*   Module_lock;                     // a lock on module and package related data structures
 extern Mutex*   CompiledIC_lock;                 // a lock used to guard compiled IC patching and access
 extern Mutex*   InlineCacheBuffer_lock;          // a lock used to guard the InlineCacheBuffer
+extern Mutex*   JPortalStubBuffer_lock;          // a lock used to guard the JPortalStubBuffer
 extern Mutex*   VMStatistic_lock;                // a lock used to guard statistics count increment
 extern Mutex*   JNIGlobalAlloc_lock;             // JNI global storage allocate list lock
 extern Mutex*   JNIGlobalActive_lock;            // JNI global storage active list lock

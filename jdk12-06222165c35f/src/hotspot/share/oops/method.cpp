@@ -33,6 +33,8 @@
 #include "interpreter/bytecodeTracer.hpp"
 #include "interpreter/bytecodes.hpp"
 #include "interpreter/interpreter.hpp"
+#include "jportal/jportalEnable.hpp"
+#include "jportal/jportalStub.hpp"
 #include "interpreter/oopMapCache.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/heapInspection.hpp"
@@ -106,7 +108,12 @@ Method::Method(ConstMethod* xconst, AccessFlags access_flags) {
     clear_native_function();
     set_signature_handler(NULL);
   }
-  _jportal_dumped=false;
+
+#ifdef JPORTAL_ENABLE
+  _jportal_stub = NULL;
+  _jportal_entry = NULL;
+#endif
+
   NOT_PRODUCT(set_compiled_invocation_count(0);)
 }
 
@@ -931,6 +938,15 @@ void Method::unlink_method() {
   _i2i_entry = Interpreter::entry_for_cds_method(this);
   _from_interpreted_entry = _i2i_entry;
 
+#ifdef JPORTAL_ENABLE
+  if (JPortal && is_jportal() && _jportal_stub == NULL && _jportal_entry == NULL) {
+    _jportal_stub = JPortalStubBuffer::new_jportal_ret_stub();
+    _jportal_stub->set_ret_stub();
+    _jportal_entry = _jportal_stub->code_begin();
+    JPortalEnable::dump_method(this);
+  }
+#endif
+
   if (is_native()) {
     *native_function_addr() = NULL;
     set_signature_handler(NULL);
@@ -1021,6 +1037,16 @@ void Method::unlink_method() {
 // Called when the method_holder is getting linked. Setup entrypoints so the method
 // is ready to be called from interpreter, compiler, and vtables.
 void Method::link_method(const methodHandle& h_method, TRAPS) {
+
+#ifdef JPORTAL_ENABLE
+  if (JPortal && is_jportal() && _jportal_stub == NULL && _jportal_entry == NULL) {
+    _jportal_stub = JPortalStubBuffer::new_jportal_ret_stub();
+    _jportal_stub->set_ret_stub();
+    _jportal_entry = _jportal_stub->code_begin();
+    JPortalEnable::dump_method(this);
+  }
+#endif
+
   // If the code cache is full, we may reenter this function for the
   // leftover methods that weren't linked.
   if (is_shared()) {

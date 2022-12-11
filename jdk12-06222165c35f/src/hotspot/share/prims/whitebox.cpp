@@ -1521,7 +1521,8 @@ CodeBlob* WhiteBox::allocate_code_blob(int size, int blob_type) {
   }
   {
     MutexLockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
-    blob = (BufferBlob*) CodeCache::allocate(full_size, blob_type);
+    // allocate non-jportal blob only
+    blob = (BufferBlob*) CodeCache::allocate(full_size, blob_type, false);
     if (blob != NULL) {
       ::new (blob) BufferBlob("WB::DummyBlob", full_size);
     }
@@ -1561,13 +1562,15 @@ WB_ENTRY(jobjectArray, WB_GetCodeHeapEntries(JNIEnv* env, jobject o, jint blob_t
       new (stub) CodeBlobStub(cb);
       blobs.append(stub);
     }
-    heap = WhiteBox::get_code_heap(blob_type, true);
-    if (heap != NULL) {
-      for (CodeBlob* cb = (CodeBlob*) heap->first();
-         cb != NULL; cb = (CodeBlob*) heap->next(cb)) {
-        CodeBlobStub* stub = NEW_RESOURCE_OBJ(CodeBlobStub);
-        new (stub) CodeBlobStub(cb);
-        blobs.append(stub);
+    if (JPortal) {
+      heap = WhiteBox::get_code_heap(blob_type, true);
+      if (heap != NULL) {
+        for (CodeBlob* cb = (CodeBlob*) heap->first();
+             cb != NULL; cb = (CodeBlob*) heap->next(cb)) {
+          CodeBlobStub* stub = NEW_RESOURCE_OBJ(CodeBlobStub);
+          new (stub) CodeBlobStub(cb);
+          blobs.append(stub);
+        }
       }
     }
   }

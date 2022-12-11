@@ -758,17 +758,9 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
     //         "i2c adapter must return to an interpreter frame");
     __ block_comment("verify_i2c { ");
     Label L_ok;
-    if (Interpreter::normal_code() != NULL)
+    if (Interpreter::code() != NULL)
       range_check(masm, rax, r11,
-                  Interpreter::normal_code()->code_start(), Interpreter::normal_code()->code_end(),
-                  L_ok);
-    if (JPortal && Interpreter::mirror_code() != NULL)
-      range_check(masm, rax, r11,
-                  Interpreter::mirror_code()->code_start(), Interpreter::mirror_code()->code_end(),
-                  L_ok);
-    if (JPortal && Interpreter::jportal_code() != NULL)
-      range_check(masm, rax, r11,
-                  Interpreter::jportal_code()->code_start(), Interpreter::jportal_code()->code_end(),
+                  Interpreter::code()->code_start(), Interpreter::code()->code_end(),
                   L_ok);
     if (StubRoutines::code1() != NULL)
       range_check(masm, rax, r11,

@@ -4,15 +4,17 @@
 #include "code/nmethod.hpp"
 #include "interpreter/templateInterpreter.hpp"
 
+#ifdef JPORTAL_ENABLE
 class JavaThread;
 class JPortalEnable {
   private:
 
-    static bool      _initialized;     // indicate JPortal is initialized
+    static bool   _initialized;     // indicate JPortal is initialized
+    static bool   _tracing;         // indicate JPortal is initialized
 
     // shared memory related info
-    static int       _shm_id;          // shared memory identifier
-    static address   _shm_addr;        // start address of shared memory
+    static int             _shm_id;          // shared memory identifier
+    static address         _shm_addr;        // start address of shared memory
 
   public:
     struct ShmHeader {
@@ -23,13 +25,15 @@ class JPortalEnable {
 
     // JVM runtime dump type
     enum DumpType {
-      _method_initial_info,           // first method entry: map between idx to method signature
-      _method_entry_info,             // method entry: when call
-      _method_exit_info,              // method exit: when exit
+      _method_info,                   // method info
+      _bci_table_stub_info,           // jportal table stub,
+      _switch_table_stub_info,        // jportal table stub
+      _switch_default_info,           // switch default
+      _branch_taken_info,             // branch taken
+      _branch_not_taken_info,         // branch not taken
       _compiled_method_load_info,     // after loading a compiled method: entry, codes, scopes data etc included
       _compiled_method_unload_info,   // after unloading a compiled method
       _thread_start_info,             // a thread begins, map between system tid and java tid
-      _codelet_info,                  // templates info etc...
       _inline_cache_add_info,         // inline cache: a map between a source ip to a destination ip
       _inline_cache_clear_info,       // inline cache clear: delete the map
     };
@@ -40,48 +44,80 @@ class JPortalEnable {
       u8 time;
     };
 
-    struct MethodInitial {
+    struct MethodInfo {
       struct DumpInfo info;
       u4 klass_name_length;
       u4 method_name_length;
       u4 method_signature_length;
       u4 _pending;
-      u8 method;
+      u8 addr;
 
-      MethodInitial(u4 _klass_name_length,
-                    u4 _method_name_length,
-                    u4 _method_signature_length,
-                    u8 _method,
-                    u4 _size) :
+      MethodInfo(u4 _klass_name_length,
+                      u4 _method_name_length,
+                      u4 _method_signature_length,
+                      u8 _addr, u4 _size) :
         klass_name_length(_klass_name_length),
         method_name_length(_method_name_length),
         method_signature_length(_method_signature_length),
-        method(_method) {
-        info.type = _method_initial_info;
+        addr(_addr) {
+        info.type = _method_info;
         info.size = _size;
         info.time = get_timestamp();
       }
     };
 
-    struct MethodEntryInfo {
+    struct BciTableStubInfo {
       struct DumpInfo info;
-      u4 tid;
-      u4 _pending;
-      u8 method;
-      MethodEntryInfo(u4 _tid, u8 _method, u4 _size) : tid(_tid), method(_method) {
-        info.type = _method_entry_info;
+      u8 addr;
+      u4 num;
+      u4 ssize;
+      BciTableStubInfo(u8 _addr, u8 _num, u4 _ssize, u4 _size)
+        : addr(_addr), num(_num), ssize(_ssize) {
+        info.type = _bci_table_stub_info;
         info.size = _size;
         info.time = get_timestamp();
       }
     };
 
-    struct MethodExitInfo {
+    struct SwitchTableStubInfo {
       struct DumpInfo info;
-      u4 tid;
-      u4 _pending;
-      u8 method;
-      MethodExitInfo(u4 _tid, u8 _method, u4 _size) : tid(_tid), method(_method) {
-        info.type = _method_exit_info;
+      u8 addr;
+      u4 num;
+      u4 ssize;
+      SwitchTableStubInfo(u8 _addr, u8 _num, u4 _ssize, u4 _size)
+        : addr(_addr), num(_num), ssize(_ssize) {
+        info.type = _switch_table_stub_info;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
+    };
+
+    struct SwitchDefaultInfo {
+      struct DumpInfo info;
+      u8 addr;
+
+      SwitchDefaultInfo(u8 _addr, u4 _size) : addr(_addr) {
+        info.type = _switch_default_info;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
+    };
+
+    struct BranchTakenInfo {
+      struct DumpInfo info;
+      u8 addr;
+      BranchTakenInfo(u8 _addr, u4 _size) : addr(_addr) {
+        info.type = _branch_taken_info;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
+    };
+
+    struct BranchNotTakenInfo {
+      struct DumpInfo info;
+      u8 addr;
+      BranchNotTakenInfo(u8 _addr, u4 _size) : addr(_addr) {
+        info.type = _branch_not_taken_info;
         info.size = _size;
         info.time = get_timestamp();
       }
@@ -90,6 +126,7 @@ class JPortalEnable {
     struct CompiledMethodLoadInfo {
       struct DumpInfo info;
       u8 code_begin;
+      u8 stub_begin;
       u8 entry_point;
       u8 verified_entry_point;
       u8 osr_entry_point;
@@ -98,13 +135,12 @@ class JPortalEnable {
       u4 scopes_pc_size;
       u4 scopes_data_size;
 
-      CompiledMethodLoadInfo(u8 _code_begin, u8 _entry_point,
+      CompiledMethodLoadInfo(u8 _code_begin, u8 _stub_begin, u8 _entry_point,
                              u8 _verified_entry_point, u8 _osr_entry_point,
-                             u4 _inline_method_cnt,
-                             u4 _code_size, u4 _scopes_pc_size,
-                             u4 _scopes_data_size,
-                             u4 _size)
+                             u4 _inline_method_cnt, u4 _code_size,
+                             u4 _scopes_pc_size, u4 _scopes_data_size, u4 _size)
                      : code_begin(_code_begin),
+                       stub_begin(_stub_begin),
                        entry_point(_entry_point),
                        verified_entry_point(_verified_entry_point),
                        osr_entry_point(_osr_entry_point),
@@ -147,93 +183,52 @@ class JPortalEnable {
 
     struct ThreadStartInfo {
       struct DumpInfo info;
-      u4 java_tid;
-      u4 sys_tid;
+      u8 java_tid;
+      u8 sys_tid;
 
-      ThreadStartInfo(u4 _java_tid, u4 _sys_tid, u4 _size) : java_tid(_java_tid), sys_tid(_sys_tid) {
+      ThreadStartInfo(u8 _java_tid, u8 _sys_tid, u4 _size) : java_tid(_java_tid), sys_tid(_sys_tid) {
         info.type = _thread_start_info;
         info.size = _size;
         info.time = get_timestamp();
       }
     };
 
-    struct InlineCacheAdd {
+    struct InlineCacheAddInfo {
       struct DumpInfo info;
       u8 src;
       u8 dest;
 
-      InlineCacheAdd(u8 _src, u8 _dest, u4 size) : src(_src), dest(_dest) {
+      InlineCacheAddInfo(u8 _src, u8 _dest, u4 size) : src(_src), dest(_dest) {
         info.type = _inline_cache_add_info;
         info.size = size;
         info.time = get_timestamp();
       }
     };
 
-    struct InlineCacheClear {
+    struct InlineCacheClearInfo {
       struct DumpInfo info;
       u8 src;
 
-      InlineCacheClear(u8 _src, u4 size) : src(_src) {
+      InlineCacheClearInfo(u8 _src, u4 size) : src(_src) {
         info.type = _inline_cache_clear_info;
         info.size = size;
         info.time = get_timestamp();
       }
     };
 
-    struct CodeletsInfo {
-      struct DumpInfo info;
-      u8 low_bound;
-      u8 high_bound;
-
-      u8 slow_signature_handler;
-
-      u8 unimplemented_bytecode_entry;
-      u8 illegal_bytecode_sequence_entry;
-
-      u8 return_entry[TemplateInterpreter::number_of_return_entries][number_of_states];
-      u8 invoke_return_entry[TemplateInterpreter::number_of_return_addrs];
-      u8 invokeinterface_return_entry[TemplateInterpreter::number_of_return_addrs];
-      u8 invokedynamic_return_entry[TemplateInterpreter::number_of_return_addrs];
-
-      u8 earlyret_entry[number_of_states];
-
-      u8 native_abi_to_tosca[TemplateInterpreter::number_of_result_handlers];
-
-      u8 rethrow_exception_entry;
-      u8 throw_exception_entry;
-      u8 remove_activation_preserving_args_entry;
-      u8 remove_activation_entry;
-      u8 throw_ArrayIndexOutOfBoundsException_entry;
-      u8 throw_ArrayStoreException_entry;
-      u8 throw_ArithmeticException_entry;
-      u8 throw_ClassCastException_entry;
-      u8 throw_NullPointerException_entry;
-      u8 throw_StackOverflowError_entry;
-
-      u8 entry_table[TemplateInterpreter::number_of_method_entries];
-
-      u8 normal_table[DispatchTable::length][number_of_states];
-      u8 wentry_point[DispatchTable::length];
-
-      u8 deopt_entry[TemplateInterpreter::number_of_deopt_entries][number_of_states];
-      u8 deopt_reexecute_return_entry;
-
-      CodeletsInfo(u4 size) {
-        info.type = _codelet_info;
-        info.size = size;
-        info.time = get_timestamp();
-      }
-    };
-
     inline static u8 get_timestamp() {
-	    unsigned int low, high;
-	    asm volatile("rdtsc" : "=a" (low), "=d" (high));
-	    return low | ((u8)high) << 32;
+      unsigned int low, high;
+      asm volatile("rdtsc" : "=a" (low), "=d" (high));
+      return low | ((u8)high) << 32;
     }
 
-    inline static u4 get_java_tid(JavaThread* thread);
+    inline static u8 get_java_tid(JavaThread* thread);
 
-    inline static void dump_data(address src, size_t size);
+    // check data size
+    inline static bool check_data(u4 size);
+
+    // write data to shared memory, ensure has sapce before
+    inline static void dump_data(address src, u4 size);
 
     // initialize shared memory, methoda array, etc & begin to trace...
     static void init();
@@ -241,13 +236,19 @@ class JPortalEnable {
     // destroy shared memory, method array, etc...
     static void destroy();
 
-    static void dump_codelets();
+    static void trace();
 
-    static void dump_method_initial(Method *moop);
+    static void dump_method(Method *moop);
 
-    static void dump_method_entry(JavaThread *thread, Method *moop);
+    static void dump_bci_table_stub(address addr, u4 num, u4 ssize);
 
-    static void dump_method_exit(JavaThread *thread, Method *moop);
+    static void dump_switch_table_stub(address addr, u4 num, u4 ssize);
+
+    static void dump_branch_taken(address addr);
+
+    static void dump_branch_not_taken(address addr);
+
+    static void dump_switch_default(address addr);
 
     static void dump_compiled_method_load(Method *moop, nmethod *nm);
 
@@ -260,5 +261,6 @@ class JPortalEnable {
     static void dump_inline_cache_clear(address src);
 
 };
+#endif
 
 #endif

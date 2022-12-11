@@ -41,6 +41,7 @@
 #include "interpreter/linkResolver.hpp"
 #include "interpreter/oopMapCache.hpp"
 #include "jfr/jfrEvents.hpp"
+#include "jportal/jportalEnable.hpp"
 #include "jvmtifiles/jvmtiEnv.hpp"
 #include "logging/log.hpp"
 #include "logging/logConfiguration.hpp"
@@ -133,7 +134,6 @@
 #if INCLUDE_JFR
 #include "jfr/jfr.hpp"
 #endif
-#include "jportal/jportalEnable.hpp"
 
 // Initialization after module runtime initialization
 void universe_post_module_init();  // must happen after call_initPhase2
@@ -1788,10 +1788,12 @@ void JavaThread::run() {
 
   }
 
+#ifdef JPORTAL_ENABLE
   // JPortal
   if (JPortal) {
     JPortalEnable::dump_thread_start(this);
   }
+#endif
 
   // We call another function to do the rest so we are sure that the stack addresses used
   // from there will be lower than the stack base just computed

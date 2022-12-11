@@ -45,6 +45,8 @@ private:
 
     uint64_t _code_begin;
 
+    uint64_t _stub_begin;
+
     uint64_t _entry_point;
 
     uint64_t _verified_entry_point;
@@ -64,13 +66,16 @@ private:
     const std::string _name;
 
 public:
-    JitSection(const uint8_t *code, uint64_t code_begin, uint32_t code_size,
+    JitSection(const uint8_t *code, uint64_t code_begin,
+               uint64_t stub_begin, uint32_t code_size,
                const uint8_t *scopes_pc, uint32_t scopes_pc_size,
                const uint8_t *scopes_data, uint32_t scopes_data_size,
-               uint64_t entry_point, uint64_t verified_entry_point,
-               uint64_t osr_entry_point, uint32_t inline_method_cnt,
+               uint64_t entry_point,
+               uint64_t verified_entry_point,
+               uint64_t osr_entry_point,
+               uint32_t inline_method_cnt,
                std::map<int, const Method *> &methods,
-               const Method* mainm, const std::string &name);
+               const Method *mainm, const std::string &name);
 
     ~JitSection();
 
@@ -85,24 +90,23 @@ public:
      */
     bool read(uint8_t *buffer, uint8_t *size, uint64_t vaddr);
 
-    /* find PCStackInfo from _record
-     *
-     * Return &pcinfo[i] when pcinfo[i].pc begin to surpass vaddr
-     */
-    PCStackInfo *find(uint64_t vaddr, int &idx);
+    /* find PCStackInfo from _record */
+    PCStackInfo *find(uint64_t vaddr);
 
     uint32_t code_size() const { return _code_size; }
     uint64_t code_begin() const { return _code_begin; }
     uint64_t entry_point() const { return _entry_point; }
     uint64_t verified_entry_point() const { return _verified_entry_point; }
     uint64_t osr_entry_point() const { return _osr_entry_point; }
+    uint64_t stub_begin() const { return _stub_begin; }
     uint32_t inline_method_cnt() const { return _inline_method_cnt; }
-    const Method* method(int idx) const {
+    const Method *method(int idx) const
+    {
         if (!_methods.count(idx))
             return nullptr;
         return _methods.at(idx);
     }
-    const Method* mainm() const { return _mainm; }
+    const Method *mainm() const { return _mainm; }
     const CompiledMethodLoadInlineRecord *record() const { return _record; }
 };
 

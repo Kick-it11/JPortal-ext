@@ -108,23 +108,23 @@ class CodeCache : AllStatic {
 
   // CodeHeap management
   static void initialize_heaps_size(size_t &cache_size,
-                                      size_t &non_nmethod_size, size_t &profiled_size,
-                                      size_t &non_profiled_size, bool jportal = false);  // Initializes the CodeHeaps
+                                    size_t &non_nmethod_size, size_t &profiled_size,
+                                    size_t &non_profiled_size, bool jportal);  // Initializes the CodeHeaps
   static void initialize_heaps();                             // Initializes the CodeHeaps
   // Check the code heap sizes set by the user via command line
-  static void check_heap_sizes(size_t non_nmethod_size, size_t profiled_size, size_t non_profiled_size, size_t cache_size, bool all_set, bool jportal = false);
+  static void check_heap_sizes(size_t non_nmethod_size, size_t profiled_size, size_t non_profiled_size, size_t cache_size, bool all_set, bool jportal);
   // Creates a new heap with the given name and size, containing CodeBlobs of the given type
-  static void add_heap(ReservedSpace rs, const char* name, int code_blob_type, bool jportal = false);
+  static void add_heap(ReservedSpace rs, const char* name, int code_blob_type, bool jportal);
   static CodeHeap* get_code_heap_containing(void* p);         // Returns the CodeHeap containing the given pointer, or NULL
   static CodeHeap* get_code_heap(const CodeBlob* cb);         // Returns the CodeHeap for the given CodeBlob
-  static CodeHeap* get_code_heap(int code_blob_type, bool jportal = false);         // Returns the CodeHeap for the given CodeBlobType
+  static CodeHeap* get_code_heap(int code_blob_type, bool jportal);         // Returns the CodeHeap for the given CodeBlobType
   // Returns the name of the VM option to set the size of the corresponding CodeHeap
-  static const char* get_code_heap_flag_name(int code_blob_type, bool jportal = false);
+  static const char* get_code_heap_flag_name(int code_blob_type, bool jportal);
   static ReservedCodeSpace reserve_heap_memory(size_t size);  // Reserves one continuous chunk of memory for the CodeHeaps
 
   // Iteration
   static CodeBlob* first_blob(CodeHeap* heap);                // Returns the first CodeBlob on the given CodeHeap
-  static CodeBlob* first_blob(int code_blob_type, bool jportal = false); // Returns the first CodeBlob of the given type
+  static CodeBlob* first_blob(int code_blob_type, bool jportal); // Returns the first CodeBlob of the given type
   static CodeBlob* next_blob(CodeHeap* heap, CodeBlob* cb);   // Returns the next CodeBlob on the given CodeHeap
 
   static size_t bytes_allocated_in_freelists();
@@ -151,7 +151,7 @@ class CodeCache : AllStatic {
   static const GrowableArray<CodeHeap*>* nmethod_heaps() { return _nmethod_heaps; }
 
   // Allocation/administration
-  static CodeBlob* allocate(int size, int code_blob_type, bool jportal = false, int orig_code_blob_type = CodeBlobType::All); // allocates a new CodeBlob
+  static CodeBlob* allocate(int size, int code_blob_type, bool jportal, int orig_code_blob_type = CodeBlobType::All); // allocates a new CodeBlob
   static void commit(CodeBlob* cb);                        // called when the allocated CodeBlob has been filled
   static int  alignment_unit();                            // guaranteed alignment of all CodeBlobs
   static int  alignment_offset();                          // guaranteed offset of first CodeBlob byte within alignment unit (i.e., allocation header)
@@ -245,17 +245,17 @@ class CodeCache : AllStatic {
 
   // Profiling
   static size_t capacity();
-  static size_t unallocated_capacity(int code_blob_type, bool jportal = false);
+  static size_t unallocated_capacity(int code_blob_type, bool jportal);
   static size_t unallocated_capacity();
   static size_t max_capacity();
 
-  static double reverse_free_ratio(int code_blob_type, bool jportal = false);
+  static double reverse_free_ratio(int code_blob_type, bool jportal);
 
   static void clear_inline_caches();                  // clear all inline caches
   static void cleanup_inline_caches();                // clean unloaded/zombie nmethods from inline caches
 
   // Returns true if an own CodeHeap for the given CodeBlobType is available
-  static bool heap_available(int code_blob_type, bool jportal = false);
+  static bool heap_available(int code_blob_type, bool jportal);
 
   // Returns the CodeBlobType for the given CompiledMethod
   static int get_code_blob_type(CompiledMethod* cm) {
@@ -316,7 +316,7 @@ class CodeCache : AllStatic {
   // tells how many nmethods have dependencies
   static int number_of_nmethods_with_dependencies();
 
-  static int get_codemem_full_count(int code_blob_type, bool jportal = false) {
+  static int get_codemem_full_count(int code_blob_type, bool jportal) {
     CodeHeap* heap = get_code_heap(code_blob_type, jportal);
     return (heap != NULL) ? heap->full_count() : 0;
   }

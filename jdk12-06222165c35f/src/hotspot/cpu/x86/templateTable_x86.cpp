@@ -29,6 +29,8 @@
 #include "interpreter/interpreterRuntime.hpp"
 #include "interpreter/interp_masm.hpp"
 #include "interpreter/templateTable.hpp"
+#include "jportal/jportalEnable.hpp"
+#include "jportal/jportalStub.hpp"
 #include "memory/universe.hpp"
 #include "oops/methodData.hpp"
 #include "oops/objArrayKlass.hpp"
@@ -762,8 +764,7 @@ void TemplateTable::index_check_without_pop(Register array, Register index) {
   __ jccb(Assembler::below, skip);
   // Pass array to create more detailed exceptions.
   __ mov(NOT_LP64(rax) LP64_ONLY(c_rarg1), array);
-  address addr = __ pc();
-  __ jump(ExternalAddress(Interpreter::is_mirror(addr)?Interpreter::_jportal_throw_ArrayIndexOutOfBoundsException_entry:Interpreter::_normal_throw_ArrayIndexOutOfBoundsException_entry));
+  __ jump(ExternalAddress(Interpreter::_throw_ArrayIndexOutOfBoundsException_entry));
   __ bind(skip);
 }
 
@@ -1141,8 +1142,7 @@ void TemplateTable::aastore() {
 
   // Come here on failure
   // object is at TOS
-  address addr = __ pc();
-  __ jump(ExternalAddress(Interpreter::is_mirror(addr)?Interpreter::_jportal_throw_ArrayStoreException_entry:Interpreter::_normal_throw_ArrayStoreException_entry));
+  __ jump(ExternalAddress(Interpreter::_throw_ArrayStoreException_entry));
 
   // Come here on success
   __ bind(ok_is_subtype);
@@ -1421,9 +1421,8 @@ void TemplateTable::ldiv() {
   __ pop_l(rax);
   // generate explicit div0 check
   __ testq(rcx, rcx);
-  address addr = __ pc();
   __ jump_cc(Assembler::zero,
-             ExternalAddress(Interpreter::is_mirror(addr)?Interpreter::_jportal_throw_ArithmeticException_entry:Interpreter::_normal_throw_ArithmeticException_entry));
+             ExternalAddress(Interpreter::_throw_ArithmeticException_entry));
   // Note: could xor rax and rcx and compare with (-1 ^ min_int). If
   //       they are not equal, one could do a normal division (no correction
   //       needed), which may speed up this implementation for the common case.
@@ -1436,7 +1435,7 @@ void TemplateTable::ldiv() {
   // check if y = 0
   __ orl(rax, rdx);
   __ jump_cc(Assembler::zero,
-             ExternalAddress(Interpreter::_normal_throw_ArithmeticException_entry));
+             ExternalAddress(Interpreter::_throw_ArithmeticException_entry));
   __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::ldiv));
   __ addptr(rsp, 4 * wordSize);  // take off temporaries
 #endif
@@ -1448,9 +1447,8 @@ void TemplateTable::lrem() {
   __ mov(rcx, rax);
   __ pop_l(rax);
   __ testq(rcx, rcx);
-  address addr = __ pc();
   __ jump_cc(Assembler::zero,
-             ExternalAddress(Interpreter::is_mirror(addr)?Interpreter::_jportal_throw_ArithmeticException_entry:Interpreter::_normal_throw_ArithmeticException_entry));
+             ExternalAddress(Interpreter::_throw_ArithmeticException_entry));
   // Note: could xor rax and rcx and compare with (-1 ^ min_int). If
   //       they are not equal, one could do a normal division (no correction
   //       needed), which may speed up this implementation for the common case.
@@ -1464,7 +1462,7 @@ void TemplateTable::lrem() {
   // check if y = 0
   __ orl(rax, rdx);
   __ jump_cc(Assembler::zero,
-             ExternalAddress(Interpreter::_normal_throw_ArithmeticException_entry));
+             ExternalAddress(Interpreter::_throw_ArithmeticException_entry));
   __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::lrem));
   __ addptr(rsp, 4 * wordSize);
 #endif
@@ -2371,14 +2369,64 @@ void TemplateTable::branch(bool is_jsr, bool is_wide) {
   }
 }
 
+#ifdef JPORTAL_ENABLE
+void TemplateTable::jportal_taken_branch() {
+  __ get_method(rdx);
+  Label non_jportal;
+  JPortalStub *stub = JPortalStubBuffer::new_jportal_jump_stub();
+
+  __ movl(rdx, Address(rdx, Method::access_flags_offset()));
+  __ testl(rdx, JVM_ACC_JPORTAL);
+  __ jcc(Assembler::zero, non_jportal);
+  __ jump(ExternalAddress(stub->code_begin()));
+
+  __ bind(non_jportal);
+  address addr = __ pc();
+  stub->set_jump_stub(addr);
+  JPortalEnable::dump_branch_taken(stub->code_begin());
+}
+
+void TemplateTable::jportal_not_taken_branch() {
+  __ get_method(rdx);
+  Label non_jportal;
+  JPortalStub *stub = JPortalStubBuffer::new_jportal_jump_stub();
+
+  __ movl(rdx, Address(rdx, Method::access_flags_offset()));
+  __ testl(rdx, JVM_ACC_JPORTAL);
+  __ jcc(Assembler::zero, non_jportal);
+  __ jump(ExternalAddress(stub->code_begin()));
+
+  __ bind(non_jportal);
+  address addr = __ pc();
+  stub->set_jump_stub(addr);
+  JPortalEnable::dump_branch_not_taken(stub->code_begin());
+}
+
+#endif
+
 void TemplateTable::if_0cmp(Condition cc) {
   transition(itos, vtos);
   // assume branch is more often taken than not (loops use backward branches)
   Label not_taken;
   __ testl(rax, rax);
   __ jcc(j_not(cc), not_taken);
+
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    jportal_taken_branch();
+  }
+#endif
+
   branch(false, false);
+
   __ bind(not_taken);
+
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    jportal_not_taken_branch();
+  }
+#endif
+
   __ profile_not_taken_branch(rax);
 }
 
@@ -2389,8 +2437,22 @@ void TemplateTable::if_icmp(Condition cc) {
   __ pop_i(rdx);
   __ cmpl(rdx, rax);
   __ jcc(j_not(cc), not_taken);
+
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    jportal_taken_branch();
+  }
+#endif
+
   branch(false, false);
   __ bind(not_taken);
+
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    jportal_not_taken_branch();
+  }
+#endif
+
   __ profile_not_taken_branch(rax);
 }
 
@@ -2400,8 +2462,22 @@ void TemplateTable::if_nullcmp(Condition cc) {
   Label not_taken;
   __ testptr(rax, rax);
   __ jcc(j_not(cc), not_taken);
+
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    jportal_taken_branch();
+  }
+#endif
+
   branch(false, false);
   __ bind(not_taken);
+
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    jportal_not_taken_branch();
+  }
+#endif
+
   __ profile_not_taken_branch(rax);
 }
 
@@ -2412,8 +2488,22 @@ void TemplateTable::if_acmp(Condition cc) {
   __ pop_ptr(rdx);
   __ cmpoop(rdx, rax);
   __ jcc(j_not(cc), not_taken);
+
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    jportal_taken_branch();
+  }
+#endif
+
   branch(false, false);
   __ bind(not_taken);
+
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    jportal_not_taken_branch();
+  }
+#endif
+
   __ profile_not_taken_branch(rax);
 }
 
@@ -2441,6 +2531,42 @@ void TemplateTable::wide_ret() {
   __ dispatch_next(vtos, 0, true);
 }
 
+#ifdef JPORTAL_ENABLE
+void TemplateTable::jportal_switch_case(Register index) {
+  __ get_method(rdx);
+  Label non_jportal;
+
+  __ movl(rdx, Address(rdx, Method::access_flags_offset()));
+  __ testl(rdx, JVM_ACC_JPORTAL);
+  __ jcc(Assembler::zero, non_jportal);
+
+  __ lea(rscratch1, ExternalAddress(JPortalStubBuffer::switch_table()->code_begin()));
+  __ imulptr(rdx, index, JPortalStubBuffer::jportal_table_stub_entry_size());
+  __ addptr(rscratch1, rdx);
+  __ call(rscratch1);
+
+  __ bind(non_jportal);
+}
+
+void TemplateTable::jportal_switch_default() {
+  JPortalStub *stub = JPortalStubBuffer::new_jportal_jump_stub();
+  __ get_method(rdx);
+  Label non_jportal;
+
+  __ movl(rdx, Address(rdx, Method::access_flags_offset()));
+  __ testl(rdx, JVM_ACC_JPORTAL);
+  __ jcc(Assembler::zero, non_jportal);
+
+  __ jump(ExternalAddress(stub->code_begin()));
+
+  __ bind(non_jportal);
+
+  address addr = __ pc();
+  stub->set_jump_stub(addr);
+  JPortalEnable::dump_switch_default(stub->code_begin());
+}
+
+#endif
 void TemplateTable::tableswitch() {
   Label default_case, continue_execution;
   transition(itos, vtos);
@@ -2460,6 +2586,13 @@ void TemplateTable::tableswitch() {
   __ jcc(Assembler::greater, default_case);
   // lookup dispatch offset
   __ subl(rax, rcx);
+
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    jportal_switch_case(rax);
+  }
+#endif
+
   __ movl(rdx, Address(rbx, rax, Address::times_4, 3 * BytesPerInt));
   __ profile_switch_case(rax, rbx, rcx);
   // continue execution
@@ -2471,6 +2604,13 @@ void TemplateTable::tableswitch() {
   __ dispatch_only(vtos, true);
   // handle default
   __ bind(default_case);
+
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    jportal_switch_default();
+  }
+#endif
+
   __ profile_switch_default(rax);
   __ movl(rdx, Address(rbx, 0));
   __ jmp(continue_execution);
@@ -2503,11 +2643,25 @@ void TemplateTable::fast_linearswitch() {
   __ decrementl(rcx);
   __ jcc(Assembler::greaterEqual, loop);
   // default case
+
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    jportal_switch_default();
+  }
+#endif
+
   __ profile_switch_default(rax);
   __ movl(rdx, Address(rbx, 0));
   __ jmp(continue_execution);
   // entry found -> get offset
   __ bind(found);
+
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    jportal_switch_case(rcx);
+  }
+#endif
+
   __ movl(rdx, Address(rbx, rcx, Address::times_8, 3 * BytesPerInt));
   __ profile_switch_case(rcx, rax, rbx);
   // continue execution
@@ -2609,6 +2763,12 @@ void TemplateTable::fast_binaryswitch() {
   __ cmpl(key, temp);
   __ jcc(Assembler::notEqual, default_case);
 
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    jportal_switch_case(i);
+  }
+#endif
+
   // entry found -> j = offset
   __ movl(j , Address(array, i, Address::times_8, BytesPerInt));
   __ profile_switch_case(i, key, array);
@@ -2624,6 +2784,13 @@ void TemplateTable::fast_binaryswitch() {
 
   // default case -> j = default offset
   __ bind(default_case);
+
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    jportal_switch_default();
+  }
+#endif
+
   __ profile_switch_default(i);
   __ movl(j, Address(array, -2 * BytesPerInt));
   __ bswapl(j);
@@ -3675,8 +3842,7 @@ void TemplateTable::prepare_invoke(int byte_no,
   ConstantPoolCacheEntry::verify_tos_state_shift();
   // load return address
   {
-    address addr = __ pc();
-    const address table_addr = (address) Interpreter::invoke_return_entry_table_for(code, Interpreter::is_mirror(addr));
+    const address table_addr = (address) Interpreter::invoke_return_entry_table_for(code);
     ExternalAddress table(table_addr);
     LP64_ONLY(__ lea(rscratch1, table));
     LP64_ONLY(__ movptr(flags, Address(rscratch1, flags, Address::times_ptr)));
@@ -4211,8 +4377,7 @@ void TemplateTable::checkcast() {
   // Come here on failure
   __ push_ptr(rdx);
   // object is at TOS
-  address addr = __ pc();
-  __ jump(ExternalAddress(Interpreter::is_mirror(addr)?Interpreter::_jportal_throw_ClassCastException_entry:Interpreter::_normal_throw_ClassCastException_entry));
+  __ jump(ExternalAddress(Interpreter::_throw_ClassCastException_entry));
 
   // Come here on success
   __ bind(ok_is_subtype);
@@ -4330,8 +4495,7 @@ void TemplateTable::_breakpoint() {
 void TemplateTable::athrow() {
   transition(atos, vtos);
   __ null_check(rax);
-  address addr = __ pc();
-  __ jump(ExternalAddress(Interpreter::throw_exception_entry(Interpreter::is_mirror(addr))));
+  __ jump(ExternalAddress(Interpreter::throw_exception_entry()));
 }
 
 //-----------------------------------------------------------------------------
@@ -4508,8 +4672,7 @@ void TemplateTable::monitorexit() {
 void TemplateTable::wide() {
   transition(vtos, vtos);
   __ load_unsigned_byte(rbx, at_bcp(1));
-  address addr = __ pc();
-  ExternalAddress wtable(Interpreter::is_mirror(addr)?(address)Interpreter::_jportal_wentry_point:(address)Interpreter::_normal_wentry_point);
+  ExternalAddress wtable((address)Interpreter::_wentry_point);
   __ jump(ArrayAddress(wtable, Address(noreg, rbx, Address::times_ptr)));
   // Note: the rbcp increment step is part of the individual wide bytecode implementations
 }

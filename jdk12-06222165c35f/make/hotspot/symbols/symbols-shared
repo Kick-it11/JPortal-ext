@@ -30,8 +30,7 @@ jio_vsnprintf
 JNI_CreateJavaVM
 JNI_GetCreatedJavaVMs
 JNI_GetDefaultJavaVMInitArgs
-JNI_JPortalEnableInit
-JNI_JPortalEnableDestroy
+JNI_JPortalEnableTrace
 JVM_FindClassFromBootLoader
 JVM_GetVersionInfo
 JVM_InitAgentProperties

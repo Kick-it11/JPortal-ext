@@ -66,6 +66,7 @@ class ConstMethod;
 class InlineTableSizes;
 class KlassSizeStats;
 class CompiledMethod;
+class JPortalStub;
 
 class Method : public Metadata {
  friend class VMStructs;
@@ -116,14 +117,14 @@ class Method : public Metadata {
   CompiledMethod* _aot_code;
 #endif
 
-  // JPortal
-  bool            _jportal_dumped;
+#ifdef JPORTAL_ENABLE
+  address _jportal_entry;
+  JPortalStub* _jportal_stub;
+#endif
 
   // Constructor
   Method(ConstMethod* xconst, AccessFlags access_flags);
  public:
-  bool           jportal_dumped()     { return _jportal_dumped; }
-  void           set_jportal_dumped() { _jportal_dumped = true; }
 
   static Method* allocate(ClassLoaderData* loader_data,
                           int byte_code_size,
@@ -705,6 +706,10 @@ class Method : public Metadata {
   static ByteSize interpreter_entry_offset()     { return byte_offset_of(Method, _i2i_entry ); }
   static ByteSize signature_handler_offset()     { return in_ByteSize(sizeof(Method) + wordSize);      }
   static ByteSize itable_index_offset()          { return byte_offset_of(Method, _vtable_index ); }
+
+#ifdef JPORTAL_ENABLE
+  static ByteSize jportal_entry_offset()         { return byte_offset_of(Method, _jportal_entry); }
+#endif
 
   // for code generation
   static int method_data_offset_in_bytes()       { return offset_of(Method, _method_data); }

@@ -1,3 +1,4 @@
+#include "pt/pt.hpp"
 #include "sideband/sideband.hpp"
 
 #include <cassert>
@@ -34,13 +35,15 @@ void Sideband::destroy()
 void Sideband::print()
 {
     assert(_initialized);
-    for (auto && data : _data)
+    int loss_num = 0;
+    for (auto &&data : _data)
     {
         std::cout << "Sideband data for cpu" << data.first << std::endl;
         uint8_t *buffer_beg = data.second.first;
         uint8_t *buffer_end = data.second.first + data.second.second;
         uint8_t *buffer = buffer_beg;
-        while (buffer < buffer_end) {
+        while (buffer < buffer_end)
+        {
             struct pev_event ev;
             int size = pev_read(&ev, buffer, buffer_end, &_config);
             if (size <= 0)
@@ -48,64 +51,69 @@ void Sideband::print()
                 std::cerr << "Sdieband error: pev_read " << buffer - buffer_beg << std::endl;
                 break;
             }
-            switch(ev.type) {
-                case PERF_RECORD_MMAP:
-                    std::cout << "PERF_RECORD_MMAP ";
-                    break;
-                case PERF_RECORD_LOST:
-                    std::cout << "PERF_RECORD_LOST ";
-                    break;
-                case PERF_RECORD_COMM:
-                    std::cout << "PERF_RECORD_COMM ";
-                    break;
-                case PERF_RECORD_EXIT:
-                    std::cout << "PERF_RECORD_EXIT ";
-                    break;
-                case PERF_RECORD_THROTTLE:
-                    std::cout << "PERF_RECORD_THROTTLE ";
-                    break;
-                case PERF_RECORD_UNTHROTTLE:
-                    std::cout << "PERF_RECORD_UNTHROTTLE ";
-                    break;
-                case PERF_RECORD_FORK:
-                    std::cout << "PERF_RECORD_FORK ";
-                    break;
-                case PERF_RECORD_READ:
-                    std::cout << "PERF_RECORD_READ ";
-                    break;
-                case PERF_RECORD_SAMPLE:
-                    std::cout << "PERF_RECORD_SAMPLE ";
-                    break;
-                case PERF_RECORD_MMAP2:
-                    std::cout << "PERF_RECORD_MMAP2 ";
-                    break;
-                case PERF_RECORD_AUX:
-                    std::cout << "PERF_RECORD_AUX " << ev.record.aux->flags << " ";
-                    break;
-                case PERF_RECORD_ITRACE_START:
-                    std::cout << "PERF_RECORD_ITRACE_START " << ev.record.itrace_start->tid << " ";
-                    break;
-                case PERF_RECORD_LOST_SAMPLES:
-                    std::cout << "PERF_RECORD_LOST_SAMPLES ";
-                    break;
-                case PERF_RECORD_SWITCH:
-                    std::cout << "PERF_RECORD_SWITCH ";
-                    break;
-                case PERF_RECORD_SWITCH_CPU_WIDE:
-                    std::cout << "PERF_RECORD_SWITCH_CPU_WIDE ";
-                    break;
-                case PERF_RECORD_MAX:
-                    std::cout << "PERF_RECORD_MAX ";
-                    break;
-                default:
-                    std::cout << "PERF_RECORD UNKNOWN ";
-                    break;
+            switch (ev.type)
+            {
+            case PERF_RECORD_MMAP:
+                std::cout << "PERF_RECORD_MMAP ";
+                break;
+            case PERF_RECORD_LOST:
+                std::cout << "PERF_RECORD_LOST ";
+                break;
+            case PERF_RECORD_COMM:
+                std::cout << "PERF_RECORD_COMM ";
+                break;
+            case PERF_RECORD_EXIT:
+                std::cout << "PERF_RECORD_EXIT ";
+                break;
+            case PERF_RECORD_THROTTLE:
+                std::cout << "PERF_RECORD_THROTTLE ";
+                break;
+            case PERF_RECORD_UNTHROTTLE:
+                std::cout << "PERF_RECORD_UNTHROTTLE ";
+                break;
+            case PERF_RECORD_FORK:
+                std::cout << "PERF_RECORD_FORK ";
+                break;
+            case PERF_RECORD_READ:
+                std::cout << "PERF_RECORD_READ ";
+                break;
+            case PERF_RECORD_SAMPLE:
+                std::cout << "PERF_RECORD_SAMPLE ";
+                break;
+            case PERF_RECORD_MMAP2:
+                std::cout << "PERF_RECORD_MMAP2 ";
+                break;
+            case PERF_RECORD_AUX:
+                std::cout << "PERF_RECORD_AUX " << ev.record.aux->flags << " ";
+                if (ev.record.aux->flags && PERF_AUX_FLAG_TRUNCATED)
+                    ++loss_num;
+                break;
+            case PERF_RECORD_ITRACE_START:
+                std::cout << "PERF_RECORD_ITRACE_START " << ev.record.itrace_start->tid << " ";
+                break;
+            case PERF_RECORD_LOST_SAMPLES:
+                std::cout << "PERF_RECORD_LOST_SAMPLES ";
+                break;
+            case PERF_RECORD_SWITCH:
+                std::cout << "PERF_RECORD_SWITCH." << (ev.misc & PERF_RECORD_MISC_SWITCH_OUT ?"OUT":"IN")
+                          << " " << *ev.sample.tid << " "; 
+                break;
+            case PERF_RECORD_SWITCH_CPU_WIDE:
+                std::cout << "PERF_RECORD_SWITCH_CPU_WIDE." << (ev.misc & PERF_RECORD_MISC_SWITCH_OUT ?"OUT":"IN")
+                          << " " << *ev.sample.tid << " ";
+                break;
+            case PERF_RECORD_MAX:
+                std::cout << "PERF_RECORD_MAX ";
+                break;
+            default:
+                std::cout << "PERF_RECORD UNKNOWN ";
+                break;
             }
-            if (ev.sample.tid) std::cout << *ev.sample.tid << " ";
             std::cout << ev.sample.tsc << std::endl;
             buffer += size;
         }
     }
+    printf("Sideband Loss: %d\n", loss_num);
 }
 
 Sideband::Sideband(uint32_t cpu)
@@ -132,15 +140,26 @@ Sideband::~Sideband()
     _current = nullptr;
 }
 
-bool Sideband::event(uint64_t time)
+int Sideband::event(uint64_t time, struct pev_event *event)
 {
-    int size;
-    pev_event_init(&_event);
-    size = pev_read(&_event, _current, _end, &_config);
-    if (size < 0 || time < _event.sample.tsc)
+    if (!event)
     {
-        return false;
+        return -pte_internal;
+    }
+
+    pev_event_init(event);
+
+    int size = pev_read(event, _current, _end, &_config);
+    if (size < 0)
+    {
+        return size;
+    }
+
+    if (time < event->sample.tsc)
+    {
+        return 0;
     }
     _current += size;
-    return true;
+
+    return pts_event_pending;
 }

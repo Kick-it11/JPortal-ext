@@ -34,12 +34,6 @@
 
 #define __ Disassembler::hook<InterpreterMacroAssembler>(__FILE__, __LINE__, _masm)->
 
-address TemplateInterpreterGenerator::generate_jportal_entry_for(address addr) {
-  address entry = __ pc();
-  __ jump(ExternalAddress(addr));
-  return entry;
-}
-
 #ifdef _WIN64
 address TemplateInterpreterGenerator::generate_slow_signature_handler() {
   address entry = __ pc();
@@ -224,7 +218,7 @@ address TemplateInterpreterGenerator::generate_CRC32_update_entry() {
 
     // generate a vanilla native entry as the slow path
     __ bind(slow_path);
-    __ jump_to_entry(Interpreter::entry_for_kind(Interpreter::native, Interpreter::is_mirror(entry)));
+    __ jump_to_entry(Interpreter::entry_for_kind(Interpreter::native));
     return entry;
   }
   return NULL;
@@ -282,7 +276,7 @@ address TemplateInterpreterGenerator::generate_CRC32_updateBytes_entry(AbstractI
 
     // generate a vanilla native entry as the slow path
     __ bind(slow_path);
-    __ jump_to_entry(Interpreter::entry_for_kind(Interpreter::native, Interpreter::is_mirror(entry)));
+    __ jump_to_entry(Interpreter::entry_for_kind(Interpreter::native));
     return entry;
   }
   return NULL;

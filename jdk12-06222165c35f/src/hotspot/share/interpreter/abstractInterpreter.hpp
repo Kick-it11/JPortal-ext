@@ -106,39 +106,20 @@ class AbstractInterpreter: AllStatic {
   };
 
  protected:
+  static StubQueue* _code;                                      // the interpreter code (codelets)
+
   static bool       _notice_safepoints;                         // true if safepoints are activated
 
-  static StubQueue* _normal_code;                                      // the interpreter code (codelets)
-  static address    _normal_native_entry_begin;                        // Region for native entry code
-  static address    _normal_native_entry_end;
+  static address    _native_entry_begin;                        // Region for native entry code
+  static address    _native_entry_end;
 
   // method entry points
-  static address    _normal_entry_table[number_of_method_entries];     // entry points for a given method
-  static address    _normal_cds_entry_table[number_of_method_entries]; // entry points for methods in the CDS archive
-  static address    _normal_native_abi_to_tosca[number_of_result_handlers];  // for native method result handlers
-  static address    _normal_slow_signature_handler;                              // the native method generic (slow) signature handler
-  static address    _normal_rethrow_exception_entry;                   // rethrows an activation in previous frame
+  static address    _entry_table[number_of_method_entries];     // entry points for a given method
+  static address    _cds_entry_table[number_of_method_entries]; // entry points for methods in the CDS archive
+  static address    _native_abi_to_tosca[number_of_result_handlers];  // for native method result handlers
+  static address    _slow_signature_handler;                              // the native method generic (slow) signature handler
 
-  static StubQueue* _mirror_code;                                      // the interpreter code (codelets)
-  static address    _mirror_native_entry_begin;                        // Region for native entry code
-  static address    _mirror_native_entry_end;
-
-  // method entry points
-  static address    _mirror_entry_table[number_of_method_entries];     // entry points for a given method
-  static address    _mirror_native_abi_to_tosca[number_of_result_handlers];  // for native method result handlers
-  static address    _mirror_cds_entry_table[number_of_method_entries]; // entry points for methods in the CDS archive
-  static address    _mirror_slow_signature_handler;                              // the native method generic (slow) signature handler
-  static address    _mirror_rethrow_exception_entry;                   // rethrows an activation in previous frame
-
-  static StubQueue* _jportal_code;                                      // the interpreter code (codelets)
-  static address    _jportal_native_entry_begin;                        // Region for native entry code
-  static address    _jportal_native_entry_end;
-
-  // method entry points
-  static address    _jportal_entry_table[number_of_method_entries];     // entry points for a given method
-  static address    _jportal_native_abi_to_tosca[number_of_result_handlers];  // for native method result handlers
-  static address    _jportal_slow_signature_handler;                              // the native method generic (slow) signature handler
-  static address    _jportal_rethrow_exception_entry;                   // rethrows an activation in previous frame
+  static address    _rethrow_exception_entry;                   // rethrows an activation in previous frame
 
   friend class      AbstractInterpreterGenerator;
   friend class      InterpreterMacroAssembler;
@@ -146,33 +127,27 @@ class AbstractInterpreter: AllStatic {
  public:
   // Initialization/debugging
   static void       initialize();
-  static StubQueue* code()                                 { return _normal_code;  }
-  static StubQueue* normal_code()                          { return _normal_code;  }
-  static StubQueue* mirror_code()                          { return _mirror_code;  }
-  static StubQueue* jportal_code()                         { return _jportal_code; }
-  static bool       is_mirror(address pc)                  { return _mirror_code && _mirror_code->contains(pc); }
+  static StubQueue* code()                                      { return _code; }
+
 
   // Method activation
   static MethodKind method_kind(const methodHandle& m);
-  static address    entry_for_kind(MethodKind k, bool jportal = false)                {\
-    assert(0 <= k && k < number_of_method_entries, "illegal kind");
-    return jportal?_jportal_entry_table[k]:_normal_entry_table[k];
-  }
-  static address    entry_for_method(const methodHandle& m)     {return entry_for_kind(method_kind(m), JPortal && m->is_jportal()); }
+  static address    entry_for_kind(MethodKind k)                { assert(0 <= k && k < number_of_method_entries, "illegal kind"); return _entry_table[k]; }
+  static address    entry_for_method(const methodHandle& m)     { return entry_for_kind(method_kind(m)); }
 
   static address entry_for_cds_method(const methodHandle& m) {
     MethodKind k = method_kind(m);
     assert(0 <= k && k < number_of_method_entries, "illegal kind");
-    return (JPortal && m->is_jportal())?_mirror_cds_entry_table[k]:_normal_cds_entry_table[k];
+    return _cds_entry_table[k];
   }
 
   // used by class data sharing
-  static void       update_cds_entry_table(MethodKind kind, bool mirror = false) NOT_CDS_RETURN;
+  static void       update_cds_entry_table(MethodKind kind) NOT_CDS_RETURN;
 
   static address    get_trampoline_code_buffer(AbstractInterpreter::MethodKind kind) NOT_CDS_RETURN_(0);
 
   // used for bootstrapping method handles:
-  static void       set_entry_for_kind(MethodKind k, address e, bool jportal = false);
+  static void       set_entry_for_kind(MethodKind k, address e);
 
   static void       print_method_kind(MethodKind kind)          PRODUCT_RETURN;
 
@@ -200,10 +175,10 @@ class AbstractInterpreter: AllStatic {
   // Runtime support
 
   // length = invoke bytecode length (to advance to next bytecode)
-  static address deopt_entry(TosState state, int length, bool jportal = false) { ShouldNotReachHere(); return NULL; }
-  static address return_entry(TosState state, int length, Bytecodes::Code code, bool jportal = false) { ShouldNotReachHere(); return NULL; }
+  static address deopt_entry(TosState state, int length) { ShouldNotReachHere(); return NULL; }
+  static address return_entry(TosState state, int length, Bytecodes::Code code) { ShouldNotReachHere(); return NULL; }
 
-  static address    rethrow_exception_entry(bool jportal = false)       { return jportal?_jportal_rethrow_exception_entry:_normal_rethrow_exception_entry; }
+  static address    rethrow_exception_entry()                   { return _rethrow_exception_entry; }
 
   // Activation size in words for a method that is just being called.
   // Parameters haven't been pushed so count them too.
@@ -248,14 +223,10 @@ class AbstractInterpreter: AllStatic {
   static void       ignore_safepoints()                         { ShouldNotReachHere(); } // ignores safepoints
 
   // Support for native calls
-  static address    slow_signature_handler(bool jportal = false)         { return jportal?_jportal_slow_signature_handler:_normal_slow_signature_handler; }
-  static address    result_handler(BasicType type, bool jportal = false) { return jportal?_jportal_native_abi_to_tosca[BasicType_as_index(type)]:_normal_native_abi_to_tosca[BasicType_as_index(type)]; }
+  static address    slow_signature_handler()                    { return _slow_signature_handler; }
+  static address    result_handler(BasicType type)              { return _native_abi_to_tosca[BasicType_as_index(type)]; }
   static int        BasicType_as_index(BasicType type);         // computes index into result_handler_by_index table
-  static bool       in_native_entry(address pc)   {
-    return (_jportal_native_entry_begin <= pc && pc < _jportal_native_entry_end) ||
-      (_normal_native_entry_begin <= pc && pc < _normal_native_entry_end) ||
-      (_mirror_native_entry_begin <= pc && pc < _mirror_native_entry_end);
-  }
+  static bool       in_native_entry(address pc)                 { return _native_entry_begin <= pc && pc < _native_entry_end; }
   // Debugging/printing
   static void       print();                                    // prints the interpreter code
 
@@ -347,7 +318,7 @@ class AbstractInterpreter: AllStatic {
     }
   }
 
-  static void initialize_method_handle_entries(bool jportal = false);
+  static void initialize_method_handle_entries();
 };
 
 //------------------------------------------------------------------------------------------------------------------------

@@ -35,6 +35,7 @@
 #include "code/pcDesc.hpp"
 #include "compiler/compileBroker.hpp"
 #include "jfr/jfrEvents.hpp"
+#include "jportal/jportalEnable.hpp"
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
 #include "memory/allocation.inline.hpp"
@@ -181,7 +182,7 @@ void CodeCache::check_heap_sizes(size_t non_nmethod_size, size_t profiled_size, 
 }
 
 void CodeCache::initialize_heaps_size(size_t &cache_size, size_t &non_nmethod_size,
-                                        size_t &profiled_size, size_t &non_profiled_size, bool jportal) {
+                                      size_t &profiled_size, size_t &non_profiled_size, bool jportal) {
   bool non_nmethod_set      = jportal?FLAG_IS_CMDLINE(JPortalNonNMethodCodeHeapSize):FLAG_IS_CMDLINE(NonNMethodCodeHeapSize);
   bool profiled_set         = jportal?FLAG_IS_CMDLINE(JPortalProfiledCodeHeapSize):FLAG_IS_CMDLINE(ProfiledCodeHeapSize);
   bool non_profiled_set     = jportal?FLAG_IS_CMDLINE(JPortalNonProfiledCodeHeapSize):FLAG_IS_CMDLINE(NonProfiledCodeHeapSize);
@@ -1174,6 +1175,15 @@ void CodeCache::initialize() {
   assert(CodeCacheSegmentSize >= (uintx)OptoLoopAlignment,  "CodeCacheSegmentSize must be large enough to align inner loops");
 #endif
   assert(CodeCacheSegmentSize >= sizeof(jdouble),    "CodeCacheSegmentSize must be large enough to align constants");
+
+#ifndef JPORTAL_ENABLE
+  // check if JPortal is supported
+  if (JPortal) {
+    warning("JPortalEnable error: JPortal not supported");
+    FLAG_SET_ERGO(bool, JPortal, false);
+  }
+#endif
+
   // This was originally just a check of the alignment, causing failure, instead, round
   // the code cache to the page size.  In particular, Solaris is moving to a larger
   // default page size.

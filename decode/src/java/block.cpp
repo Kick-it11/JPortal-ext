@@ -48,7 +48,6 @@ void BlockGraph::build_graph()
     _code_count = 0;
     std::unordered_set<int> block_start;
     block_start.insert(0);
-    std::unordered_set<int> jsr_following;
     while (!bs.at_eos())
     {
         _bct_offset[bs.get_offset()] = _code_count;
@@ -64,10 +63,6 @@ void BlockGraph::build_graph()
             {
             /* track bytecodes that affect the control flow */
             case Bytecodes::_athrow: /* fall through */
-                block_start.insert(bs.get_offset());
-                break;
-            case Bytecodes::_ret: /* fall through */
-                bs.get_u1();
                 block_start.insert(bs.get_offset());
                 break;
             case Bytecodes::_ireturn: /* fall through */
@@ -116,22 +111,6 @@ void BlockGraph::build_graph()
                 block_start.insert(current_offset + jmp_offset - 5);
                 break;
             }
-            case Bytecodes::_jsr:
-            {
-                int jmp_offset = (short)bs.get_u2();
-                current_offset = bs.get_offset();
-                block_start.insert(current_offset + jmp_offset - 3);
-                jsr_following.insert(current_offset);
-                break;
-            }
-            case Bytecodes::_jsr_w:
-            {
-                int jmp_offset = bs.get_u4();
-                current_offset = bs.get_offset();
-                block_start.insert(current_offset + jmp_offset - 5);
-                jsr_following.insert(current_offset);
-                break;
-            }
             case Bytecodes::_tableswitch:
             {
                 jint offset = bs.get_offset();
@@ -149,6 +128,12 @@ void BlockGraph::build_graph()
                 bs.skip_u1(bc_len - 1);
                 break;
             }
+
+            case Bytecodes::_ret: /* fall through */
+            case Bytecodes::_jsr:
+            case Bytecodes::_jsr_w:
+                std::cerr << "Block error: jsr/ret not supported" << std::endl;
+                exit(1);
 
             default:
             {
@@ -226,17 +211,6 @@ void BlockGraph::build_graph()
         {
             switch (bc)
             {
-            /* track bytecodes that affect the control flow */
-            case Bytecodes::_ret: /* fall through */
-                bs.get_u1();
-                current_offset = bs.get_offset();
-                for (auto jsr_off : jsr_following)
-                {
-                    make_block_at(jsr_off, current);
-                }
-                current->set_end_offset(current_offset);
-                current = nullptr;
-                break;
             case Bytecodes::_athrow:  /* fall through */
             case Bytecodes::_ireturn: /* fall through */
             case Bytecodes::_lreturn: /* fall through */
@@ -292,24 +266,6 @@ void BlockGraph::build_graph()
                 current = nullptr;
                 break;
             }
-            case Bytecodes::_jsr:
-            {
-                int jmp_offset = (short)bs.get_u2();
-                current_offset = bs.get_offset();
-                make_block_at(current_offset + jmp_offset - 3, current);
-                current->set_end_offset(current_offset);
-                current = nullptr;
-                break;
-            }
-            case Bytecodes::_jsr_w:
-            {
-                int jmp_offset = bs.get_u4();
-                current_offset = bs.get_offset();
-                make_block_at(current_offset + jmp_offset - 5, current);
-                current->set_end_offset(current_offset);
-                current = nullptr;
-                break;
-            }
             case Bytecodes::_tableswitch:
             {
                 current_offset = bs.get_offset();
@@ -350,6 +306,12 @@ void BlockGraph::build_graph()
                 current = nullptr;
                 break;
             }
+
+            case Bytecodes::_ret: /* fall through */
+            case Bytecodes::_jsr:
+            case Bytecodes::_jsr_w:
+                std::cerr << "Block error: jsr/ret not supported" << std::endl;
+                exit(1);
 
             default:
                 break;
@@ -575,7 +537,6 @@ void BCTBlockList::build_list()
             {
             /* track bytecodes that affect the control flow */
             case Bytecodes::_athrow:  /* fall through */
-            case Bytecodes::_ret:     /* fall through */
             case Bytecodes::_ireturn: /* fall through */
             case Bytecodes::_lreturn: /* fall through */
             case Bytecodes::_freturn: /* fall through */
@@ -621,16 +582,6 @@ void BCTBlockList::build_list()
                 current = nullptr;
                 break;
 
-            case Bytecodes::_jsr:
-                current->set_end(bs.current());
-                current = nullptr;
-                break;
-
-            case Bytecodes::_jsr_w:
-                current->set_end(bs.current());
-                current = nullptr;
-                break;
-
             case Bytecodes::_tableswitch:
             {
                 current->set_end(bs.current());
@@ -646,6 +597,12 @@ void BCTBlockList::build_list()
                 current = nullptr;
                 break;
             }
+
+            case Bytecodes::_ret: /* fall through */
+            case Bytecodes::_jsr:
+            case Bytecodes::_jsr_w:
+                std::cerr << "Block error: jsr/ret not supported" << std::endl;
+                exit(1);
 
             default:
                 break;

@@ -2510,12 +2510,19 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
                                                                             \
   product(uintx, JPortalMMAPPages, 1024,                                    \
           "JPortal Trace MMAP Pages(power of 2)")                           \
+          range(2, 256*M)                                                   \
                                                                             \
   product(uintx, JPortalAUXPages, 1024 * 4,                                 \
           "JPortal Trace AUX Pages(power of 2)")                            \
+          range(2, 256*M)                                                   \
                                                                             \
   product(uintx, JPortalShmVolume, 1024 * 1024 * 4,                         \
           "JPortal Dump Sharing Memory Volume")                             \
+          range(1*M, 1*G)                                                   \
+                                                                            \
+  product(uintx, JPortalTableStubLimit, 64 * K,                             \
+          "JPortal Switch Case Limit")                                      \
+          range(1*K, 1*M)                                                   \
                                                                             \
   product(bool, RelaxAccessControlCheck, false,                             \
           "Relax the access control checks in the verifier")                \

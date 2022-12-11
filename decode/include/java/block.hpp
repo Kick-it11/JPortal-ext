@@ -89,8 +89,6 @@ private:
     int _bct_codebegin;
     std::vector<Block *> _preds;
     std::vector<Block *> _succs;
-    std::unordered_set<Block *> _preds_set;
-    std::unordered_set<Block *> _succs_set;
     BCTBlock *_bctblock = nullptr;
 
 public:
@@ -101,19 +99,11 @@ public:
     void set_bctblock(BCTBlock *bctblock) { _bctblock = bctblock; }
     void add_preds(Block *block)
     {
-        if (!_preds_set.count(block))
-        {
-            _preds.push_back(block);
-            _preds_set.insert(block);
-        }
+        _preds.push_back(block);
     }
     void add_succs(Block *block)
     {
-        if (!_succs_set.count(block))
-        {
-            _succs.push_back(block);
-            _succs_set.insert(block);
-        }
+        _succs.push_back(block);
     }
     std::vector<Block *>::iterator get_preds_begin() { return _preds.begin(); }
     std::vector<Block *>::iterator get_preds_end() { return _preds.end(); }
@@ -121,6 +111,7 @@ public:
     std::vector<Block *>::iterator get_succs_end() { return _succs.end(); }
     int get_preds_size() const { return _preds.size(); }
     int get_succs_size() const { return _succs.size(); }
+    Block *get_succes_block(int id) const { return id >=0 && id < get_succs_size() ? _succs[id] : nullptr; }
     int get_id() const { return _block_id; }
     int get_begin_offset() const { return _begin_offset; }
     int get_end_offset() const { return _end_offset; }
@@ -232,6 +223,7 @@ public:
     }
     const u1 *bctcode() const { return _bctcode; }
     const std::unordered_map<int, int> &bct_offset() const { return _bct_offset; }
+    int bct_offset(int bci) const { return _bct_offset.count(bci)?_bct_offset.find(bci)->second:-1; }
     const std::vector<int> &block_id() const { return _block_id; }
     const std::vector<Block *> &blocks() const { return _blocks; }
     void build_graph();

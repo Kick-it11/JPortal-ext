@@ -2428,6 +2428,13 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     restore_args(masm, total_c_args, c_arg, out_regs);
   }
 
+#ifdef JPORTAL_ENABLE
+  if (JPortalMethod && method()->is_jportal()) {
+    __ lea(rscratch1, ExternalAddress(method()->jportal_entry()));
+    __ call(rscratch1);
+  }
+#endif
+
   // Lock a synchronized method
 
   // Register definitions used by locking and unlocking
@@ -2676,6 +2683,13 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
          r15_thread, c_rarg1);
     restore_native_result(masm, ret_type, stack_slots);
   }
+
+#ifdef JPORTAL_ENABLE
+  if (JPortalMethod && method()->is_jportal()) {
+    __ lea(rscratch1, ExternalAddress(method()->jportal_exit()));
+    __ call(rscratch1);
+  }
+#endif
 
   __ reset_last_Java_frame(false);
 

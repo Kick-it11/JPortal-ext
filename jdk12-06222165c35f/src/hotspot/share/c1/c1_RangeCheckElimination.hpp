@@ -167,6 +167,9 @@ public:
     void do_ProfileReturnType (ProfileReturnType*  x) { /* nothing to do */ };
     void do_ProfileInvoke  (ProfileInvoke*   x) { /* nothing to do */ };
     void do_RuntimeCall    (RuntimeCall*     x) { /* nothing to do */ };
+#ifdef JPORTAL_ENABLE
+    void do_JPortalCall    (JPortalCall*     x) { /* nothing to do */ };
+#endif
     void do_MemBar         (MemBar*          x) { /* nothing to do */ };
     void do_RangeCheckPredicate(RangeCheckPredicate* x) { /* nothing to do */ };
 #ifdef ASSERT

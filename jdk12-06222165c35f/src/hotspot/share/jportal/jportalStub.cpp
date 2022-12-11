@@ -58,7 +58,7 @@ void JPortalStub::print() {
 
 void JPortalStubBuffer::initialize() {
   if (_buffer != NULL) return; // already initialized
-  _buffer = new StubQueue(new JPortalStubInterface, JPortalNonNMethodCodeHeapSize, JPortalStubBuffer_lock, "InlineCacheBuffer", true);
+  _buffer = new StubQueue(new JPortalStubInterface, JPortalNonNMethodCodeHeapSize-4*K, JPortalStubBuffer_lock, "JPortalStubBuffer", true);
   assert (_buffer != NULL, "cannot allocate JPortalStubBuffer");
 
   _bci_table = new_jportal_table_stub();

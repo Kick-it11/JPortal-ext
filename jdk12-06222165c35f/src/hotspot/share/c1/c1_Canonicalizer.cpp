@@ -1056,6 +1056,9 @@ void Canonicalizer::do_ProfileCall(ProfileCall* x) {}
 void Canonicalizer::do_ProfileReturnType(ProfileReturnType* x) {}
 void Canonicalizer::do_ProfileInvoke(ProfileInvoke* x) {}
 void Canonicalizer::do_RuntimeCall(RuntimeCall* x) {}
+#ifdef JPORTAL_ENABLE
+void Canonicalizer::do_JPortalCall(JPortalCall* x) {}
+#endif
 void Canonicalizer::do_RangeCheckPredicate(RangeCheckPredicate* x) {}
 #ifdef ASSERT
 void Canonicalizer::do_Assert(Assert* x) {}

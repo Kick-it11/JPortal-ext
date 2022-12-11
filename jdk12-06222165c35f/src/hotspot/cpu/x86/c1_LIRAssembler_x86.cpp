@@ -469,6 +469,13 @@ int LIR_Assembler::emit_unwind_handler() {
     __ mov(rax, rbx);  // Restore the exception
   }
 
+#ifdef JPORTAL_ENABLE
+  if (JPortalMethod && method()->is_jportal()) {
+    __ lea(rscratch1, ExternalAddress(((Method *)method()->constant_encoding())->jportal_exit()));
+    __ call(rscratch1);
+  }
+#endif
+
   // remove the activation and dispatch to the unwind handler
   __ remove_frame(initial_frame_size_in_bytes());
   __ jump(RuntimeAddress(Runtime1::entry_for(Runtime1::unwind_exception_id)));
@@ -3712,6 +3719,13 @@ void LIR_Assembler::emit_profile_type(LIR_OpProfileType* op) {
     __ bind(next);
   }
 }
+
+#ifdef JPORTAL_ENABLE
+void LIR_Assembler::emit_jportal_call(LIR_OpJPortalCall* op) {
+  __ lea(rscratch1, ExternalAddress(op->addr()));
+  __ call(rscratch1);
+}
+#endif
 
 void LIR_Assembler::emit_delay(LIR_OpDelay*) {
   Unimplemented();

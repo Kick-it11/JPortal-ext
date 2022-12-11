@@ -27,7 +27,6 @@
 #include "code/vmreg.inline.hpp"
 #include "interpreter/bytecode.hpp"
 #include "interpreter/interpreter.hpp"
-#include "jportal/jportalEnable.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"

@@ -107,6 +107,9 @@ class   ProfileCall;
 class   ProfileReturnType;
 class   ProfileInvoke;
 class   RuntimeCall;
+#ifdef JPORTAL_ENABLE
+class   JPortalCall;
+#endif
 class   MemBar;
 class   RangeCheckPredicate;
 #ifdef ASSERT
@@ -206,6 +209,9 @@ class InstructionVisitor: public StackObj {
   virtual void do_ProfileReturnType (ProfileReturnType*  x) = 0;
   virtual void do_ProfileInvoke  (ProfileInvoke*   x) = 0;
   virtual void do_RuntimeCall    (RuntimeCall*     x) = 0;
+#ifdef JPORTAL_ENABLE
+  virtual void do_JPortalCall    (JPortalCall*     x) = 0;
+#endif
   virtual void do_MemBar         (MemBar*          x) = 0;
   virtual void do_RangeCheckPredicate(RangeCheckPredicate* x) = 0;
 #ifdef ASSERT
@@ -2569,6 +2575,26 @@ LEAF(RuntimeCall, Instruction)
     for (int i = 0; i < _args->length(); i++) f->visit(_args->adr_at(i));
   }
 };
+
+#ifdef JPORTAL_ENABLE
+// call to a jportal stub address(for method entry/exit)
+LEAF(JPortalCall, Instruction)
+ private:
+  address _addr;
+
+ public:
+  JPortalCall(address addr)
+    : Instruction(voidType)
+    , _addr(addr)
+  {
+    // should be located precisely
+    pin();
+  }
+
+  address addr() { return _addr; }
+  virtual void input_values_do(ValueVisitor*)   {}
+};
+#endif
 
 // Use to trip invocation counter of an inlined method
 

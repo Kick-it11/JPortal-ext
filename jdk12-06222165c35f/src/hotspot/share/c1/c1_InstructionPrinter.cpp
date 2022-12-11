@@ -917,6 +917,12 @@ void InstructionPrinter::do_RuntimeCall(RuntimeCall* x) {
   output()->put(')');
 }
 
+#ifdef JPORTAL_ENABLE
+void InstructionPrinter::do_JPortalCall(JPortalCall* x) {
+  output()->print("jportal_call %p", x->addr());
+}
+#endif
+
 void InstructionPrinter::do_MemBar(MemBar* x) {
   LIR_Code code = x->code();
   switch (code) {

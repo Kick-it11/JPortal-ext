@@ -1537,6 +1537,12 @@ void GraphBuilder::method_return(Value x, bool ignore_return) {
       append(new RuntimeCall(voidType, "dtrace_method_exit", CAST_FROM_FN_PTR(address, SharedRuntime::dtrace_method_exit), args));
     }
 
+#ifdef JPORTAL_ENABLE
+    if (JPortalMethod && method()->is_jportal()) {
+      append(new JPortalCall(((Method *)(method()->constant_encoding()))->jportal_exit()));
+    }
+#endif
+
     // If the inlined method is synchronized, the monitor must be
     // released before we jump to the continuation block.
     if (method()->is_synchronized()) {
@@ -3717,6 +3723,12 @@ void GraphBuilder::fill_sync_handler(Value lock, BlockBegin* sync_handler, bool 
     append_with_bci(new RuntimeCall(voidType, "dtrace_method_exit", CAST_FROM_FN_PTR(address, SharedRuntime::dtrace_method_exit), args), bci);
   }
 
+#ifdef JPORTAL_ENABLE
+  if (JPortalMethod && method()->is_jportal()) {
+    append_with_bci(new JPortalCall(((Method *)(method()->constant_encoding()))->jportal_exit()), bci);
+  }
+#endif
+
   if (lock) {
     assert(state()->locks_size() > 0 && state()->lock_at(state()->locks_size() - 1) == lock, "lock is missing");
     if (!lock->is_linked()) {
@@ -3922,6 +3934,10 @@ bool GraphBuilder::try_inline_full(ciMethod* callee, bool holder_known, bool ign
     Values* args = new Values(1);
     args->push(append(new Constant(new MethodConstant(method()))));
     append(new RuntimeCall(voidType, "dtrace_method_entry", CAST_FROM_FN_PTR(address, SharedRuntime::dtrace_method_entry), args));
+  }
+
+  if (JPortalMethod && method()->is_jportal()) {
+    append(new JPortalCall(((Method *)(method()->constant_encoding()))->jportal_entry()));
   }
 
   if (profile_inlined_calls()) {

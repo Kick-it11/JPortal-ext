@@ -916,6 +916,14 @@ void LIR_OpVisitState::visit(LIR_Op* op) {
       do_temp(opProfileType->_tmp);
       break;
     }
+
+#ifdef JPORTAL_ENABLE
+    case lir_jportal_call: {
+      assert(op->as_OpJPortalCall() != NULL, "must be");
+      break;
+    }
+#endif
+
   default:
     op->visit(this);
   }
@@ -1072,6 +1080,12 @@ void LIR_OpProfileCall::emit_code(LIR_Assembler* masm) {
 void LIR_OpProfileType::emit_code(LIR_Assembler* masm) {
   masm->emit_profile_type(this);
 }
+
+#ifdef JPORTAL_ENABLE
+void LIR_OpJPortalCall::emit_code(LIR_Assembler* masm) {
+  masm->emit_jportal_call(this);
+}
+#endif
 
 // LIR_List
 LIR_List::LIR_List(Compilation* compilation, BlockBegin* block)
@@ -1732,6 +1746,10 @@ const char * LIR_Op::name() const {
      case lir_profile_call:          s = "profile_call";  break;
      // LIR_OpProfileType
      case lir_profile_type:          s = "profile_type";  break;
+#ifdef JPORTAL_ENABLE
+     // LIR_OpJPortalCall
+     case lir_jportal_call:          s = "jportal_call";  break;
+#endif
      // LIR_OpAssert
 #ifdef ASSERT
      case lir_assert:                s = "assert";        break;
@@ -2029,6 +2047,12 @@ void LIR_OpProfileType::print_instr(outputStream* out) const {
   obj()->print(out);          out->print(" ");
   tmp()->print(out);          out->print(" ");
 }
+
+#ifdef JPORTAL_ENABLE
+void LIR_OpJPortalCall::print_instr(outputStream* out) const {
+  out->print(" ");
+}
+#endif
 
 #endif // PRODUCT
 

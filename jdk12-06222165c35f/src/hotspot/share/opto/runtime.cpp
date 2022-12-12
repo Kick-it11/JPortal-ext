@@ -1658,3 +1658,19 @@ static void trace_exception(outputStream* st, oop exception_oop, address excepti
 
   st->print_raw_cr(tempst.as_string());
 }
+
+#ifdef JPORTAL_ENABLE
+const TypeFunc *OptoRuntime::jportal_call_type() {
+  // create input type (domain)
+  const Type **fields = TypeTuple::fields(0);
+
+  const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms+0,fields);
+
+  // create result type (range)
+  fields = TypeTuple::fields(0);
+
+  const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+0,fields);
+
+  return TypeFunc::make(domain,range);
+}
+#endif

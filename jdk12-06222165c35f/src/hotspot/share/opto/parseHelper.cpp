@@ -59,6 +59,14 @@ void GraphKit::make_dtrace_method_entry_exit(ciMethod* method, bool is_entry) {
                     thread, method_node);
 }
 
+#ifdef JPORTAL_ENABLE
+void GraphKit::make_jportal_call(address addr) {
+  kill_dead_locals();
+
+  make_runtime_call(RC_LEAF, OptoRuntime::jportal_call_type(), addr,
+                    "jportal_call", TypeRawPtr::BOTTOM);
+}
+#endif
 
 //=============================================================================
 //------------------------------do_checkcast-----------------------------------

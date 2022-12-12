@@ -1066,7 +1066,7 @@ void Parse::do_exits() {
   bool do_synch = method()->is_synchronized() && GenerateSynchronizationCode;
 
   // record exit from a method if compiled while Dtrace is turned on.
-  if (do_synch || C->env()->dtrace_method_probes() || _replaced_nodes_for_exceptions) {
+  if (do_synch || C->env()->dtrace_method_probes() || _replaced_nodes_for_exceptions || JPortalMethod) {
     // First move the exception list out of _exits:
     GraphKit kit(_exits.transfer_exceptions_into_jvms());
     SafePointNode* normal_map = kit.map();  // keep this guy safe
@@ -1091,6 +1091,11 @@ void Parse::do_exits() {
       if (C->env()->dtrace_method_probes()) {
         kit.make_dtrace_method_exit(method());
       }
+#ifdef JPORTAL_ENABLE
+      if (JPortalMethod && method()->is_jportal()) {
+        kit.make_jportal_call(((Method*)(method()->constant_encoding()))->jportal_exit());
+      }
+#endif
       if (_replaced_nodes_for_exceptions) {
         kit.map()->apply_replaced_nodes(_new_idx);
       }
@@ -1199,6 +1204,12 @@ void Parse::do_method_entry() {
   if (C->env()->dtrace_method_probes()) {
     make_dtrace_method_entry(method());
   }
+
+#ifdef JPORTAL_ENABLE
+  if (JPortalMethod && method()->is_jportal()) {
+    make_jportal_call(((Method*)(method()->constant_encoding()))->jportal_entry());
+  }
+#endif
 
   // If the method is synchronized, we need to construct a lock node, attach
   // it to the Start node, and pin it there.
@@ -2179,6 +2190,13 @@ void Parse::return_current(Node* value) {
   if (C->env()->dtrace_method_probes()) {
     make_dtrace_method_exit(method());
   }
+
+#ifdef JPORTAL_ENABLE
+  if (JPortalMethod && method()->is_jportal()) {
+    make_jportal_call(((Method*)(method()->constant_encoding()))->jportal_exit()); 
+  }
+#endif
+
   SafePointNode* exit_return = _exits.map();
   exit_return->in( TypeFunc::Control  )->add_req( control() );
   exit_return->in( TypeFunc::I_O      )->add_req( i_o    () );

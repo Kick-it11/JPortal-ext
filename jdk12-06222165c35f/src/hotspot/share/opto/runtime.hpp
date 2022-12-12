@@ -318,6 +318,9 @@ private:
   static const TypeFunc* dtrace_method_entry_exit_Type();
   static const TypeFunc* dtrace_object_alloc_Type();
 
+#ifdef JPORTAL_ENABLE
+  static const TypeFunc* jportal_call_type();
+#endif
  private:
  static NamedCounter * volatile _named_counters;
 

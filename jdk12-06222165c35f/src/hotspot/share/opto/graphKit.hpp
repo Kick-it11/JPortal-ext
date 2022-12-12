@@ -653,6 +653,9 @@ class GraphKit : public Phase {
     make_dtrace_method_entry_exit(method, false);
   }
 
+#ifdef JPORTAL_ENABLE
+  void make_jportal_call(address addr);
+#endif
   //--------------- stub generation -------------------
  public:
   void gen_stub(address C_function,

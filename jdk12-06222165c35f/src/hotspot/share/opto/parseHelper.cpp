@@ -59,6 +59,22 @@ void GraphKit::make_dtrace_method_entry_exit(ciMethod* method, bool is_entry) {
                     thread, method_node);
 }
 
+#ifdef JPORTAL_ENABLE
+void GraphKit::make_jportal_call(address addr) {
+  const char     *call_name    = "jportal_call";
+
+  // Get base of thread-local storage area
+  Node* thread = _gvn.transform( new ThreadLocalNode() );
+
+  kill_dead_locals();
+
+  // For some reason, this call reads only raw memory.
+  const TypePtr* raw_adr_type = TypeRawPtr::BOTTOM;
+  make_runtime_call(RC_LEAF | RC_NARROW_MEM,
+                    OptoRuntime::jportal_call_type(), addr,
+                    call_name, raw_adr_type);
+}
+#endif
 
 //=============================================================================
 //------------------------------do_checkcast-----------------------------------

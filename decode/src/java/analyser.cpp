@@ -45,7 +45,7 @@ const Klass *Analyser::get_klass(const std::string &klassName)
 
 const Method *Analyser::get_method(const std::string &klassName, const std::string &methodName)
 {
-    return _methods.count(klassName + " " + methodName) ? _methods[klassName + methodName] : nullptr;
+    return _methods.count(klassName + " " + methodName) ? _methods[klassName + " " + methodName] : nullptr;
 }
 
 void Analyser::parse(const std::vector<std::string> &class_paths)

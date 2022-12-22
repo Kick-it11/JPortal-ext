@@ -1,6 +1,7 @@
 #include "decoder/pt_jvm_decoder.hpp"
 #include "insn/pt_ild.hpp"
 #include "insn/pt_retstack.hpp"
+#include "java/method.hpp"
 #include "runtime/jit_image.hpp"
 #include "sideband/sideband.hpp"
 
@@ -1613,19 +1614,19 @@ int PTJVMDecoder::decoder_record_jitcode(JitSection *section, struct pt_insn *in
 
     if (insn->ip == section->osr_entry_point())
     {
-        if (!_record.record_jit_osr_entry(section))
+        if (!_record.record_jit_osr_entry(section->id()))
             return -pte_bad_context;
     }
     else if (insn->ip == section->verified_entry_point())
     {
-        if (!_record.record_jit_entry(section))
+        if (!_record.record_jit_entry(section->id()))
             return -pte_bad_context;
     }
 
-    struct PCStackInfo *cur = section->find(insn->ip + insn->size);
-    if (cur)
+    int idx = section->find_pc(insn->ip + insn->size);
+    if (idx >= 0)
     {
-        if (!_record.record_jit_code(section, cur))
+        if (!_record.record_jit_code(section->id(), idx))
             return -pte_bad_context;
     }
 
@@ -1796,11 +1797,11 @@ int PTJVMDecoder::decoder_record_intercode(uint64_t ip)
     bool recorded = true;
     if (const Method *method = JVMRuntime::method(_ip))
     {
-        recorded = _record.record_method(method);
+        recorded = _record.record_method(method->id());
     }
     else if (const Method *method = JVMRuntime::method_exit(_ip))
     {
-        recorded = _record.record_method_exit(method);
+        recorded = _record.record_method_exit(method->id());
     }
     else if (JVMRuntime::not_taken_branch(_ip))
     {

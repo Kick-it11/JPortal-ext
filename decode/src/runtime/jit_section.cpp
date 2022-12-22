@@ -5,6 +5,8 @@
 #include <cassert>
 #include <cstring>
 
+std::atomic_int JitSection::JitSectionCounter;
+
 CompiledMethodLoadInlineRecord::CompiledMethodLoadInlineRecord(const uint8_t *scopes_pc,
                                                                uint32_t scopes_pc_size, const uint8_t *scopes_data, uint32_t scopes_data_size, uint64_t insts_begin)
 {
@@ -85,7 +87,7 @@ JitSection::JitSection(const uint8_t *code, uint64_t code_begin,
                        uint32_t inline_method_cnt,
                        std::map<int, const Method *> &methods,
                        const Method *mainm, const std::string &name)
-    : _code(code), _code_begin(code_begin), _stub_begin(stub_begin),
+    : _id(JitSectionCounter++), _code(code), _code_begin(code_begin), _stub_begin(stub_begin),
       _entry_point(entry_point),
       _verified_entry_point(verified_entry_point),
       _osr_entry_point(osr_entry_point),
@@ -120,20 +122,27 @@ bool JitSection::read(uint8_t *buffer, uint8_t *size, uint64_t vaddr)
     return true;
 }
 
-PCStackInfo *JitSection::find(uint64_t vaddr)
+int JitSection::find_pc(uint64_t vaddr)
 {
     uint64_t begin = _code_begin;
     uint64_t end = begin + _code_size;
 
     if (vaddr < begin || vaddr >= end)
-        return nullptr;
+        return -1;
 
     for (int i = 0; i < _record->numpcs; i++)
     {
         if (vaddr == _record->pcinfo[i].pc)
         {
-            return &_record->pcinfo[i];
+            return i;
         }
     }
-    return nullptr;
+    return -1;
+}
+
+const PCStackInfo *JitSection::get_pc(int idx)
+{
+    if (idx < 0 || idx > _record->numpcs)
+        return nullptr;
+    return &_record->pcinfo[idx];
 }

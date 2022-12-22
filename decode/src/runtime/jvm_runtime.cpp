@@ -6,6 +6,7 @@
 
 #include <cassert>
 #include <iostream>
+#include <fstream>
 
 uint8_t *JVMRuntime::_begin = nullptr;
 uint8_t *JVMRuntime::_end = nullptr;
@@ -18,6 +19,8 @@ std::pair<uint64_t, std::pair<int, int>> JVMRuntime::_switch_tables;
 std::set<uint64_t> JVMRuntime::_switch_defaults;
 std::map<uint64_t, uint64_t> JVMRuntime::_tid_map;
 std::map<const uint8_t *, JitSection *> JVMRuntime::_section_map;
+std::map<int, const Method *> JVMRuntime::_id_to_methods;
+std::map<int, JitSection *> JVMRuntime::_id_to_sections;
 bool JVMRuntime::_initialized = false;
 
 JVMRuntime::JVMRuntime()
@@ -92,8 +95,15 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
             const Method *method = analyser->get_method(klass_name, name + sig);
             if (!method || !method->is_jportal())
             {
-                std::cerr << "JvmDumpDecoder error: Unknown or un-jportal method" << std::endl;
+                std::cerr << "JvmRuntime error: Unknown or un-jportal method" << std::endl;
                 break;
+            }
+            if (_id_to_methods.count(method->id()) && _id_to_methods[method->id()] != method)
+            {
+                std::cerr << "JVMRuntime error: Method with the same id" << std::endl;
+                break;
+            } else {
+                _id_to_methods[method->id()] = method;
             }
             _methods[mei->addr1] = method;
             if (mei->addr2)
@@ -176,7 +186,7 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
             buffer += cmi->scopes_data_size;
             if (!mainm || !mainm->is_jportal())
             {
-                std::cerr << "JvmDumpDecoder error: Unknown or un-jportal section" << std::endl;
+                std::cerr << "JvmRuntime error: Unknown or un-jportal section" << std::endl;
                 break;
             }
             JitSection *section = new JitSection(insts, cmi->code_begin, cmi->stub_begin,
@@ -187,6 +197,13 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
                                                  cmi->osr_entry_point,
                                                  cmi->inline_method_cnt,
                                                  methods, mainm, mainm->get_name());
+            if (_id_to_sections.count(section->id()) && _id_to_sections[section->id()] != section)
+            {
+                std::cerr << "JVMRuntime error: Method with the same id" << std::endl;
+                break;
+            } else {
+                _id_to_sections[section->id()] = section;
+            }
             _section_map[buffer] = section;
             break;
         }
@@ -223,7 +240,7 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
         default:
         {
             buffer = _end;
-            std::cerr << "JvmDumpDecoder error: Unknown dump type" << std::endl;
+            std::cerr << "JvmRuntime error: Unknown dump type" << std::endl;
             exit(1);
         }
         }
@@ -397,5 +414,15 @@ void JVMRuntime::print(uint8_t *buffer, uint64_t size)
             exit(1);
         }
         }
+    }
+}
+
+void JVMRuntime::output(std::string prefix)
+{
+    std::ofstream file(prefix+"methods");
+    for  (auto method : _id_to_methods)
+    {
+        file << method.first << " " << method.second->get_klass()->get_name()
+             << " " << method.second->get_name() << std::endl;
     }
 }

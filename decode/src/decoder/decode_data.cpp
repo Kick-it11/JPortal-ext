@@ -86,23 +86,23 @@ void DecodeDataRecord::switch_out(uint64_t time)
     }
 }
 
-bool DecodeDataRecord::record_method(const Method *method)
+bool DecodeDataRecord::record_method(int method_id)
 {
-    if (!_cur_thread || !method)
+    if (!_cur_thread || !method_id < 0)
         return false;
     _type = DecodeData::_method;
     _data->write(&_type, 1);
-    _data->write(&method, sizeof(method));
+    _data->write(&method_id, sizeof(int));
     return true;
 }
 
-bool DecodeDataRecord::record_method_exit(const Method *method)
+bool DecodeDataRecord::record_method_exit(int method_id)
 {
-    if (!_cur_thread || !method)
+    if (!_cur_thread || !method_id < 0)
         return false;
     _type = DecodeData::_method_exit;
     _data->write(&_type, 1);
-    _data->write(&method, sizeof(method));
+    _data->write(&method_id, sizeof(int));
     return true;
 }
 
@@ -153,72 +153,44 @@ bool DecodeDataRecord::record_bci(int bci)
     return true;
 }
 
-bool DecodeDataRecord::record_jit_entry(const JitSection *section)
+bool DecodeDataRecord::record_jit_entry(int section_id)
 {
-    if (!_cur_thread || !section)
+    if (!_cur_thread || section_id < 0)
         return false;
     _type = DecodeData::_jit_entry;
     _data->write(&_type, 1);
-    _cur_section = section;
-    _data->write(&section, sizeof(section));
-    _pc_size = 0;
-    _pc_size_pos = pos();
-    _data->write(&_pc_size, sizeof(_pc_size));
-
-    /* for aligning */
-    while (pos() % sizeof(const PCStackInfo *) != 0)
-    {
-        uint8_t padding = DecodeData::_padding;
-        _data->write(&padding, 1);
-    }
+    _section_id = section_id;
+    _data->write(&_section_id, sizeof(_section_id));
     return true;
 }
 
-bool DecodeDataRecord::record_jit_osr_entry(const JitSection *section)
+bool DecodeDataRecord::record_jit_osr_entry(int section_id)
 {
-    if (!_cur_thread || !section)
+    if (!_cur_thread || section_id < 0)
         return false;
     _type = DecodeData::_jit_osr_entry;
     _data->write(&_type, 1);
-    _cur_section = section;
-    _data->write(&section, sizeof(section));
-    _pc_size = 0;
-    _pc_size_pos = pos();
-    _data->write(&_pc_size, sizeof(_pc_size));
-
-    /* for aligning */
-    while (pos() % sizeof(const PCStackInfo *) != 0)
-    {
-        uint8_t padding = DecodeData::_padding;
-        _data->write(&padding, 1);
-    }
+    _section_id = section_id;
+    _data->write(&_section_id, sizeof(_section_id));
     return true;
 }
 
-bool DecodeDataRecord::record_jit_code(const JitSection *section, const PCStackInfo *info)
+bool DecodeDataRecord::record_jit_code(int section_id, int idx)
 {
-    if (!_cur_thread || !section || !info)
+    if (!_cur_thread || section_id < 0)
         return false;
-    if ((_type < DecodeData::_jit_entry || _type > DecodeData::_jit_code) || section != _cur_section)
+    if ((_type < DecodeData::_jit_entry || _type > DecodeData::_jit_code) || section_id != _section_id)
     {
         _type = DecodeData::_jit_code;
         _data->write(&_type, 1);
-        _cur_section = section;
-        _data->write(&section, sizeof(section));
-        _pc_size = 0;
-        _pc_size_pos = pos();
-        _data->write(&_pc_size, sizeof(_pc_size));
-
-        /* for aligning */
-        while (pos() % sizeof(const PCStackInfo *) != 0)
-        {
-            uint8_t padding = DecodeData::_padding;
-            _data->write(&padding, 1);
-        }
+        _section_id = section_id;
+        _data->write(&_section_id, sizeof(_section_id));
+        _data->write(&idx, sizeof(idx));
     }
-    _data->write(&info, sizeof(info));
-    ++_pc_size;
-    memcpy(_data->_data_begin + _pc_size_pos, &_pc_size, sizeof(_pc_size));
+
+    uint8_t mid_type = DecodeData::_jit_pc_info;
+    _data->write(&mid_type, sizeof(mid_type));
+    _data->write(&idx, sizeof(idx));
     return true;
 }
 
@@ -260,8 +232,9 @@ bool DecodeDataAccess::next_trace(DecodeData::DecodeDataType &type, uint64_t &po
     switch (type)
     {
     case DecodeData::_method:
+    case DecodeData::_method_exit:
         ++_current;
-        _current += sizeof(const Method *);
+        _current += sizeof(int);
         break;
     case DecodeData::_taken:
     case DecodeData::_not_taken:
@@ -283,16 +256,14 @@ bool DecodeDataAccess::next_trace(DecodeData::DecodeDataType &type, uint64_t &po
     case DecodeData::_jit_code:
     {
         ++_current;
-        _current += (sizeof(JitSection *));
-        uint64_t pc_size;
-        memcpy(&pc_size, _current, sizeof(pc_size));
-
-        /* for aligning */
-        while ((_current - _data->_data_begin) % (sizeof(const PCStackInfo *)) != 0)
+        /* skip section id */
+        _current += sizeof(int);
+        /* skip pc info */
+        while (_current < _terminal && (DecodeData::DecodeDataType)*_current == DecodeData::_jit_pc_info)
         {
             ++_current;
+            _current += sizeof(int);
         }
-        _current += (sizeof(pc_size) + sizeof(const PCStackInfo *) * pc_size);
         break;
     }
     case DecodeData::_jit_return:
@@ -307,7 +278,7 @@ bool DecodeDataAccess::next_trace(DecodeData::DecodeDataType &type, uint64_t &po
     return true;
 }
 
-bool DecodeDataAccess::get_method(uint64_t pos, const Method *&method)
+bool DecodeDataAccess::get_method(uint64_t pos, int &method_id)
 {
     if (pos > _data->_data_end - _data->_data_begin)
     {
@@ -320,8 +291,8 @@ bool DecodeDataAccess::get_method(uint64_t pos, const Method *&method)
     {
         return false;
     }
-    memcpy(&method, buf, sizeof(method));
-    assert(method != nullptr);
+    memcpy(&method_id, buf, sizeof(int));
+    assert(method_id >= 0);
     return true;
 }
 
@@ -360,8 +331,7 @@ bool DecodeDataAccess::get_bci(uint64_t pos, int &bci)
     return true;
 }
 
-bool DecodeDataAccess::get_jit_code(uint64_t pos, const JitSection *&section,
-                                    const PCStackInfo **&pcs, uint64_t &size)
+bool DecodeDataAccess::get_jit_code(uint64_t pos, int &section_id, std::vector<int> &pcs)
 {
     if (pos > _data->_data_end - _data->_data_begin)
     {
@@ -374,17 +344,14 @@ bool DecodeDataAccess::get_jit_code(uint64_t pos, const JitSection *&section,
     {
         return false;
     }
-    memcpy(&section, buf, sizeof(section));
-    buf += sizeof(section);
-    memcpy(&size, buf, sizeof(size));
-    buf += sizeof(size);
-
-    /* for aligning */
-    while ((buf - _data->_data_begin) % sizeof(const PCStackInfo *) != 0)
+    memcpy(&section_id, buf, sizeof(int));
+    buf += sizeof(int);
+    while (buf < _terminal && (DecodeData::DecodeDataType) * (buf) == DecodeData::_jit_pc_info)
     {
         ++buf;
+        int pc;
+        memcpy(&pc, buf, sizeof(int));
+        buf += sizeof(int);
     }
-    pcs = (const PCStackInfo **)buf;
-    assert(section != nullptr && pcs != nullptr);
     return true;
 }

@@ -3,6 +3,7 @@
 #include "java/block.hpp"
 #include "output/decode_output.hpp"
 #include "output/output_frame.hpp"
+#include "runtime/jvm_runtime.hpp"
 
 #include <cassert>
 #include <iostream>
@@ -31,8 +32,8 @@ void DecodeOutput::output_cfg(const std::string prefix)
                 {
                 case DecodeData::_method:
                 {
-                    const Method *method;
-                    if (!access.get_method(loc, method))
+                    int method_id;
+                    if (!access.get_method(loc, method_id))
                     {
                         std::cerr << "DecodeOutput error: Fail to get method entry "
                                   << access.id() << " " << access.pos() << std::endl;
@@ -72,10 +73,10 @@ void DecodeOutput::output_cfg(const std::string prefix)
                 case DecodeData::_jit_osr_entry:
                 case DecodeData::_jit_code:
                 {
-                    const JitSection *section;
-                    const PCStackInfo **info;
+                    int section_id;
+                    std::vector<int> pcs;
                     uint64_t size;
-                    if (!access.get_jit_code(loc, section, info, size))
+                    if (!access.get_jit_code(loc, section_id, pcs))
                     {
                         std::cerr << "DecodeOutput error: Fail to get jit code "
                                   << access.id() << " " << access.pos() << std::endl;
@@ -99,7 +100,6 @@ void DecodeOutput::output_cfg(const std::string prefix)
     }
 }
 
-/* Todo: use a id of int to refer to method */
 void DecodeOutput::output_func(const std::string prefix)
 {
     for (auto &&thread : _splits)
@@ -116,26 +116,26 @@ void DecodeOutput::output_func(const std::string prefix)
                 {
                 case DecodeData::_method:
                 {
-                    const Method *method;
-                    if (!access.get_method(loc, method))
+                    int method_id;
+                    if (!access.get_method(loc, method_id))
                     {
                         std::cerr << "DecodeOutput error: Fail to get method entry "
                                   << access.id() << " " << access.pos() << std::endl;
                         exit(1);
                     }
-                    file << "i:" << method->get_klass()->get_name() + " " << method->get_name() << std::endl;
+                    file << "i:" << method_id << std::endl;
                     break;
                 }
                 case DecodeData::_method_exit:
                 {
-                    const Method *method;
-                    if (!access.get_method(loc, method))
+                    int method_id;
+                    if (!access.get_method(loc, method_id))
                     {
                         std::cerr << "DecodeOutput error: Fail to get method entry "
                                   << access.id() << " " << access.pos() << std::endl;
                         exit(1);
                     }
-                    file << "i:" << method->get_klass()->get_name() + " " << method->get_name() << std::endl;
+                    file << "i:" << method_id << std::endl;
                     break;
                 }
                 case DecodeData::_data_loss:
@@ -170,26 +170,24 @@ void DecodeOutput::print()
                 {
                 case DecodeData::_method:
                 {
-                    const Method *method;
-                    if (!access.get_method(loc, method))
+                    int method_id;
+                    if (!access.get_method(loc, method_id))
                     {
                         std::cerr << "DecodeOutput error: Fail to get method entry" << std::endl;
                         exit(1);
                     }
-                    std::cout << "    Method Entry: " << method->get_klass()->get_name()
-                              << " " << method->get_name() << std::endl;
+                    std::cout << "    Method Entry: " << method_id << std::endl;
                     break;
                 }
                 case DecodeData::_method_exit:
                 {
-                    const Method *method;
-                    if (!access.get_method(loc, method))
+                    int method_id;
+                    if (!access.get_method(loc, method_id))
                     {
                         std::cerr << "DecodeOutput error: Fail to get method entry" << std::endl;
                         exit(1);
                     }
-                    std::cout << "    Method Exit: " << method->get_klass()->get_name()
-                              << " " << method->get_name() << std::endl;
+                    std::cout << "    Method Exit: " << method_id << std::endl;
                     break;
                 }
                 case DecodeData::_taken:
@@ -226,29 +224,25 @@ void DecodeOutput::print()
                 case DecodeData::_jit_osr_entry:
                 case DecodeData::_jit_code:
                 {
-                    const JitSection *section;
-                    const PCStackInfo **info;
-                    uint64_t size;
-                    if (!access.get_jit_code(loc, section, info, size))
+                    int section_id;
+                    std::vector<int> pcs;
+                    if (!access.get_jit_code(loc, section_id, pcs))
                     {
                         std::cerr << "DecodeOutput error: Fail to get jit code" << std::endl;
                         exit(1);
                     }
                     if (type == DecodeData::_jit_entry)
                     {
-                        std::cout << "  Jit code entry: ";
+                        std::cout << "  Jit code entry: " << std::endl;
                     }
                     if (type == DecodeData::_jit_osr_entry)
                     {
-                        std::cout << "Jit code osr entry: ";
+                        std::cout << "Jit code osr entry: " << std::endl;
                     }
                     if (type == DecodeData::_jit_code)
                     {
-                        std::cout << "Jit code: ";
+                        std::cout << "Jit code: " << std::endl;
                     }
-                    std::cout << section->mainm()->get_klass()->get_name()
-                              << " " << section->mainm()->get_name()
-                              << " " << size << std::endl;
                     break;
                 }
                 case DecodeData::_jit_return:

@@ -3,6 +3,7 @@
 
 #include "java/definitions.hpp"
 
+#include <atomic>
 #include <string>
 
 class BlockGraph;
@@ -11,8 +12,10 @@ class Klass;
 class Method
 {
 private:
+    static std::atomic_int MethodCounter;
     const u2 ACC_JPORTAL = 0x2000;
     u2 _flags;
+    int _id;
     const std::string _name_signature;
     BlockGraph *_bg;
     const Klass *_klass;
@@ -25,6 +28,7 @@ public:
     std::string get_name() const { return _name_signature; }
     BlockGraph *get_bg() const;
     const Klass *get_klass() const { return _klass; }
+    int id() const { return _id; }
     void print_graph() const;
     void print_bctlist() const;
     bool is_jportal() const { return (_flags & ACC_JPORTAL) == ACC_JPORTAL; }

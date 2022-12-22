@@ -3,6 +3,7 @@
 
 #include "java/definitions.hpp"
 
+#include <atomic>
 #include <map>
 #include <mutex>
 #include <string>
@@ -40,6 +41,10 @@ public:
 class JitSection
 {
 private:
+    static std::atomic_int JitSectionCounter;
+
+    int _id;
+
     /* description of jit codes */
     const uint8_t *_code;
 
@@ -79,6 +84,8 @@ public:
 
     ~JitSection();
 
+    int id() const { return _id; }
+
     /* Read memory from a section.
      *
      * Reads at most @size bytes from @section with @vaddr in @buffer.  @section
@@ -90,8 +97,9 @@ public:
      */
     bool read(uint8_t *buffer, uint8_t *size, uint64_t vaddr);
 
-    /* find PCStackInfo from _record */
-    PCStackInfo *find(uint64_t vaddr);
+    /* find index of PCStackInfo, vaddr should be next instruction's addr */
+    int find_pc(uint64_t vaddr);
+    const PCStackInfo *get_pc(int idx);
 
     uint32_t code_size() const { return _code_size; }
     uint64_t code_begin() const { return _code_begin; }

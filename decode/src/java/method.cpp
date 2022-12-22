@@ -4,10 +4,12 @@
 #include <cassert>
 #include <iostream>
 
+std::atomic_int Method::MethodCounter(0);
+
 Method::Method(std::string name_signature, const u1 *const code_buffer,
                const u2 code_length, const u1 *const exception_table,
                const u2 exception_table_length, const Klass *klass, u2 flags)
-    : _name_signature(name_signature),
+    : _id(MethodCounter++), _name_signature(name_signature),
       _bg(new BlockGraph(code_buffer, code_length, exception_table,
                          exception_table_length)),
       _klass(klass), _flags(flags)

@@ -241,6 +241,8 @@ public:
     /* print all jvm runtime event */
     static void print(uint8_t *buffer, uint64_t size);
 
+    static void output(std::string prefix);
+
 private:
     /* current position */
     const uint8_t *_current;
@@ -273,6 +275,11 @@ private:
 
     /* map between data pointer to sectio, process all in advance */
     static std::map<const uint8_t *, JitSection *> _section_map;
+
+    /* map id to methods */
+    static std::map<int, const Method *> _id_to_methods;
+    /* map id to section */
+    static std::map<int, JitSection *> _id_to_sections;
 
     static bool _initialized;
 };

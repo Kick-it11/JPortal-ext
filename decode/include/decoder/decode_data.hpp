@@ -8,10 +8,6 @@
 #include <cassert>
 #include <vector>
 
-class JitSection;
-class Method;
-struct PCStackInfo;
-
 /* TraceDataParser will parse bianry data of JPortalTrace.data
  * and extract the PT data, sideband data, JVM runtime data.
  *     It will also split PT data into segments for parallel decoding.
@@ -86,14 +82,17 @@ public:
         /* following jit code, JIT description and pcs */
         _jit_code = 10,
 
+        /* pc info */
+        _jit_pc_info = 11,
+
         /* jit return */
-        _jit_return = 11,
+        _jit_return = 12,
 
         /* indicate a dataloss might happening */
-        _data_loss = 12,
+        _data_loss = 13,
 
         /* indicate a decode error */
-        _decode_error = 13,
+        _decode_error = 14,
     };
 
 private:
@@ -121,25 +120,19 @@ public:
     static std::map<uint64_t, std::vector<ThreadSplit>> sort_all_by_time(const std::vector<DecodeData *> &data);
 };
 
-/* Todo: Improve: use a global id of int to refer to method, section, pc */
 class DecodeDataRecord
 {
 private:
     DecodeData *const _data;
     DecodeData::ThreadSplit *_cur_thread;
     uint8_t _type;
-
-    const JitSection *_cur_section;
-    uint64_t _pc_size;
-    uint64_t _pc_size_pos;
+    int _section_id;
 
 public:
     DecodeDataRecord(DecodeData *data) : _data(data),
                                          _cur_thread(nullptr),
                                          _type(DecodeData::_illegal),
-                                         _cur_section(nullptr),
-                                         _pc_size(0),
-                                         _pc_size_pos(0)
+                                         _section_id(-1)
     {
         assert(data != nullptr);
     }
@@ -157,9 +150,9 @@ public:
 
     void switch_out(uint64_t time);
 
-    bool record_method(const Method *method);
+    bool record_method(int method_id);
 
-    bool record_method_exit(const Method *method);
+    bool record_method_exit(int method_id);
 
     bool record_branch_taken();
 
@@ -171,11 +164,11 @@ public:
 
     bool record_bci(int bci);
 
-    bool record_jit_entry(const JitSection *section);
+    bool record_jit_entry(int section_id);
 
-    bool record_jit_osr_entry(const JitSection *section);
+    bool record_jit_osr_entry(int section_id);
 
-    bool record_jit_code(const JitSection *section, const PCStackInfo *info);
+    bool record_jit_code(int section_id, int idx);
 
     bool record_jit_return();
 
@@ -212,13 +205,13 @@ public:
 
     bool next_trace(DecodeData::DecodeDataType &type, uint64_t &pos);
 
-    bool get_method(uint64_t pos, const Method *&method);
+    bool get_method(uint64_t pos, int &method_id);
 
     bool get_switch_case_index(uint64_t pos, int &index);
 
     bool get_bci(uint64_t pos, int &bci);
 
-    bool get_jit_code(uint64_t pos, const JitSection *&section, const PCStackInfo **&pcs, uint64_t &size);
+    bool get_jit_code(uint64_t pos, int &section_id, std::vector<int> &pcs);
 
     uint64_t pos() const { return _current - _data->_data_begin; }
 

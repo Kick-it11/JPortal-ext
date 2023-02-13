@@ -1,5 +1,4 @@
 #include "decoder/decode_data.hpp"
-#include "java/analyser.hpp"
 #include "java/block.hpp"
 #include "output/decode_output.hpp"
 #include "output/output_frame.hpp"
@@ -8,93 +7,136 @@
 #include <cassert>
 #include <iostream>
 #include <fstream>
+#include <vector>
 
-DecodeOutput::DecodeOutput(const std::vector<DecodeData *> &data, Analyser *analyser)
+using std::vector;
+
+DecodeOutput::DecodeOutput(const std::vector<DecodeData *> &data)
 {
-    _analyser = analyser;
     _splits = DecodeData::sort_all_by_time(data);
 }
 
-/* Todo: output cfg info: methods and bytecodes */
 void DecodeOutput::output_cfg(const std::string prefix)
 {
     for (auto &&thread : _splits)
     {
         std::ofstream file(prefix + "-" + "thrd" + std::to_string(thread.first));
-        for (auto &&split : thread.second)
+        DecodeDataAccess access(thread.second);
+        DecodeData::DecodeDataType type;
+        uint64_t loc;
+
+        std::vector<OutputFrame> frames;
+        while (access.next_trace(type, loc))
         {
-            DecodeDataAccess access(split);
-            DecodeData::DecodeDataType type;
-            uint64_t loc;
-            while (access.next_trace(type, loc))
+            if (type == DecodeData::_method)
             {
-                switch (type)
+                int method_id;
+                const Method *method;
+                if (!access.get_method(loc, method_id))
                 {
-                case DecodeData::_method:
-                {
-                    int method_id;
-                    if (!access.get_method(loc, method_id))
-                    {
-                        std::cerr << "DecodeOutput error: Fail to get method entry "
-                                  << access.id() << " " << access.pos() << std::endl;
-                        exit(1);
-                    }
-                    break;
-                }
-                case DecodeData::_taken:
-                    break;
-                case DecodeData::_not_taken:
-                    break;
-                case DecodeData::_switch_case:
-                {
-                    int index;
-                    if (!access.get_switch_case_index(loc, index))
-                    {
-                        std::cerr << "DecodeOutput error: Fail to get switch case index "
-                                  << access.id() << " " << access.pos() << std::endl;
-                        exit(1);
-                    }
-                    break;
-                }
-                case DecodeData::_switch_default:
-                    break;
-                case DecodeData::_bci:
-                {
-                    int bci;
-                    if (!access.get_bci(loc, bci))
-                    {
-                        std::cerr << "DecodeOutput error: Fail to get bci "
-                                  << access.id() << " " << access.pos() << std::endl;
-                        exit(1);
-                    }
-                    break;
-                }
-                case DecodeData::_jit_entry:
-                case DecodeData::_jit_osr_entry:
-                case DecodeData::_jit_code:
-                {
-                    int section_id;
-                    std::vector<int> pcs;
-                    uint64_t size;
-                    if (!access.get_jit_code(loc, section_id, pcs))
-                    {
-                        std::cerr << "DecodeOutput error: Fail to get jit code "
-                                  << access.id() << " " << access.pos() << std::endl;
-                        exit(1);
-                    }
-                    break;
-                }
-                case DecodeData::_jit_return:
-                    break;
-                case DecodeData::_data_loss:
-                    break;
-                case DecodeData::_decode_error:
-                    break;
-                default:
-                    std::cerr << "DecodeOutput error: unknown type"
+                    std::cerr << "DecodeOutput error: Fail to get method "
                               << access.id() << " " << access.pos() << std::endl;
                     exit(1);
                 }
+                if (!(method = JVMRuntime::method_by_id(method_id)))
+                {
+                    std::cerr << "DecodeOutput error: Fail to get method by id "
+                              << access.id() << " " << access.pos() << std::endl;
+                    exit(1);
+                }
+                int bci1, bci2;
+                if (!access.current_trace(type) || type != DecodeData::_bci)
+                {
+                    // /* method entry */
+                    // todo
+                    // if (cur_method)
+                    // {
+                    //     /* cur_method to next invoke */
+
+                    // }
+                    // cur_method = method;
+                    // bci = 0;
+                }
+                else if (!access.next_trace(type, loc) || !access.get_bci(loc, bci1))
+                {
+                    std::cerr << "DecodeOutput error: Fail to get bci "
+                              << access.id() << " " << access.pos() << std::endl;
+                    exit(1);
+                }
+                else if (!access.current_trace(type) || type != DecodeData::_bci)
+                {
+                    /* method & bci : invoke return, or deoptimization */
+                    // todo
+                }
+                else if (access.next_trace(type, loc) || !access.get_bci(loc, bci2))
+                {
+                    std::cerr << "DecodeOutput error: Fail to get bci "
+                              << access.id() << " " << access.pos() << std::endl;
+                    exit(1);
+                }
+                else
+                {
+                    /* method & bci1 & bci2 : exception */
+                    /* cur_method == method ? to bci1 and set bci2 */
+                }
+
+            }
+            else if (type == DecodeData::_bci)
+            {
+                /* bci should always follow a method or bci */
+                std::cerr << "DecodeOutput error: Unexpected bci "
+                          << access.id() << " " << access.pos() << std::endl;
+                continue;
+            }
+            switch (type)
+            {
+            case DecodeData::_taken:
+                
+                break;
+            case DecodeData::_not_taken:
+                
+                break;
+            case DecodeData::_switch_case:
+            {
+                int index;
+                if (!access.get_switch_case_index(loc, index))
+                {
+                    std::cerr << "DecodeOutput error: Fail to get switch case index "
+                              << access.id() << " " << access.pos() << std::endl;
+                    exit(1);
+                }
+                
+                break;
+            }
+            case DecodeData::_switch_default:
+                
+                break;
+            case DecodeData::_jit_entry:
+            case DecodeData::_jit_osr_entry:
+            case DecodeData::_jit_code:
+            {
+                int section_id;
+                std::vector<int> pcs;
+                uint64_t size;
+                if (!access.get_jit_code(loc, section_id, pcs))
+                {
+                    std::cerr << "DecodeOutput error: Fail to get jit code "
+                              << access.id() << " " << access.pos() << std::endl;
+                    exit(1);
+                }
+                
+                break;
+            }
+            case DecodeData::_jit_return:
+                break;
+            case DecodeData::_data_loss:
+                break;
+            case DecodeData::_decode_error:
+                break;
+            default:
+                std::cerr << "DecodeOutput error: unknown type"
+                          << access.id() << " " << access.pos() << std::endl;
+                exit(1);
             }
         }
     }
@@ -105,48 +147,45 @@ void DecodeOutput::output_func(const std::string prefix)
     for (auto &&thread : _splits)
     {
         std::ofstream file(prefix + "-" + "thrd" + std::to_string(thread.first));
-        for (auto &&split : thread.second)
+        DecodeDataAccess access(thread.second);
+        DecodeData::DecodeDataType type;
+        uint64_t loc;
+        while (access.next_trace(type, loc))
         {
-            DecodeDataAccess access(split);
-            DecodeData::DecodeDataType type;
-            uint64_t loc;
-            while (access.next_trace(type, loc))
+            switch (type)
             {
-                switch (type)
+            case DecodeData::_method:
+            {
+                int method_id;
+                if (!access.get_method(loc, method_id))
                 {
-                case DecodeData::_method:
-                {
-                    int method_id;
-                    if (!access.get_method(loc, method_id))
-                    {
-                        std::cerr << "DecodeOutput error: Fail to get method entry "
-                                  << access.id() << " " << access.pos() << std::endl;
-                        exit(1);
-                    }
-                    file << "i:" << method_id << std::endl;
-                    break;
-                }
-                case DecodeData::_method_exit:
-                {
-                    int method_id;
-                    if (!access.get_method(loc, method_id))
-                    {
-                        std::cerr << "DecodeOutput error: Fail to get method entry "
-                                  << access.id() << " " << access.pos() << std::endl;
-                        exit(1);
-                    }
-                    file << "i:" << method_id << std::endl;
-                    break;
-                }
-                case DecodeData::_data_loss:
-                    break;
-                case DecodeData::_decode_error:
-                    break;
-                default:
-                    std::cerr << "DecodeOutput error: unknown type"
+                    std::cerr << "DecodeOutput error: Fail to get method entry "
                               << access.id() << " " << access.pos() << std::endl;
                     exit(1);
                 }
+                file << "i:" << method_id << std::endl;
+                break;
+            }
+            case DecodeData::_method_exit:
+            {
+                int method_id;
+                if (!access.get_method(loc, method_id))
+                {
+                    std::cerr << "DecodeOutput error: Fail to get method entry "
+                              << access.id() << " " << access.pos() << std::endl;
+                    exit(1);
+                }
+                file << "i:" << method_id << std::endl;
+                break;
+            }
+            case DecodeData::_data_loss:
+                break;
+            case DecodeData::_decode_error:
+                break;
+            default:
+                std::cerr << "DecodeOutput error: unknown type"
+                          << access.id() << " " << access.pos() << std::endl;
+                exit(1);
             }
         }
     }

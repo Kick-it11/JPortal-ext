@@ -224,9 +224,19 @@ bool DecodeDataRecord::record_decode_error()
 bool DecodeDataAccess::next_trace(DecodeData::DecodeDataType &type, uint64_t &pos)
 {
     pos = _current - _data->_data_begin;
-    if (_current >= _terminal)
+    while (_current >= _terminal)
     {
-        return false;
+        if (_it == _splits.end())
+        {
+            return false;
+        }
+        else
+        {
+            _data = _it->data;
+            _current = _data->_data_begin + _it->start_addr;
+            _terminal = _data->_data_begin + _it->end_addr;
+            ++_it;
+        }
     }
     type = (DecodeData::DecodeDataType)*_current;
     switch (type)
@@ -270,6 +280,46 @@ bool DecodeDataAccess::next_trace(DecodeData::DecodeDataType &type, uint64_t &po
     case DecodeData::_decode_error:
     case DecodeData::_data_loss:
         ++_current;
+        break;
+    default:
+        std::cerr << "DecodeData error: access unknown type" << type << std::endl;
+        exit(1);
+    }
+    return true;
+}
+
+bool DecodeDataAccess::current_trace(DecodeData::DecodeDataType &type)
+{
+    while (_current >= _terminal)
+    {
+        if (_it == _splits.end())
+        {
+            return false;
+        }
+        else
+        {
+            _data = _it->data;
+            _current = _data->_data_begin + _it->start_addr;
+            _terminal = _data->_data_begin + _it->end_addr;
+            ++_it;
+        }
+    }
+    type = (DecodeData::DecodeDataType)*_current;
+    switch (type)
+    {
+    case DecodeData::_method:
+    case DecodeData::_method_exit:
+    case DecodeData::_taken:
+    case DecodeData::_not_taken:
+    case DecodeData::_switch_case:
+    case DecodeData::_switch_default:
+    case DecodeData::_bci:
+    case DecodeData::_jit_entry:
+    case DecodeData::_jit_osr_entry:
+    case DecodeData::_jit_code:
+    case DecodeData::_jit_return:
+    case DecodeData::_decode_error:
+    case DecodeData::_data_loss:
         break;
     default:
         std::cerr << "DecodeData error: access unknown type" << type << std::endl;
@@ -351,6 +401,7 @@ bool DecodeDataAccess::get_jit_code(uint64_t pos, int &section_id, std::vector<i
         ++buf;
         int pc;
         memcpy(&pc, buf, sizeof(int));
+        pcs.push_back(pc);
         buf += sizeof(int);
     }
     return true;

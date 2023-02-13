@@ -49,50 +49,47 @@ public:
     {
         _illegal = -1,
 
-        /* 0, for aligning */
-        _padding = 0,
-
         /* method entry in a java method level, follows a method pointer -> for inter */
-        _method = 1,
+        _method = 0,
 
         /* method exit */
-        _method_exit = 2,
+        _method_exit = 1,
 
         /* taken branch in a bytecode level -> for inter */
-        _taken = 3,
+        _taken = 2,
 
-        /* untaken branch in a bytecode level -> for inter*/
-        _not_taken = 4,
+        /* untaken branch in a bytecode level -> for inter */
+        _not_taken = 3,
 
         /* switch case */
-        _switch_case = 5,
+        _switch_case = 4,
 
         /* switch default */
-        _switch_default = 6,
+        _switch_default = 5,
 
         /* exception handling or unwwind -> for inter, mostly a pair */
-        _bci = 7,
+        _bci = 6,
 
         /* following jit code, with a jit entry */
-        _jit_entry = 8,
+        _jit_entry = 7,
 
         /* following jit code, with an osr entry */
-        _jit_osr_entry = 9,
+        _jit_osr_entry = 8,
 
         /* following jit code, JIT description and pcs */
-        _jit_code = 10,
+        _jit_code = 9,
 
         /* pc info */
-        _jit_pc_info = 11,
+        _jit_pc_info = 10,
 
         /* jit return */
-        _jit_return = 12,
+        _jit_return = 11,
 
         /* indicate a dataloss might happening */
-        _data_loss = 13,
+        _data_loss = 12,
 
         /* indicate a decode error */
-        _decode_error = 14,
+        _decode_error = 13,
     };
 
 private:
@@ -186,6 +183,9 @@ private:
     const uint8_t *_current;
     const uint8_t *_terminal;
 
+    std::vector<DecodeData::ThreadSplit>::iterator _it;
+    std::vector<DecodeData::ThreadSplit> _splits;
+
 public:
     DecodeDataAccess(DecodeData *data)
     {
@@ -193,6 +193,7 @@ public:
         _data = data;
         _current = _data->_data_begin;
         _terminal = _data->_data_end;
+        _it = _splits.end();
     }
 
     DecodeDataAccess(const DecodeData::ThreadSplit &split)
@@ -201,9 +202,33 @@ public:
         _data = split.data;
         _current = _data->_data_begin + split.start_addr;
         _terminal = _data->_data_begin + split.end_addr;
+        _it = _splits.end();
     }
 
+    DecodeDataAccess(const std::vector<DecodeData::ThreadSplit> &splits)
+    {
+        _splits = splits;
+        _it = _splits.begin();
+        if (_it != _splits.end())
+        {
+            _data = _it->data;
+            _current = _data->_data_begin + _it->start_addr;
+            _terminal = _data->_data_begin + _it->end_addr;
+            ++_it;
+        }
+        else
+        {
+            _data = nullptr;
+            _current = nullptr;
+            _terminal = nullptr;
+        }
+    }
+
+    /* get trace and move on */
     bool next_trace(DecodeData::DecodeDataType &type, uint64_t &pos);
+
+    /* get current trace */
+    bool current_trace(DecodeData::DecodeDataType &type);
 
     bool get_method(uint64_t pos, int &method_id);
 

@@ -102,7 +102,9 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
             {
                 std::cerr << "JVMRuntime error: Method with the same id" << std::endl;
                 break;
-            } else {
+            }
+            else
+            {
                 _id_to_methods[method->id()] = method;
             }
             _methods[mei->addr1] = method;

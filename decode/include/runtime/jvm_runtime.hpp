@@ -238,6 +238,16 @@ public:
         return _tid_map.count(tid) ? _tid_map[tid] : 0;
     }
 
+    static const Method *method_by_id(int id)
+    {
+        return _id_to_methods.count(id) ? _id_to_methods[id] : nullptr;
+    }
+
+    static const JitSection *jit_section_by_id(int id)
+    {
+        return _id_to_sections.count(id) ? _id_to_sections[id] : nullptr;
+    }
+
     /* print all jvm runtime event */
     static void print(uint8_t *buffer, uint64_t size);
 

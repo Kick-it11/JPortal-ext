@@ -16,13 +16,12 @@ private:
 
     std::vector<OutputFrame *> _frames;
 
-    Analyser *_analyser;
-
 public:
-    DecodeOutput(const std::vector<DecodeData *> &data, Analyser *analyser);
+    DecodeOutput(const std::vector<DecodeData *> &data);
 
     /* output trace data to file with name prefix-thrd1, prefix-thrd*, ... */
     void output_cfg(const std::string prefix);
+
     void output_func(const std::string prefix);
 
     /* simply print decode data, with no method info */

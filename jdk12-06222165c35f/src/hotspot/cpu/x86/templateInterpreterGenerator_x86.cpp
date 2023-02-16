@@ -98,6 +98,38 @@ void TemplateInterpreterGenerator::jportal_method_and_bci(int step) {
 
   __ bind(non_jportal);
 }
+
+void TemplateInterpreterGenerator::jportal_deoptimization(int step) {
+  __ get_method(rcx);
+  Label non_jportal;
+  JPortalStub *stub = JPortalStubBuffer::new_jportal_jump_stub();
+  Register bcp_register = LP64_ONLY(r13) NOT_LP64(rsi);
+
+  __ movl(rdx, Address(rcx, Method::access_flags_offset()));
+  __ testl(rdx, JVM_ACC_JPORTAL);
+  __ jcc(Assembler::zero, non_jportal);
+
+  __ jump(ExternalAddress(stub->code_begin()));
+
+  address addr = __ pc();
+  stub->set_jump_stub(addr);
+  JPortalEnable::dump_deoptimization(stub->code_begin());
+
+  __ movptr(rscratch1, Address(rcx, Method::jportal_entry_offset()));
+  __ call(rscratch1);
+
+  __ movptr(rdx, Address(rcx, Method::const_offset()));   // get ConstMethod*
+  __ lea(rdx, Address(rdx, ConstMethod::codes_offset()));    // get codebase
+  __ movptr(rbx, bcp_register);
+  __ addptr(rbx, step);
+  __ subptr(rbx, rdx);
+  __ lea(rscratch1, ExternalAddress(JPortalStubBuffer::bci_table()->code_begin()));
+  __ addptr(rscratch1, rbx);
+  __ call(rscratch1);
+
+  __ bind(non_jportal);
+}
+
 #endif
 
 address TemplateInterpreterGenerator::generate_StackOverflowError_handler() {
@@ -330,7 +362,7 @@ address TemplateInterpreterGenerator::generate_deopt_entry_for(TosState state, i
 
 #ifdef JPORTAL_ENABLE
     if (JPortal) {
-      jportal_method_and_bci(step);
+      jportal_deoptimization(step);
     }
 #endif
 

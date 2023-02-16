@@ -36,6 +36,7 @@ class JPortalEnable {
       _thread_start_info,             // a thread begins, map between system tid and java tid
       _inline_cache_add_info,         // inline cache: a map between a source ip to a destination ip
       _inline_cache_clear_info,       // inline cache clear: delete the map
+      _deoptimization_info,           // indicate a deoptimization
     };
 
     struct DumpInfo {
@@ -217,6 +218,16 @@ class JPortalEnable {
       }
     };
 
+    struct DeoptimizationInfo {
+      struct DumpInfo info;
+      u8 addr;
+      DeoptimizationInfo(u8 _addr, u4 _size) : addr(_addr) {
+        info.type = _deoptimization_info;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
+    };
+
     inline static u8 get_timestamp() {
       unsigned int low, high;
       asm volatile("rdtsc" : "=a" (low), "=d" (high));
@@ -261,6 +272,7 @@ class JPortalEnable {
 
     static void dump_inline_cache_clear(address src);
 
+    static void dump_deoptimization(address src);
 };
 #endif
 

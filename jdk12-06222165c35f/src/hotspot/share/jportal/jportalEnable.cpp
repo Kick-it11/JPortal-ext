@@ -190,8 +190,6 @@ void JPortalEnable::dump_branch_not_taken(address addr) {
   return;
 }
 
-
-
 void JPortalEnable::dump_switch_default(address addr) {
   MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
 
@@ -364,6 +362,26 @@ void JPortalEnable::dump_inline_cache_clear(address src) {
   }
 
   dump_data((address)&icci, size);
+}
+
+void JPortalEnable::dump_deoptimization(address addr) {
+  MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
+
+  if (!_initialized) {
+    warning("JPortalEnable error: dump deoptimization before initialize");
+    return;
+  }
+
+  u4 size = sizeof(struct DeoptimizationInfo);
+  DeoptimizationInfo di((u8)addr, size);
+
+  if (!check_data(size)) {
+    warning("JPortalEnable error: ignore deoptimization for size too big");
+    return;
+  }
+
+  dump_data((address)&di, sizeof(di));
+  return;
 }
 
 void JPortalEnable::trace() {

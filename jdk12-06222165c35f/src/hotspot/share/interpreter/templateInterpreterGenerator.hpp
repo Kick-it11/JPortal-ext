@@ -125,6 +125,7 @@ class TemplateInterpreterGenerator: public AbstractInterpreterGenerator {
 
 #ifdef JPORTAL_ENABLE
   void jportal_method_and_bci(int step);
+  void jportal_deoptimization(int step);
 #endif
 
  public:

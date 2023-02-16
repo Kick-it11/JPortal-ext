@@ -14,7 +14,7 @@ class DecodeOutput
 private:
     std::map<uint64_t, std::vector<DecodeData::ThreadSplit>> _splits;
 
-    std::vector<OutputFrame *> _frames;
+    void clear_frames(std::vector<OutputFrame *> frames);
 
 public:
     DecodeOutput(const std::vector<DecodeData *> &data);

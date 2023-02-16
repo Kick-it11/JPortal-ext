@@ -154,6 +154,7 @@ void PTJVMDecoder::decoder_drain_jvm_events(uint64_t time)
         case JVMRuntime::_bci_table_stub_info:
         case JVMRuntime::_switch_table_stub_info:
         case JVMRuntime::_switch_default_info:
+        case JVMRuntime::_deoptimization_info:
         {
             /* do not need to handle */
             break;
@@ -1822,6 +1823,10 @@ int PTJVMDecoder::decoder_record_intercode(uint64_t ip)
     else if (JVMRuntime::switch_default(_ip))
     {
         recorded = _record.record_switch_default();
+    }
+    else if (JVMRuntime::deoptimization(_ip))
+    {
+        recorded = _record.record_deoptimization();
     }
     else
     {

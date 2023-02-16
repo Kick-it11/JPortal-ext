@@ -203,6 +203,15 @@ bool DecodeDataRecord::record_jit_return()
     return true;
 }
 
+bool DecodeDataRecord::record_deoptimization()
+{
+    if (!_cur_thread)
+        return false;
+    _type = DecodeData::_deoptimization;
+    _data->write(&_type, 1);
+    return true;
+}
+
 bool DecodeDataRecord::record_data_loss()
 {
     if (!_cur_thread)
@@ -277,6 +286,7 @@ bool DecodeDataAccess::next_trace(DecodeData::DecodeDataType &type, uint64_t &po
         break;
     }
     case DecodeData::_jit_return:
+    case DecodeData::_deoptimization:
     case DecodeData::_decode_error:
     case DecodeData::_data_loss:
         ++_current;
@@ -318,6 +328,7 @@ bool DecodeDataAccess::current_trace(DecodeData::DecodeDataType &type)
     case DecodeData::_jit_osr_entry:
     case DecodeData::_jit_code:
     case DecodeData::_jit_return:
+    case DecodeData::_deoptimization:
     case DecodeData::_decode_error:
     case DecodeData::_data_loss:
         break;

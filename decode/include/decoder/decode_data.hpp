@@ -85,11 +85,14 @@ public:
         /* jit return */
         _jit_return = 11,
 
+        /* deoptimization indication */
+        _deoptimization = 12,
+
         /* indicate a dataloss might happening */
-        _data_loss = 12,
+        _data_loss = 13,
 
         /* indicate a decode error */
-        _decode_error = 13,
+        _decode_error = 14,
     };
 
 private:
@@ -168,6 +171,8 @@ public:
     bool record_jit_code(int section_id, int idx);
 
     bool record_jit_return();
+
+    bool record_deoptimization();
 
     bool record_data_loss();
 

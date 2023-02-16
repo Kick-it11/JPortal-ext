@@ -21,6 +21,7 @@ std::map<uint64_t, uint64_t> JVMRuntime::_tid_map;
 std::map<const uint8_t *, JitSection *> JVMRuntime::_section_map;
 std::map<int, const Method *> JVMRuntime::_id_to_methods;
 std::map<int, JitSection *> JVMRuntime::_id_to_sections;
+std::set<uint64_t> JVMRuntime::_deopts;
 bool JVMRuntime::_initialized = false;
 
 JVMRuntime::JVMRuntime()
@@ -239,6 +240,14 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
             buffer += sizeof(InlineCacheClearInfo);
             break;
         }
+        case _deoptimization_info:
+        {
+            const DeoptimizationInfo *di;
+            di = (const DeoptimizationInfo *)buffer;
+            buffer += sizeof(DeoptimizationInfo);
+            _deopts.insert(di->addr);
+            break;
+        }
         default:
         {
             buffer = _end;
@@ -406,6 +415,14 @@ void JVMRuntime::print(uint8_t *buffer, uint64_t size)
             std::cout << "Inline cache Clear " << icci->src
                       << " " << info->time << std::endl;
             buffer += sizeof(InlineCacheClearInfo);
+            break;
+        }
+        case _deoptimization_info:
+        {
+            const DeoptimizationInfo *di;
+            di = (const DeoptimizationInfo *)buffer;
+            buffer += sizeof(DeoptimizationInfo);
+            std::cout << "DeoptimizationInfo: " << di->addr << " " << info->time << std::endl;
             break;
         }
         default:

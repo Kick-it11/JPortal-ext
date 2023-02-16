@@ -16,6 +16,14 @@ DecodeOutput::DecodeOutput(const std::vector<DecodeData *> &data)
     _splits = DecodeData::sort_all_by_time(data);
 }
 
+void DecodeOutput::clear_frames(std::vector<OutputFrame *> frames)
+{
+    while (!frames.empty())
+    {
+        delete frames.back();
+        frames.pop_back();
+    }
+}
 void DecodeOutput::output_cfg(const std::string prefix)
 {
     for (auto &&thread : _splits)
@@ -25,7 +33,7 @@ void DecodeOutput::output_cfg(const std::string prefix)
         DecodeData::DecodeDataType type;
         uint64_t loc;
 
-        std::vector<OutputFrame> frames;
+        std::vector<OutputFrame *> frames;
         while (access.next_trace(type, loc))
         {
             if (type == DecodeData::_method)
@@ -47,15 +55,10 @@ void DecodeOutput::output_cfg(const std::string prefix)
                 int bci1, bci2;
                 if (!access.current_trace(type) || type != DecodeData::_bci)
                 {
-                    // /* method entry */
-                    // todo
-                    // if (cur_method)
-                    // {
-                    //     /* cur_method to next invoke */
+                    /* method entry */
+                    frames.push_back(new InterFrame(method, 0, false));
 
-                    // }
-                    // cur_method = method;
-                    // bci = 0;
+                    /* TODO OUTPUT*/
                 }
                 else if (!access.next_trace(type, loc) || !access.get_bci(loc, bci1))
                 {
@@ -65,8 +68,22 @@ void DecodeOutput::output_cfg(const std::string prefix)
                 }
                 else if (!access.current_trace(type) || type != DecodeData::_bci)
                 {
-                    /* method & bci : invoke return, or deoptimization */
-                    // todo
+                    /* method & bci : invoke return */
+                    while (!frames.empty() && frames.back()->is_jit_frame())
+                    {
+                        ((JitFrame*)frames.back())->jit_return();
+                        delete frames.back();
+                        frames.pop_back();
+                    }
+                    if (!frames.empty() && ((InterFrame*)frames.back())->method() != method)
+                    {
+                        std::cerr << "DecodeOutput error: False method invoke return site "
+                              << access.id() << " " << access.pos() << std::endl;
+                    }
+                    if (frames.empty())
+                    {
+
+                    }
                 }
                 else if (access.next_trace(type, loc) || !access.get_bci(loc, bci2))
                 {
@@ -77,7 +94,27 @@ void DecodeOutput::output_cfg(const std::string prefix)
                 else
                 {
                     /* method & bci1 & bci2 : exception */
-                    /* cur_method == method ? to bci1 and set bci2 */
+                    if (frames.empty())
+                    {
+                        frames.push_back(new InterFrame(method, bci2, false));
+                    }
+                    else if (frames.back()->is_inter_frame())
+                    {
+                        if (((InterFrame *)frames.back())->)
+                        {
+
+                        }
+                        /* to do, forward to bci */
+                        ((InterFrame *)frames.back())->forward(bci1);
+                        ((InterFrame *)frames.back())->change(bci2);
+                    }
+                    else
+                    {
+                        /* deoptimize */
+                        delete frames.back();
+                        frames.pop_back();
+                        frames.push_back(new InterFrame(method, bci1, false));
+                    }
                 }
 
             }
@@ -109,7 +146,6 @@ void DecodeOutput::output_cfg(const std::string prefix)
                 break;
             }
             case DecodeData::_switch_default:
-                
                 break;
             case DecodeData::_jit_entry:
             case DecodeData::_jit_osr_entry:
@@ -124,7 +160,6 @@ void DecodeOutput::output_cfg(const std::string prefix)
                               << access.id() << " " << access.pos() << std::endl;
                     exit(1);
                 }
-                
                 break;
             }
             case DecodeData::_jit_return:
@@ -286,6 +321,9 @@ void DecodeOutput::print()
                 }
                 case DecodeData::_jit_return:
                     std::cout << "    Jit return" << std::endl;
+                    break;
+                case DecodeData::_deoptimization:
+                    std::cout << "    Deoptimization" << std::endl;
                     break;
                 case DecodeData::_data_loss:
                     std::cout << "    Data loss" << std::endl;

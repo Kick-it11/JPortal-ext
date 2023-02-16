@@ -73,6 +73,9 @@ public:
 
         /* Inline cache clear: delete the map */
         _inline_cache_clear_info,
+
+        /* deoptimization indication */
+        _deoptimization_info,
     };
 
     struct DumpInfo
@@ -93,19 +96,19 @@ public:
     };
 
     struct BciTableStubInfo {
-      u8 addr;
-      u4 num;
-      u4 ssize;
+        u8 addr;
+        u4 num;
+        u4 ssize;
     };
 
     struct SwitchTableStubInfo {
-      u8 addr;
-      u4 num;
-      u4 ssize;
+        u8 addr;
+        u4 num;
+        u4 ssize;
     };
 
     struct SwitchDefaultInfo {
-      u8 addr;
+        u8 addr;
     };
 
     struct BranchTakenInfo
@@ -159,6 +162,11 @@ public:
     struct InlineCacheClearInfo
     {
         uint64_t src;
+    };
+
+    struct DeoptimizationInfo
+    {
+        uint64_t addr;
     };
 
     JVMRuntime();
@@ -248,6 +256,11 @@ public:
         return _id_to_sections.count(id) ? _id_to_sections[id] : nullptr;
     }
 
+    static bool deoptimization(uint64_t ip)
+    {
+        return _deopts.count(ip);
+    }
+
     /* print all jvm runtime event */
     static void print(uint8_t *buffer, uint64_t size);
 
@@ -290,6 +303,8 @@ private:
     static std::map<int, const Method *> _id_to_methods;
     /* map id to section */
     static std::map<int, JitSection *> _id_to_sections;
+
+    static std::set<uint64_t> _deopts;
 
     static bool _initialized;
 };

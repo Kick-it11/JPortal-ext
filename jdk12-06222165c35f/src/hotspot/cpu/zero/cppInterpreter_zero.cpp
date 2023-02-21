@@ -807,7 +807,7 @@ InterpreterFrame *InterpreterFrame::build(int size, TRAPS) {
   return (InterpreterFrame *) fp;
 }
 
-address CppInterpreter::return_entry(TosState state, int length, Bytecodes::Code code, bool jportal) {
+address CppInterpreter::return_entry(TosState state, int length, bool jportal, bool dump) {
   ShouldNotCallThis();
   return NULL;
 }

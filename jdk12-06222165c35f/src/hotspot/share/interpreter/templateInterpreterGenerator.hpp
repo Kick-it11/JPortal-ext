@@ -52,7 +52,7 @@ class TemplateInterpreterGenerator: public AbstractInterpreterGenerator {
   address generate_exception_handler_common(const char* name, const char* message, bool pass_oop);
   address generate_ClassCastException_handler();
   address generate_ArrayIndexOutOfBounds_handler();
-  address generate_return_entry_for(TosState state, int step, size_t index_size, bool jportal = false);
+  address generate_return_entry_for(TosState state, int step, size_t index_size, bool jportal = false, bool dump = false, bool is_invoke = false);
   address generate_earlyret_entry_for(TosState state);
   address generate_deopt_entry_for(TosState state, int step, address continuation = NULL, bool jportal = false);
   address generate_safept_entry_for(TosState state, address runtime_entry, bool jportal = false);
@@ -130,6 +130,7 @@ class TemplateInterpreterGenerator: public AbstractInterpreterGenerator {
   void jportal_throw_exception();
   void jportal_pop_frame();
   void jportal_earlyret();
+  void jportal_non_invoke_ret();
 #endif
 
  public:

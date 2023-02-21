@@ -226,6 +226,11 @@ DispatchTable TemplateInterpreter::_jportal_active_table;
 DispatchTable TemplateInterpreter::_jportal_normal_table;
 DispatchTable TemplateInterpreter::_jportal_safept_table;
 address    TemplateInterpreter::_jportal_wentry_point[DispatchTable::length];
+
+EntryPoint TemplateInterpreter::_jportal_dump_return_entry[TemplateInterpreter::number_of_return_entries];
+address TemplateInterpreter::_jportal_dump_invoke_return_entry[TemplateInterpreter::number_of_return_addrs];
+address TemplateInterpreter::_jportal_dump_invokeinterface_return_entry[TemplateInterpreter::number_of_return_addrs];
+address TemplateInterpreter::_jportal_dump_invokedynamic_return_entry[TemplateInterpreter::number_of_return_addrs];
 #endif
 
 //------------------------------------------------------------------------------------------------------------------------
@@ -234,17 +239,17 @@ address    TemplateInterpreter::_jportal_wentry_point[DispatchTable::length];
 /**
  * Returns the return entry table for the given invoke bytecode.
  */
-address* TemplateInterpreter::invoke_return_entry_table_for(Bytecodes::Code code, bool jportal) {
+address* TemplateInterpreter::invoke_return_entry_table_for(Bytecodes::Code code, bool jportal, bool dump) {
   switch (code) {
   case Bytecodes::_invokestatic:
   case Bytecodes::_invokespecial:
   case Bytecodes::_invokevirtual:
   case Bytecodes::_invokehandle:
-    return Interpreter::invoke_return_entry_table(jportal);
+    return Interpreter::invoke_return_entry_table(jportal, dump);
   case Bytecodes::_invokeinterface:
-    return Interpreter::invokeinterface_return_entry_table(jportal);
+    return Interpreter::invokeinterface_return_entry_table(jportal, dump);
   case Bytecodes::_invokedynamic:
-    return Interpreter::invokedynamic_return_entry_table(jportal);
+    return Interpreter::invokedynamic_return_entry_table(jportal, dump);
   default:
     fatal("invalid bytecode: %s", Bytecodes::name(code));
     return NULL;
@@ -253,30 +258,21 @@ address* TemplateInterpreter::invoke_return_entry_table_for(Bytecodes::Code code
 
 /**
  * Returns the return entry address for the given top-of-stack state and bytecode.
+ *   Since this is only used for deoptimization so far,
+ *     Even if it is an invoke bytecode, it is from compiled jitted code rather than bytecode template.
+ *       We use return_entry instead of invoke_return entry
+ *          To mark it is from an deoptimized frame for JPortal
+ *   In JPortal:
+ *     generate return entry: if it is non invoke return , it will have an indication
+ *       Decoding will new an interpretation frame rather rather do the return
  */
-address TemplateInterpreter::return_entry(TosState state, int length, Bytecodes::Code code, bool jportal) {
+address TemplateInterpreter::return_entry(TosState state, int length, bool jportal, bool dump) {
   guarantee(0 <= length && length < Interpreter::number_of_return_entries, "illegal length");
   const int index = TosState_as_index(state);
-  switch (code) {
-  case Bytecodes::_invokestatic:
-  case Bytecodes::_invokespecial:
-  case Bytecodes::_invokevirtual:
-  case Bytecodes::_invokehandle:
-    JPORTAL_ONLY(if (jportal) { assert(JPortal, "jportal"); return _jportal_invoke_return_entry[index]; })
-    return _invoke_return_entry[index];
-  case Bytecodes::_invokeinterface:
-    JPORTAL_ONLY(if (jportal) { assert(JPortal, "jportal"); return _jportal_invokeinterface_return_entry[index]; })
-    return _invokeinterface_return_entry[index];
-  case Bytecodes::_invokedynamic:
-    JPORTAL_ONLY(if (jportal) { assert(JPortal, "jportal"); return _jportal_invokedynamic_return_entry[index]; })
-    return _invokedynamic_return_entry[index];
-  default:
-    assert(!Bytecodes::is_invoke(code), "invoke instructions should be handled separately: %s", Bytecodes::name(code));
-    address entry = _return_entry[length].entry(state);
-    JPORTAL_ONLY(if (jportal) { assert(JPortal, "jportal"); entry = _jportal_return_entry[length].entry(state); })
-    vmassert(entry != NULL, "unsupported return entry requested, length=%d state=%d", length, index);
-    return entry;
-  }
+  address entry = _return_entry[length].entry(state);
+  JPORTAL_ONLY(if (jportal) { assert(JPortal, "jportal"); entry = _jportal_return_entry[length].entry(state); })
+  vmassert(entry != NULL, "unsupported return entry requested, length=%d state=%d", length, index);
+  return entry;
 }
 
 

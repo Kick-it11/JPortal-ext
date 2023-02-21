@@ -155,6 +155,17 @@ void TemplateInterpreterGenerator::jportal_earlyret() {
   stub->set_jump_stub(addr);
   JPortalEnable::dump_earlyret(stub->code_begin());
 }
+
+void TemplateInterpreterGenerator::jportal_non_invoke_ret() {
+  JPortalStub *stub = JPortalStubBuffer::new_jportal_jump_stub();
+
+  assert(JPortal, "jportal");
+  __ jump(ExternalAddress(stub->code_begin()));
+
+  address addr = __ pc();
+  stub->set_jump_stub(addr);
+  JPortalEnable::dump_non_invoke_ret(stub->code_begin());
+}
 #endif
 
 address TemplateInterpreterGenerator::generate_StackOverflowError_handler() {
@@ -257,7 +268,7 @@ address TemplateInterpreterGenerator::generate_exception_handler_common(
   return entry;
 }
 
-address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, int step, size_t index_size, bool jportal) {
+address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, int step, size_t index_size, bool jportal, bool dump, bool is_invoke) {
   address entry = __ pc();
 
 #ifndef _LP64
@@ -318,7 +329,10 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
    }
 
 #ifdef JPORTAL_ENABLE
-  if (jportal) {
+  if (jportal && dump) {
+    if (!is_invoke) {
+      jportal_non_invoke_ret();
+    }
     __ get_method(rcx);
     jportal_method_and_bci(step, rcx, rbx);
   }

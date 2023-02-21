@@ -40,6 +40,7 @@ class JPortalEnable {
       _throw_exception_info,          // indicate throwing a exception
       _pop_frame_info,                // indicate a pop frame
       _earlyret_info,                 // indicate an early ret
+      _non_invoke_ret_info,                // non invoke ret, such as deoptimization
     };
 
     struct DumpInfo {
@@ -261,6 +262,16 @@ class JPortalEnable {
       }
     };
 
+    struct NonInvokeRetInfo {
+      struct DumpInfo info;
+      u8 addr;
+      NonInvokeRetInfo(u8 _addr, u4 _size) : addr(_addr) {
+        info.type = _non_invoke_ret_info;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
+    };
+
     inline static u8 get_timestamp() {
       unsigned int low, high;
       asm volatile("rdtsc" : "=a" (low), "=d" (high));
@@ -312,6 +323,8 @@ class JPortalEnable {
     static void dump_pop_frame(address src);
 
     static void dump_earlyret(address src);
+
+    static void dump_non_invoke_ret(address src);
 };
 #endif
 

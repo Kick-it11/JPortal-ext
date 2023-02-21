@@ -246,7 +246,7 @@ address TemplateInterpreterGenerator::generate_exception_handler_common(const ch
   return entry;
 }
 
-address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, int step, size_t index_size, bool jportal) {
+address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, int step, size_t index_size, bool jportal, bool dump, bool is_invoke) {
   address entry = __ pc();
 
   __ interp_verify_oop(R0_tos, state, __FILE__, __LINE__);

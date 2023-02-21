@@ -609,7 +609,7 @@ address TemplateInterpreterGenerator::generate_exception_handler_common(const ch
 
 // This entry is returned to when a call returns to the interpreter.
 // When we arrive here, we expect that the callee stack frame is already popped.
-address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, int step, size_t index_size, bool jportal) {
+address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, int step, size_t index_size, bool jportal, bool dump, bool is_invoke) {
   address entry = __ pc();
 
   // Move the value out of the return register back to the TOS cache of current frame.

@@ -186,7 +186,7 @@ class AbstractInterpreter: AllStatic {
 
   // length = invoke bytecode length (to advance to next bytecode)
   static address deopt_entry(TosState state, int length, bool jportal = false) { ShouldNotReachHere(); return NULL; }
-  static address return_entry(TosState state, int length, Bytecodes::Code code, bool jportal = false) { ShouldNotReachHere(); return NULL; }
+  static address return_entry(TosState state, int length, bool jportal = false, bool dump = false) { ShouldNotReachHere(); return NULL; }
 
   static address    rethrow_exception_entry()                   { return _rethrow_exception_entry; }
 

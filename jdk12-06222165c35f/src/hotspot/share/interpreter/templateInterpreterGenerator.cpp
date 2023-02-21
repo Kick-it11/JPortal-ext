@@ -263,7 +263,7 @@ void TemplateInterpreterGenerator::generate_all() {
 
 #ifdef JPORTAL_ENABLE
   if (JPortal) {
-    { CodeletMark cm(_masm, "jportal return entry points");
+    { CodeletMark cm(_masm, "jportal return entry points(not dump)");
       const int index_size = sizeof(u2);
       Interpreter::_jportal_return_entry[0] = EntryPoint();
       for (int i = 1; i < Interpreter::number_of_return_entries; i++) {
@@ -284,7 +284,7 @@ void TemplateInterpreterGenerator::generate_all() {
       }
     }
 
-    { CodeletMark cm(_masm, "jportal invoke return entry points");
+    { CodeletMark cm(_masm, "jportal invoke return entry points(not dump)");
       // These states are in order specified in TosState, except btos/ztos/ctos/stos are
       // really the same as itos since there is no top of stack optimization for these types
       const TosState states[] = {itos, itos, itos, itos, itos, ltos, ftos, dtos, atos, vtos, ilgl};
@@ -298,6 +298,44 @@ void TemplateInterpreterGenerator::generate_all() {
         Interpreter::_jportal_invoke_return_entry[i] = generate_return_entry_for(state, invoke_length, sizeof(u2), true);
         Interpreter::_jportal_invokeinterface_return_entry[i] = generate_return_entry_for(state, invokeinterface_length, sizeof(u2), true);
         Interpreter::_jportal_invokedynamic_return_entry[i] = generate_return_entry_for(state, invokedynamic_length, sizeof(u4), true);
+      }
+    }
+
+    { CodeletMark cm(_masm, "jportal return entry points(dump return site)");
+      const int index_size = sizeof(u2);
+      Interpreter::_jportal_dump_return_entry[0] = EntryPoint();
+      for (int i = 1; i < Interpreter::number_of_return_entries; i++) {
+        address return_itos = generate_return_entry_for(itos, i, index_size, true, true, false);
+        Interpreter::_jportal_dump_return_entry[i] =
+          EntryPoint(
+                     return_itos,
+                     return_itos,
+                     return_itos,
+                     return_itos,
+                     generate_return_entry_for(atos, i, index_size, true, true, false),
+                     return_itos,
+                     generate_return_entry_for(ltos, i, index_size, true, true, false),
+                     generate_return_entry_for(ftos, i, index_size, true, true, false),
+                     generate_return_entry_for(dtos, i, index_size, true, true, false),
+                     generate_return_entry_for(vtos, i, index_size, true, true, false)
+                     );
+      }
+    }
+
+    { CodeletMark cm(_masm, "jportal invoke return entry points(dump return site)");
+      // These states are in order specified in TosState, except btos/ztos/ctos/stos are
+      // really the same as itos since there is no top of stack optimization for these types
+      const TosState states[] = {itos, itos, itos, itos, itos, ltos, ftos, dtos, atos, vtos, ilgl};
+      const int invoke_length = Bytecodes::length_for(Bytecodes::_invokestatic);
+      const int invokeinterface_length = Bytecodes::length_for(Bytecodes::_invokeinterface);
+      const int invokedynamic_length = Bytecodes::length_for(Bytecodes::_invokedynamic);
+
+      for (int i = 0; i < Interpreter::number_of_return_addrs; i++) {
+        TosState state = states[i];
+        assert(state != ilgl, "states array is wrong above");
+        Interpreter::_jportal_dump_invoke_return_entry[i] = generate_return_entry_for(state, invoke_length, sizeof(u2), true, true, true);
+        Interpreter::_jportal_dump_invokeinterface_return_entry[i] = generate_return_entry_for(state, invokeinterface_length, sizeof(u2), true, true, true);
+        Interpreter::_jportal_dump_invokedynamic_return_entry[i] = generate_return_entry_for(state, invokedynamic_length, sizeof(u4), true, true, true);
       }
     }
 

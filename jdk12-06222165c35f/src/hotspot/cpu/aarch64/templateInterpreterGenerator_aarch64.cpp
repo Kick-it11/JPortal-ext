@@ -433,7 +433,7 @@ address TemplateInterpreterGenerator::generate_exception_handler_common(
   return entry;
 }
 
-address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, int step, size_t index_size, bool jportal) {
+address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, int step, size_t index_size, bool jportal, bool dump, bool is_invoke) {
   address entry = __ pc();
 
   // Restore stack bottom in case i2c adjusted stack

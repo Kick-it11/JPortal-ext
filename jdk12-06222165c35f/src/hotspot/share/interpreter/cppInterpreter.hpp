@@ -54,7 +54,7 @@ class CppInterpreter: public AbstractInterpreter {
   static void notice_safepoints(bool jportal = false) {}
   static void ignore_safepoints(bool jportal = false) {}
 
-  static address    return_entry  (TosState state, int length, Bytecodes::Code code, bool jportal = false);
+  static address    return_entry  (TosState state, int length, bool jportal = false, bool dump = false);
   static address    deopt_entry   (TosState state, int length, bool jportal = false);
 
   static void invoke_method(Method* method, address entry_point, TRAPS);

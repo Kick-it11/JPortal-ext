@@ -278,7 +278,7 @@ address TemplateInterpreterGenerator::generate_StackOverflowError_handler() {
 }
 
 
-address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, int step, size_t index_size, bool jportal) {
+address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, int step, size_t index_size, bool jportal, bool dump, bool is_invoke) {
   address entry = __ pc();
 
   if (state == atos) {

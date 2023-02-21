@@ -33,7 +33,7 @@
                              bool jportal = false
                              );
   static void invokevirtual_helper(Register index, Register recv,
-                                   Register flags);
+                                   Register flags, bool jportal = false);
   static void volatile_barrier(Assembler::Membar_mask_bits order_constraint);
 
   // Helpers
@@ -43,5 +43,7 @@
   static void putfield_or_static_helper(int byte_no, bool is_static, RewriteControl rc,
                                         Register obj, Register off, Register flags);
   static void fast_storefield_helper(Address field, Register rax);
+
+  static void push_return_address(Register method, Register flag, Register temp, bool jportal, bool is_dynamic);
 
 #endif // CPU_X86_VM_TEMPLATETABLE_X86_HPP

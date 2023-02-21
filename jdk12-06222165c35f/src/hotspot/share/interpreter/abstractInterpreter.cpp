@@ -399,7 +399,7 @@ address AbstractInterpreter::deopt_continue_after_entry(Method* method, address 
   return
     is_top_frame
     ? Interpreter::deopt_entry (as_TosState(type), length, JPortal && method->is_jportal())
-    : Interpreter::return_entry(as_TosState(type), length, code, JPortal && method->is_jportal());
+    : Interpreter::return_entry(as_TosState(type), length, JPortal && method->is_jportal(), true);
 }
 
 // If deoptimization happens, this function returns the point where the interpreter reexecutes

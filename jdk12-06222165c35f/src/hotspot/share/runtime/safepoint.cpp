@@ -245,6 +245,7 @@ void SafepointSynchronize::begin() {
     if (SafepointMechanism::uses_global_page_poll()) {
       // Make interpreter safepoint aware
       Interpreter::notice_safepoints();
+      JPORTAL_ONLY(if (JPortal) Interpreter::notice_safepoints(true));
 
       // Make polling safepoint aware
       guarantee (PageArmed == 0, "invariant") ;
@@ -517,6 +518,7 @@ void SafepointSynchronize::end() {
     if (SafepointMechanism::uses_global_page_poll()) {
       // Remove safepoint check from interpreter
       Interpreter::ignore_safepoints();
+      JPORTAL_ONLY(if (JPortal) Interpreter::ignore_safepoints(true));
     }
 
     {

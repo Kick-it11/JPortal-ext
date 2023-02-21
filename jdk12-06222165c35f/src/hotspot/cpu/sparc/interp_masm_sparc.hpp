@@ -83,11 +83,11 @@ class InterpreterMacroAssembler: public MacroAssembler {
   void compute_extra_locals_size_in_bytes(Register args_size, Register locals_size, Register delta);
 
   // dispatch routines
-  void dispatch_prolog(TosState state, int step = 0);
-  void dispatch_epilog(TosState state, int step = 0);
+  void dispatch_prolog(TosState state, int step = 0, bool jportal = false);
+  void dispatch_epilog(TosState state, int step = 0, bool jportal = false);
   void dispatch_only(TosState state);
   void dispatch_normal(TosState state);
-  void dispatch_next(TosState state, int step = 0, bool generate_poll = false);
+  void dispatch_next(TosState state, int step = 0, bool generate_poll = false, bool jportal = false);
   void dispatch_next_noverify_oop(TosState state, int step = 0);
   void dispatch_via (TosState state, address* table);
 

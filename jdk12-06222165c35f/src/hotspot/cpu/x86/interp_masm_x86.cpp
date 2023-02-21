@@ -797,18 +797,19 @@ void InterpreterMacroAssembler::jump_from_interpreted(Register method, Register 
 
 // The following two routines provide a hook so that an implementation
 // can schedule the dispatch in two parts.  x86 does not do this.
-void InterpreterMacroAssembler::dispatch_prolog(TosState state, int step) {
+void InterpreterMacroAssembler::dispatch_prolog(TosState state, int step, bool jportal) {
   // Nothing x86 specific to be done here
 }
 
-void InterpreterMacroAssembler::dispatch_epilog(TosState state, int step) {
-  dispatch_next(state, step);
+void InterpreterMacroAssembler::dispatch_epilog(TosState state, int step, bool jportal) {
+  dispatch_next(state, step, false, jportal);
 }
 
 void InterpreterMacroAssembler::dispatch_base(TosState state,
                                               address* table,
                                               bool verifyoop,
-                                              bool generate_poll) {
+                                              bool generate_poll,
+                                              bool jportal) {
   verify_FPU(1, state);
   if (VerifyActivationFrameSize) {
     Label L;
@@ -826,7 +827,7 @@ void InterpreterMacroAssembler::dispatch_base(TosState state,
     verify_oop(rax, state);
   }
 
-  address* const safepoint_table = Interpreter::safept_table(state);
+  address* const safepoint_table = Interpreter::safept_table(state, jportal);
 #ifdef _LP64
   Label no_safepoint, dispatch;
   if (SafepointMechanism::uses_thread_local_poll() && table != safepoint_table && generate_poll) {
@@ -865,31 +866,31 @@ void InterpreterMacroAssembler::dispatch_base(TosState state,
 #endif // _LP64
 }
 
-void InterpreterMacroAssembler::dispatch_only(TosState state, bool generate_poll) {
-  dispatch_base(state, Interpreter::dispatch_table(state), true, generate_poll);
+void InterpreterMacroAssembler::dispatch_only(TosState state, bool generate_poll, bool jportal) {
+  dispatch_base(state, Interpreter::dispatch_table(state, jportal), true, generate_poll, jportal);
 }
 
-void InterpreterMacroAssembler::dispatch_only_normal(TosState state) {
-  dispatch_base(state, Interpreter::normal_table(state));
+void InterpreterMacroAssembler::dispatch_only_normal(TosState state, bool jportal) {
+  dispatch_base(state, Interpreter::normal_table(state, jportal), true, false, jportal);
 }
 
-void InterpreterMacroAssembler::dispatch_only_noverify(TosState state) {
-  dispatch_base(state, Interpreter::normal_table(state), false);
+void InterpreterMacroAssembler::dispatch_only_noverify(TosState state, bool jportal) {
+  dispatch_base(state, Interpreter::normal_table(state, jportal), false, false, jportal);
 }
 
 
-void InterpreterMacroAssembler::dispatch_next(TosState state, int step, bool generate_poll) {
+void InterpreterMacroAssembler::dispatch_next(TosState state, int step, bool generate_poll, bool jportal) {
   // load next bytecode (load before advancing _bcp_register to prevent AGI)
   load_unsigned_byte(rbx, Address(_bcp_register, step));
   // advance _bcp_register
   increment(_bcp_register, step);
-  dispatch_base(state, Interpreter::dispatch_table(state), true, generate_poll);
+  dispatch_base(state, Interpreter::dispatch_table(state, jportal), true, generate_poll, jportal);
 }
 
-void InterpreterMacroAssembler::dispatch_via(TosState state, address* table) {
+void InterpreterMacroAssembler::dispatch_via(TosState state, address* table, bool jportal) {
   // load current bytecode
   load_unsigned_byte(rbx, Address(_bcp_register, 0));
-  dispatch_base(state, table);
+  dispatch_base(state, table, true, false, jportal);
 }
 
 void InterpreterMacroAssembler::narrow(Register result) {

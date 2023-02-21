@@ -52,10 +52,10 @@ class TemplateInterpreterGenerator: public AbstractInterpreterGenerator {
   address generate_exception_handler_common(const char* name, const char* message, bool pass_oop);
   address generate_ClassCastException_handler();
   address generate_ArrayIndexOutOfBounds_handler();
-  address generate_return_entry_for(TosState state, int step, size_t index_size);
+  address generate_return_entry_for(TosState state, int step, size_t index_size, bool jportal = false);
   address generate_earlyret_entry_for(TosState state);
-  address generate_deopt_entry_for(TosState state, int step, address continuation = NULL);
-  address generate_safept_entry_for(TosState state, address runtime_entry);
+  address generate_deopt_entry_for(TosState state, int step, address continuation = NULL, bool jportal = false);
+  address generate_safept_entry_for(TosState state, address runtime_entry, bool jportal = false);
   void    generate_throw_exception();
 
   void lock_method();
@@ -63,15 +63,15 @@ class TemplateInterpreterGenerator: public AbstractInterpreterGenerator {
   void bang_stack_shadow_pages(bool native_call);
 
   // Instruction generation
-  void generate_and_dispatch (Template* t, TosState tos_out = ilgl);
-  void set_vtos_entry_points (Template* t, address& bep, address& cep, address& sep, address& aep, address& iep, address& lep, address& fep, address& dep, address& vep);
-  void set_short_entry_points(Template* t, address& bep, address& cep, address& sep, address& aep, address& iep, address& lep, address& fep, address& dep, address& vep);
-  void set_wide_entry_point  (Template* t, address& wep);
+  void generate_and_dispatch (Template* t, TosState tos_out = ilgl, bool jportal = false);
+  void set_vtos_entry_points (Template* t, address& bep, address& cep, address& sep, address& aep, address& iep, address& lep, address& fep, address& dep, address& vep, bool jportal = false);
+  void set_short_entry_points(Template* t, address& bep, address& cep, address& sep, address& aep, address& iep, address& lep, address& fep, address& dep, address& vep, bool jportal = false);
+  void set_wide_entry_point  (Template* t, address& wep, bool jportal = false);
 
-  void set_entry_points(Bytecodes::Code code);
-  void set_unimplemented(int i);
-  void set_entry_points_for_all_bytes();
-  void set_safepoints_for_all_bytes();
+  void set_entry_points(Bytecodes::Code code, bool jportal = false);
+  void set_unimplemented(int i, bool jportal = false);
+  void set_entry_points_for_all_bytes(bool jportal = false);
+  void set_safepoints_for_all_bytes(bool jportal = false);
 
   // Helpers for generate_and_dispatch
   address generate_trace_code(TosState state)   PRODUCT_RETURN0;
@@ -84,13 +84,13 @@ class TemplateInterpreterGenerator: public AbstractInterpreterGenerator {
   void generate_all();
 
   // entry point generator
-  address generate_method_entry(AbstractInterpreter::MethodKind kind);
+  address generate_method_entry(AbstractInterpreter::MethodKind kind, bool jportal = false);
 
-  address generate_normal_entry(bool synchronized);
+  address generate_normal_entry(bool synchronized, bool jportal = false);
   address generate_native_entry(bool synchronized);
   address generate_abstract_entry(void);
   address generate_math_entry(AbstractInterpreter::MethodKind kind);
-  address generate_Reference_get_entry();
+  address generate_Reference_get_entry(bool jportal);
   address generate_CRC32_update_entry();
   address generate_CRC32_updateBytes_entry(AbstractInterpreter::MethodKind kind);
   address generate_CRC32C_updateBytes_entry(AbstractInterpreter::MethodKind kind);
@@ -124,8 +124,12 @@ class TemplateInterpreterGenerator: public AbstractInterpreterGenerator {
 #endif // PPC
 
 #ifdef JPORTAL_ENABLE
-  void jportal_method_and_bci(int step);
-  void jportal_deoptimization(int step);
+  void jportal_method_and_bci(int step, Register temp1, Register temp2);
+  void jportal_bci(int step, Register temp1, Register temp2);
+  void jportal_deoptimization();
+  void jportal_throw_exception();
+  void jportal_pop_frame();
+  void jportal_earlyret();
 #endif
 
  public:

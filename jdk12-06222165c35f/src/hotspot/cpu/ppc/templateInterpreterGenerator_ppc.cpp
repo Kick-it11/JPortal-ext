@@ -480,7 +480,7 @@ address TemplateInterpreterGenerator::generate_abstract_entry(void) {
 //    It contains a GC barrier which puts the reference into the satb buffer
 //    to indicate that someone holds a strong reference to the object the
 //    weak ref points to!
-address TemplateInterpreterGenerator::generate_Reference_get_entry(void) {
+address TemplateInterpreterGenerator::generate_Reference_get_entry(bool jportal) {
   // Code: _aload_0, _getfield, _areturn
   // parameter size = 1
   //
@@ -609,7 +609,7 @@ address TemplateInterpreterGenerator::generate_exception_handler_common(const ch
 
 // This entry is returned to when a call returns to the interpreter.
 // When we arrive here, we expect that the callee stack frame is already popped.
-address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, int step, size_t index_size) {
+address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, int step, size_t index_size, bool jportal) {
   address entry = __ pc();
 
   // Move the value out of the return register back to the TOS cache of current frame.
@@ -658,7 +658,7 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
   return entry;
 }
 
-address TemplateInterpreterGenerator::generate_deopt_entry_for(TosState state, int step, address continuation) {
+address TemplateInterpreterGenerator::generate_deopt_entry_for(TosState state, int step, address continuation, bool jportal) {
   address entry = __ pc();
   // If state != vtos, we're returning from a native method, which put it's result
   // into the result register. So move the value out of the return register back
@@ -694,7 +694,7 @@ address TemplateInterpreterGenerator::generate_deopt_entry_for(TosState state, i
   return entry;
 }
 
-address TemplateInterpreterGenerator::generate_safept_entry_for(TosState state, address runtime_entry) {
+address TemplateInterpreterGenerator::generate_safept_entry_for(TosState state, address runtime_entry, bool jportal) {
   address entry = __ pc();
 
   __ push(state);
@@ -1653,7 +1653,7 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
 
 // Generic interpreted method entry to (asm) interpreter.
 //
-address TemplateInterpreterGenerator::generate_normal_entry(bool synchronized) {
+address TemplateInterpreterGenerator::generate_normal_entry(bool synchronized, bool jportal) {
   bool inc_counter = UseCompiler || CountCompiledCalls || LogTouchedMethods;
   address entry = __ pc();
   // Generate the code to allocate the interpreter stack frame.
@@ -2259,7 +2259,8 @@ void TemplateInterpreterGenerator::set_vtos_entry_points(Template* t,
                                                          address& lep,
                                                          address& fep,
                                                          address& dep,
-                                                         address& vep) {
+                                                         address& vep,
+                                                         bool jportal) {
   assert(t->is_valid() && t->tos_in() == vtos, "illegal template");
   Label L;
 

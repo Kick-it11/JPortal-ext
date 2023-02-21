@@ -98,6 +98,10 @@ address    AbstractInterpreter::_entry_table            [AbstractInterpreter::nu
 address    AbstractInterpreter::_cds_entry_table        [AbstractInterpreter::number_of_method_entries];
 address    AbstractInterpreter::_native_abi_to_tosca    [AbstractInterpreter::number_of_result_handlers];
 
+#ifdef JPORTAL_ENABLE
+address    AbstractInterpreter::_jportal_entry_table            [AbstractInterpreter::number_of_method_entries];
+address    AbstractInterpreter::_jportal_cds_entry_table        [AbstractInterpreter::number_of_method_entries];
+#endif
 //------------------------------------------------------------------------------------------------------------------------
 // Generation of complete interpreter
 
@@ -211,30 +215,55 @@ address AbstractInterpreter::get_trampoline_code_buffer(AbstractInterpreter::Met
   return addr;
 }
 
-void AbstractInterpreter::update_cds_entry_table(AbstractInterpreter::MethodKind kind) {
+void AbstractInterpreter::update_cds_entry_table(AbstractInterpreter::MethodKind kind, bool jportal) {
   if (DumpSharedSpaces || UseSharedSpaces) {
+#ifdef JPORTAL_ENABLE
+    if (jportal) {
+      assert(JPortal, "jportal");
+      address trampoline = get_trampoline_code_buffer(kind);
+      _jportal_cds_entry_table[kind] = trampoline;
+
+      CodeBuffer buffer(trampoline, (int)(SharedRuntime::trampoline_size()));
+      MacroAssembler _masm(&buffer);
+      SharedRuntime::generate_trampoline(&_masm, _jportal_entry_table[kind]);
+
+      if (PrintInterpreter) {
+        Disassembler::decode(buffer.insts_begin(), buffer.insts_end());
+      }
+    } else {
+#endif
     address trampoline = get_trampoline_code_buffer(kind);
     _cds_entry_table[kind] = trampoline;
 
     CodeBuffer buffer(trampoline, (int)(SharedRuntime::trampoline_size()));
     MacroAssembler _masm(&buffer);
     SharedRuntime::generate_trampoline(&_masm, _entry_table[kind]);
-
     if (PrintInterpreter) {
       Disassembler::decode(buffer.insts_begin(), buffer.insts_end());
     }
+
+    JPORTAL_ONLY(})
+
   }
 }
 
 #endif
 
-void AbstractInterpreter::set_entry_for_kind(AbstractInterpreter::MethodKind kind, address entry) {
+void AbstractInterpreter::set_entry_for_kind(AbstractInterpreter::MethodKind kind, address entry, bool jportal) {
   assert(kind >= method_handle_invoke_FIRST &&
          kind <= method_handle_invoke_LAST, "late initialization only for MH entry points");
+#ifdef JPORTAL_ENABLE
+  if (jportal) {
+    assert(JPortal, "jportal");
+    assert(_jportal_entry_table[kind] == _jportal_entry_table[abstract], "previous value must be AME entry");
+    _jportal_entry_table[kind] = entry;
+  } else {
+#endif
   assert(_entry_table[kind] == _entry_table[abstract], "previous value must be AME entry");
   _entry_table[kind] = entry;
+  JPORTAL_ONLY(})
 
-  update_cds_entry_table(kind);
+  update_cds_entry_table(kind, jportal);
 }
 
 // Return true if the interpreter can prove that the given bytecode has
@@ -249,8 +278,8 @@ bool AbstractInterpreter::is_not_reached(const methodHandle& method, int bci) {
 
   // the bytecode might not be rewritten if the method is an accessor, etc.
   address ientry = method->interpreter_entry();
-  if (ientry != entry_for_kind(AbstractInterpreter::zerolocals) &&
-      ientry != entry_for_kind(AbstractInterpreter::zerolocals_synchronized))
+  if (ientry != entry_for_kind(AbstractInterpreter::zerolocals, JPortal && method->is_jportal()) &&
+      ientry != entry_for_kind(AbstractInterpreter::zerolocals_synchronized, JPortal && method->is_jportal()))
     return false;  // interpreter does not run this method!
 
   // otherwise, we can be sure this bytecode has never been executed
@@ -369,8 +398,8 @@ address AbstractInterpreter::deopt_continue_after_entry(Method* method, address 
   // return entry point for computed continuation state & bytecode length
   return
     is_top_frame
-    ? Interpreter::deopt_entry (as_TosState(type), length)
-    : Interpreter::return_entry(as_TosState(type), length, code);
+    ? Interpreter::deopt_entry (as_TosState(type), length, JPortal && method->is_jportal())
+    : Interpreter::return_entry(as_TosState(type), length, code, JPortal && method->is_jportal());
 }
 
 // If deoptimization happens, this function returns the point where the interpreter reexecutes
@@ -385,7 +414,7 @@ address AbstractInterpreter::deopt_reexecute_entry(Method* method, address bcp) 
     return Interpreter::rethrow_exception_entry();
   }
 #endif /* COMPILER1 || INCLUDE_JVMCI */
-  return Interpreter::deopt_entry(vtos, 0);
+  return Interpreter::deopt_entry(vtos, 0, JPortal && method->is_jportal());
 }
 
 // If deoptimization happens, the interpreter should reexecute these bytecodes.
@@ -437,11 +466,22 @@ bool AbstractInterpreter::bytecode_should_reexecute(Bytecodes::Code code) {
   }
 }
 
-void AbstractInterpreter::initialize_method_handle_entries() {
+void AbstractInterpreter::initialize_method_handle_entries(bool jportal) {
   // method handle entry kinds are generated later in MethodHandlesAdapterGenerator::generate:
+#ifdef JPORTAL_ENABLE
+  if (jportal) {
+    assert(JPortal, "jportal");
+    for (int i = method_handle_invoke_FIRST; i <= method_handle_invoke_LAST; i++) {
+      MethodKind kind = (MethodKind) i;
+      _jportal_entry_table[kind] = _jportal_entry_table[Interpreter::abstract];
+      Interpreter::update_cds_entry_table(kind, jportal);
+    }
+  } else {
+#endif
   for (int i = method_handle_invoke_FIRST; i <= method_handle_invoke_LAST; i++) {
     MethodKind kind = (MethodKind) i;
     _entry_table[kind] = _entry_table[Interpreter::abstract];
-    Interpreter::update_cds_entry_table(kind);
+    Interpreter::update_cds_entry_table(kind, jportal);
   }
+  JPORTAL_ONLY(})
 }

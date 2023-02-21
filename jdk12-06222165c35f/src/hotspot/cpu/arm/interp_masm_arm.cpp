@@ -546,11 +546,11 @@ void InterpreterMacroAssembler::restore_dispatch() {
 
 // The following two routines provide a hook so that an implementation
 // can schedule the dispatch in two parts.
-void InterpreterMacroAssembler::dispatch_prolog(TosState state, int step) {
+void InterpreterMacroAssembler::dispatch_prolog(TosState state, int step, bool jportal) {
   // Nothing ARM-specific to be done here.
 }
 
-void InterpreterMacroAssembler::dispatch_epilog(TosState state, int step) {
+void InterpreterMacroAssembler::dispatch_epilog(TosState state, int step, bool jportal) {
   dispatch_next(state, step);
 }
 
@@ -617,7 +617,7 @@ void InterpreterMacroAssembler::dispatch_only_noverify(TosState state) {
   dispatch_base(state, DispatchNormal, false);
 }
 
-void InterpreterMacroAssembler::dispatch_next(TosState state, int step) {
+void InterpreterMacroAssembler::dispatch_next(TosState state, int step, bool generate_poll, bool jportal) {
   // load next bytecode and advance Rbcp
   ldrb(R3_bytecode, Address(Rbcp, step, pre_indexed));
   dispatch_base(state, DispatchDefault);

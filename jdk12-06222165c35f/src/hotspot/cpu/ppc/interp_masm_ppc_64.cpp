@@ -61,7 +61,7 @@ void InterpreterMacroAssembler::jump_to_entry(address entry, Register Rscratch) 
   }
 }
 
-void InterpreterMacroAssembler::dispatch_next(TosState state, int bcp_incr, bool generate_poll) {
+void InterpreterMacroAssembler::dispatch_next(TosState state, int bcp_incr, bool generate_poll, bool jportal) {
   Register bytecode = R12_scratch2;
   if (bcp_incr != 0) {
     lbzu(bytecode, bcp_incr, R14_bcp);
@@ -81,7 +81,7 @@ void InterpreterMacroAssembler::dispatch_via(TosState state, address* table) {
 
 // Dispatch code executed in the prolog of a bytecode which does not do it's
 // own dispatch. The dispatch address is computed and placed in R24_dispatch_addr.
-void InterpreterMacroAssembler::dispatch_prolog(TosState state, int bcp_incr) {
+void InterpreterMacroAssembler::dispatch_prolog(TosState state, int bcp_incr, bool jportal) {
   Register bytecode = R12_scratch2;
   lbz(bytecode, bcp_incr, R14_bcp);
 
@@ -94,7 +94,7 @@ void InterpreterMacroAssembler::dispatch_prolog(TosState state, int bcp_incr) {
 // Dispatch code executed in the epilog of a bytecode which does not do it's
 // own dispatch. The dispatch address in R24_dispatch_addr is used for the
 // dispatch.
-void InterpreterMacroAssembler::dispatch_epilog(TosState state, int bcp_incr) {
+void InterpreterMacroAssembler::dispatch_epilog(TosState state, int bcp_incr, bool jportal) {
   if (bcp_incr) { addi(R14_bcp, R14_bcp, bcp_incr); }
   mtctr(R24_dispatch_addr);
   bcctr(bcondAlways, 0, bhintbhBCCTRisNotPredictable);

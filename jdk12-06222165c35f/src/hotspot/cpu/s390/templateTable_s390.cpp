@@ -1862,7 +1862,7 @@ void TemplateTable::float_cmp(bool is_float, int unordered_result) {
   }
 }
 
-void TemplateTable::branch(bool is_jsr, bool is_wide) {
+void TemplateTable::branch(bool is_jsr, bool is_wide, bool jportal) {
   const Register   bumped_count = Z_tmp_1;
   const Register   method       = Z_tmp_2;
   const Register   m_counters   = Z_R1_scratch;
@@ -2060,7 +2060,7 @@ void TemplateTable::branch(bool is_jsr, bool is_wide) {
   BLOCK_COMMENT("} TemplateTable::branch");
 }
 
-void TemplateTable::if_0cmp(Condition cc) {
+void TemplateTable::if_0cmp(Condition cc, bool jportal) {
   transition(itos, vtos);
 
   // Assume branch is more often taken than not (loops use backward branches).
@@ -2071,7 +2071,7 @@ void TemplateTable::if_0cmp(Condition cc) {
   __ profile_not_taken_branch(Z_tos);
 }
 
-void TemplateTable::if_icmp(Condition cc) {
+void TemplateTable::if_icmp(Condition cc, bool jportal) {
   transition(itos, vtos);
 
   // Assume branch is more often taken than not (loops use backward branches).
@@ -2083,7 +2083,7 @@ void TemplateTable::if_icmp(Condition cc) {
   __ profile_not_taken_branch(Z_tos);
 }
 
-void TemplateTable::if_nullcmp(Condition cc) {
+void TemplateTable::if_nullcmp(Condition cc, bool jportal) {
   transition(atos, vtos);
 
   // Assume branch is more often taken than not (loops use backward branches) .
@@ -2094,7 +2094,7 @@ void TemplateTable::if_nullcmp(Condition cc) {
   __ profile_not_taken_branch(Z_tos);
 }
 
-void TemplateTable::if_acmp(Condition cc) {
+void TemplateTable::if_acmp(Condition cc, bool jportal) {
   transition(atos, vtos);
   // Assume branch is more often taken than not (loops use backward branches).
   NearLabel not_taken;
@@ -2107,7 +2107,7 @@ void TemplateTable::if_acmp(Condition cc) {
   __ profile_not_taken_branch(Z_ARG3);
 }
 
-void TemplateTable::ret() {
+void TemplateTable::ret(bool jportal) {
   transition(vtos, vtos);
 
   locals_index(Z_tmp_1);
@@ -2120,7 +2120,7 @@ void TemplateTable::ret() {
   __ dispatch_next(vtos, 0 , true);
 }
 
-void TemplateTable::wide_ret() {
+void TemplateTable::wide_ret(bool jportal) {
   transition(vtos, vtos);
 
   locals_index_wide(Z_tmp_1);
@@ -2133,7 +2133,7 @@ void TemplateTable::wide_ret() {
   __ dispatch_next(vtos, 0, true);
 }
 
-void TemplateTable::tableswitch () {
+void TemplateTable::tableswitch (bool jportal) {
   transition(itos, vtos);
 
   NearLabel default_case, continue_execution;
@@ -2184,12 +2184,12 @@ void TemplateTable::tableswitch () {
   __ z_bru(continue_execution);
 }
 
-void TemplateTable::lookupswitch () {
+void TemplateTable::lookupswitch (bool jportal) {
   transition(itos, itos);
   __ stop("lookupswitch bytecode should have been rewritten");
 }
 
-void TemplateTable::fast_linearswitch () {
+void TemplateTable::fast_linearswitch (bool jportal) {
   transition(itos, vtos);
 
   Label    loop_entry, loop, found, continue_execution;
@@ -2242,7 +2242,7 @@ void TemplateTable::fast_linearswitch () {
 }
 
 
-void TemplateTable::fast_binaryswitch() {
+void TemplateTable::fast_binaryswitch(bool jportal) {
 
   transition(itos, vtos);
 
@@ -2360,7 +2360,7 @@ void TemplateTable::fast_binaryswitch() {
   __ dispatch_only(vtos, true);
 }
 
-void TemplateTable::_return(TosState state) {
+void TemplateTable::_return(TosState state, bool jportal) {
   transition(state, state);
   assert(_desc->calls_vm(),
          "inconsistent calls_vm information"); // call in remove_activation
@@ -3552,7 +3552,7 @@ void TemplateTable::invokevirtual_helper(Register index,
   BLOCK_COMMENT("} invokevirtual_helper");
 }
 
-void TemplateTable::invokevirtual(int byte_no) {
+void TemplateTable::invokevirtual(int byte_no, bool jportal) {
   transition(vtos, vtos);
 
   assert(byte_no == f2_byte, "use this argument");
@@ -3568,7 +3568,7 @@ void TemplateTable::invokevirtual(int byte_no) {
   invokevirtual_helper(Z_ARG3, Z_ARG1, Z_ARG2);
 }
 
-void TemplateTable::invokespecial(int byte_no) {
+void TemplateTable::invokespecial(int byte_no, bool jportal) {
   transition(vtos, vtos);
 
   assert(byte_no == f1_byte, "use this argument");
@@ -3583,7 +3583,7 @@ void TemplateTable::invokespecial(int byte_no) {
   __ jump_from_interpreted(Rmethod, Z_R1_scratch);
 }
 
-void TemplateTable::invokestatic(int byte_no) {
+void TemplateTable::invokestatic(int byte_no, bool jportal) {
   transition(vtos, vtos);
 
   assert(byte_no == f1_byte, "use this argument");
@@ -3596,13 +3596,13 @@ void TemplateTable::invokestatic(int byte_no) {
 }
 
 // Outdated feature, and we don't support it.
-void TemplateTable::fast_invokevfinal(int byte_no) {
+void TemplateTable::fast_invokevfinal(int byte_no, bool jportal) {
   transition(vtos, vtos);
   assert(byte_no == f2_byte, "use this argument");
   __ stop("fast_invokevfinal not used on linuxs390x");
 }
 
-void TemplateTable::invokeinterface(int byte_no) {
+void TemplateTable::invokeinterface(int byte_no, bool jportal) {
   transition(vtos, vtos);
 
   assert(byte_no == f1_byte, "use this argument");
@@ -3722,7 +3722,7 @@ void TemplateTable::invokeinterface(int byte_no) {
   return;
 }
 
-void TemplateTable::invokehandle(int byte_no) {
+void TemplateTable::invokehandle(int byte_no, bool jportal) {
   transition(vtos, vtos);
 
   const Register method = Z_tmp_2;
@@ -3744,7 +3744,7 @@ void TemplateTable::invokehandle(int byte_no) {
   __ jump_from_interpreted(method, Z_ARG3);
 }
 
-void TemplateTable::invokedynamic(int byte_no) {
+void TemplateTable::invokedynamic(int byte_no, bool jportal) {
   transition(vtos, vtos);
 
   const Register Rmethod   = Z_tmp_2;
@@ -4074,7 +4074,7 @@ void TemplateTable::instanceof() {
 
 //-----------------------------------------------------------------------------
 // Breakpoints
-void TemplateTable::_breakpoint() {
+void TemplateTable::_breakpoint(bool jportal) {
 
   // Note: We get here even if we are single stepping.
   // Jbug insists on setting breakpoints at every bytecode
@@ -4106,7 +4106,7 @@ void TemplateTable::_breakpoint() {
 
 // Exceptions
 
-void TemplateTable::athrow() {
+void TemplateTable::athrow(bool jportal) {
   transition(atos, vtos);
   __ null_check(Z_tos);
   __ load_absolute_address(Z_ARG2, Interpreter::throw_exception_entry());
@@ -4139,7 +4139,7 @@ void TemplateTable::athrow() {
 //             | slot 2
 //              \slot 0
 //                                 <- Z_fp
-void TemplateTable::monitorenter() {
+void TemplateTable::monitorenter(bool jportal) {
   transition(atos, vtos);
 
   BLOCK_COMMENT("monitorenter {");
@@ -4228,7 +4228,7 @@ void TemplateTable::monitorenter() {
 }
 
 
-void TemplateTable::monitorexit() {
+void TemplateTable::monitorexit(bool jportal) {
   transition(atos, vtos);
 
   BLOCK_COMMENT("monitorexit {");
@@ -4292,7 +4292,7 @@ void TemplateTable::monitorexit() {
 }
 
 // Wide instructions
-void TemplateTable::wide() {
+void TemplateTable::wide(bool jportal) {
   transition(vtos, vtos);
 
   __ z_llgc(Z_R1_scratch, at_bcp(1));

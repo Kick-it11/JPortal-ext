@@ -29,7 +29,8 @@
                              Register method,         // linked method (or i-klass)
                              Register index = noreg,  // itable index, MethodType, etc.
                              Register recv  = noreg,  // if caller wants to see it
-                             Register flags = noreg   // if caller wants to test it
+                             Register flags = noreg,   // if caller wants to test it
+                             bool jportal = false
                              );
   static void invokevirtual_helper(Register index, Register recv,
                                    Register flags);

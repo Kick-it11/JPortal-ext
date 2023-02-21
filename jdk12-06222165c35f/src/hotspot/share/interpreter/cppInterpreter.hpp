@@ -51,11 +51,11 @@ class CppInterpreter: public AbstractInterpreter {
 
 
   // No displatch table to switch so no need for these to do anything special
-  static void notice_safepoints() {}
-  static void ignore_safepoints() {}
+  static void notice_safepoints(bool jportal = false) {}
+  static void ignore_safepoints(bool jportal = false) {}
 
-  static address    return_entry  (TosState state, int length, Bytecodes::Code code);
-  static address    deopt_entry   (TosState state, int length);
+  static address    return_entry  (TosState state, int length, Bytecodes::Code code, bool jportal = false);
+  static address    deopt_entry   (TosState state, int length, bool jportal = false);
 
   static void invoke_method(Method* method, address entry_point, TRAPS);
   static void invoke_osr(Method* method,

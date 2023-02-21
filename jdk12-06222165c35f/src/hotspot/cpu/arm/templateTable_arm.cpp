@@ -2010,7 +2010,7 @@ void TemplateTable::float_cmp(bool is_float, int unordered_result) {
 }
 
 
-void TemplateTable::branch(bool is_jsr, bool is_wide) {
+void TemplateTable::branch(bool is_jsr, bool is_wide, bool jportal) {
 
   const Register Rdisp = R0_tmp;
   const Register Rbumped_taken_count = R5_tmp;
@@ -2222,7 +2222,7 @@ void TemplateTable::branch(bool is_jsr, bool is_wide) {
 }
 
 
-void TemplateTable::if_0cmp(Condition cc) {
+void TemplateTable::if_0cmp(Condition cc, bool jportal) {
   transition(itos, vtos);
   // assume branch is more often taken than not (loops use backward branches)
   Label not_taken;
@@ -2234,7 +2234,7 @@ void TemplateTable::if_0cmp(Condition cc) {
 }
 
 
-void TemplateTable::if_icmp(Condition cc) {
+void TemplateTable::if_icmp(Condition cc, bool jportal) {
   transition(itos, vtos);
   // assume branch is more often taken than not (loops use backward branches)
   Label not_taken;
@@ -2247,7 +2247,7 @@ void TemplateTable::if_icmp(Condition cc) {
 }
 
 
-void TemplateTable::if_nullcmp(Condition cc) {
+void TemplateTable::if_nullcmp(Condition cc, bool jportal) {
   transition(atos, vtos);
   assert(cc == equal || cc == not_equal, "invalid condition");
 
@@ -2264,7 +2264,7 @@ void TemplateTable::if_nullcmp(Condition cc) {
 }
 
 
-void TemplateTable::if_acmp(Condition cc) {
+void TemplateTable::if_acmp(Condition cc, bool jportal) {
   transition(atos, vtos);
   // assume branch is more often taken than not (loops use backward branches)
   Label not_taken;
@@ -2277,7 +2277,7 @@ void TemplateTable::if_acmp(Condition cc) {
 }
 
 
-void TemplateTable::ret() {
+void TemplateTable::ret(bool jportal) {
   transition(vtos, vtos);
   const Register Rlocal_index = R1_tmp;
   const Register Rret_bci = Rtmp_save0; // R4/R19
@@ -2293,7 +2293,7 @@ void TemplateTable::ret() {
 }
 
 
-void TemplateTable::wide_ret() {
+void TemplateTable::wide_ret(bool jportal) {
   transition(vtos, vtos);
   const Register Rlocal_index = R1_tmp;
   const Register Rret_bci = Rtmp_save0; // R4/R19
@@ -2309,7 +2309,7 @@ void TemplateTable::wide_ret() {
 }
 
 
-void TemplateTable::tableswitch() {
+void TemplateTable::tableswitch(bool jportal) {
   transition(itos, vtos);
 
   const Register Rindex  = R0_tos;
@@ -2366,13 +2366,13 @@ void TemplateTable::tableswitch() {
 }
 
 
-void TemplateTable::lookupswitch() {
+void TemplateTable::lookupswitch(bool jportal) {
   transition(itos, itos);
   __ stop("lookupswitch bytecode should have been rewritten");
 }
 
 
-void TemplateTable::fast_linearswitch() {
+void TemplateTable::fast_linearswitch(bool jportal) {
   transition(itos, vtos);
   Label loop, found, default_case, continue_execution;
 
@@ -2442,7 +2442,7 @@ void TemplateTable::fast_linearswitch() {
 }
 
 
-void TemplateTable::fast_binaryswitch() {
+void TemplateTable::fast_binaryswitch(bool jportal) {
   transition(itos, vtos);
   // Implementation using the following core algorithm:
   //
@@ -2544,7 +2544,7 @@ void TemplateTable::fast_binaryswitch() {
 }
 
 
-void TemplateTable::_return(TosState state) {
+void TemplateTable::_return(TosState state, bool jportal) {
   transition(state, state);
   assert(_desc->calls_vm(), "inconsistent calls_vm information"); // call in remove_activation
 
@@ -3714,7 +3714,7 @@ void TemplateTable::invokevirtual_helper(Register index,
   __ jump_from_interpreted(Rmethod);
 }
 
-void TemplateTable::invokevirtual(int byte_no) {
+void TemplateTable::invokevirtual(int byte_no, bool jportal) {
   transition(vtos, vtos);
   assert(byte_no == f2_byte, "use this argument");
 
@@ -3732,7 +3732,7 @@ void TemplateTable::invokevirtual(int byte_no) {
 }
 
 
-void TemplateTable::invokespecial(int byte_no) {
+void TemplateTable::invokespecial(int byte_no, bool jportal) {
   transition(vtos, vtos);
   assert(byte_no == f1_byte, "use this argument");
   const Register Rrecv  = R2_tmp;
@@ -3745,7 +3745,7 @@ void TemplateTable::invokespecial(int byte_no) {
 }
 
 
-void TemplateTable::invokestatic(int byte_no) {
+void TemplateTable::invokestatic(int byte_no, bool jportal) {
   transition(vtos, vtos);
   assert(byte_no == f1_byte, "use this argument");
   prepare_invoke(byte_no, Rmethod);
@@ -3755,14 +3755,14 @@ void TemplateTable::invokestatic(int byte_no) {
 }
 
 
-void TemplateTable::fast_invokevfinal(int byte_no) {
+void TemplateTable::fast_invokevfinal(int byte_no, bool jportal) {
   transition(vtos, vtos);
   assert(byte_no == f2_byte, "use this argument");
   __ stop("fast_invokevfinal is not used on ARM");
 }
 
 
-void TemplateTable::invokeinterface(int byte_no) {
+void TemplateTable::invokeinterface(int byte_no, bool jportal) {
   transition(vtos, vtos);
   assert(byte_no == f1_byte, "use this argument");
 
@@ -3861,7 +3861,7 @@ void TemplateTable::invokeinterface(int byte_no) {
   __ should_not_reach_here();
 }
 
-void TemplateTable::invokehandle(int byte_no) {
+void TemplateTable::invokehandle(int byte_no, bool jportal) {
   transition(vtos, vtos);
 
   const Register Rrecv  = R2_tmp;
@@ -3882,7 +3882,7 @@ void TemplateTable::invokehandle(int byte_no) {
   __ jump_from_interpreted(Rmethod);
 }
 
-void TemplateTable::invokedynamic(int byte_no) {
+void TemplateTable::invokedynamic(int byte_no, bool jportal) {
   transition(vtos, vtos);
 
   const Register Rcallsite = R4_tmp;
@@ -4261,7 +4261,7 @@ void TemplateTable::instanceof() {
 
 //----------------------------------------------------------------------------------------------------
 // Breakpoints
-void TemplateTable::_breakpoint() {
+void TemplateTable::_breakpoint(bool jportal) {
 
   // Note: We get here even if we are single stepping..
   // jbug inists on setting breakpoints at every bytecode
@@ -4289,7 +4289,7 @@ void TemplateTable::_breakpoint() {
 //----------------------------------------------------------------------------------------------------
 // Exceptions
 
-void TemplateTable::athrow() {
+void TemplateTable::athrow(bool jportal) {
   transition(atos, vtos);
   __ mov(Rexception_obj, R0_tos);
   __ null_check(Rexception_obj, Rtemp);
@@ -4316,7 +4316,7 @@ void TemplateTable::athrow() {
 // [saved FP     ] <--- FP
 
 
-void TemplateTable::monitorenter() {
+void TemplateTable::monitorenter(bool jportal) {
   transition(atos, vtos);
 
   const Register Robj = R0_tos;
@@ -4426,7 +4426,7 @@ void TemplateTable::monitorenter() {
 }
 
 
-void TemplateTable::monitorexit() {
+void TemplateTable::monitorexit(bool jportal) {
   transition(atos, vtos);
 
   const Register Robj = R0_tos;
@@ -4483,7 +4483,7 @@ void TemplateTable::monitorexit() {
 //----------------------------------------------------------------------------------------------------
 // Wide instructions
 
-void TemplateTable::wide() {
+void TemplateTable::wide(bool jportal) {
   transition(vtos, vtos);
   __ ldrb(R3_bytecode, at_bcp(1));
 

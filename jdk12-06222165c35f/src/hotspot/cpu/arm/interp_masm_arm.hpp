@@ -158,12 +158,12 @@ class InterpreterMacroAssembler: public MacroAssembler {
                          Label &not_subtype, Register tmp1, Register tmp2);
 
   // Dispatching
-  void dispatch_prolog(TosState state, int step = 0);
-  void dispatch_epilog(TosState state, int step = 0);
+  void dispatch_prolog(TosState state, int step = 0, bool jportal = false);
+  void dispatch_epilog(TosState state, int step = 0, bool jportal = false);
   void dispatch_only(TosState state);                      // dispatch by R3_bytecode
   void dispatch_only_normal(TosState state);               // dispatch normal table by R3_bytecode
   void dispatch_only_noverify(TosState state);
-  void dispatch_next(TosState state, int step = 0);        // load R3_bytecode from [Rbcp + step] and dispatch by R3_bytecode
+  void dispatch_next(TosState state, int step = 0, bool generate_poll = false, bool jportal = false);        // load R3_bytecode from [Rbcp + step] and dispatch by R3_bytecode
 
   // jump to an invoked target
   void prepare_to_jump_from_interpreted();

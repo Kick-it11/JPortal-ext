@@ -131,6 +131,21 @@ class TemplateInterpreter: public AbstractInterpreter {
   static DispatchTable _safept_table;                           // the safepoint dispatch table (used to set the active table for safepoints)
   static address       _wentry_point[DispatchTable::length];    // wide instructions only (vtos tosca always)
 
+#ifdef JPORTAL_ENABLE
+  static EntryPoint _jportal_return_entry[number_of_return_entries];    // entry points to return to from a call
+  static EntryPoint _jportal_deopt_entry[number_of_deopt_entries];      // entry points to return to from a deoptimization
+  static address    _jportal_deopt_reexecute_return_entry;
+  static EntryPoint _jportal_safept_entry;
+
+  static address _jportal_invoke_return_entry[number_of_return_addrs];           // for invokestatic, invokespecial, invokevirtual return entries
+  static address _jportal_invokeinterface_return_entry[number_of_return_addrs];  // for invokeinterface return entries
+  static address _jportal_invokedynamic_return_entry[number_of_return_addrs];    // for invokedynamic return entries
+
+  static DispatchTable _jportal_active_table;                           // the active    dispatch table (used by the interpreter for dispatch)
+  static DispatchTable _jportal_normal_table;                           // the normal    dispatch table (used to set the active table in normal mode)
+  static DispatchTable _jportal_safept_table;                           // the safepoint dispatch table (used to set the active table for safepoints)
+  static address       _jportal_wentry_point[DispatchTable::length];    // wide instructions only (vtos tosca always)
+#endif
 
  public:
   // Initialization/debugging
@@ -156,28 +171,59 @@ class TemplateInterpreter: public AbstractInterpreter {
 #ifndef PRODUCT
   static address    trace_code    (TosState state)              { return _trace_code.entry(state); }
 #endif // !PRODUCT
-  static address*   dispatch_table(TosState state)              { return _active_table.table_for(state); }
-  static address*   dispatch_table()                            { return _active_table.table_for(); }
-  static int        distance_from_dispatch_table(TosState state){ return _active_table.distance_from(state); }
-  static address*   normal_table(TosState state)                { return _normal_table.table_for(state); }
-  static address*   normal_table()                              { return _normal_table.table_for(); }
-  static address*   safept_table(TosState state)                { return _safept_table.table_for(state); }
+  static address*   dispatch_table(TosState state, bool jportal = false)              {
+    JPORTAL_ONLY(if (jportal) { assert(JPortal, "jportal"); return _jportal_active_table.table_for(state); })
+    return _active_table.table_for(state);
+  }
+  static address*   dispatch_table(bool jportal = false)                              {
+    JPORTAL_ONLY(if (jportal) { assert(JPortal, "jportal"); return  _jportal_active_table.table_for(); })
+    return _active_table.table_for();
+  }
+  static int        distance_from_dispatch_table(TosState state, bool jportal = false){
+    JPORTAL_ONLY(if (jportal) { assert(JPortal, "jportal"); return _jportal_active_table.distance_from(state); })
+    return _active_table.distance_from(state);
+  }
+
+  static address*   normal_table(TosState state, bool jportal = false)                {
+    JPORTAL_ONLY(if (jportal) { assert(JPortal, "jportal"); return _jportal_normal_table.table_for(state); })
+    return _normal_table.table_for(state); }
+  static address*   normal_table(bool jportal = false)                                {
+    JPORTAL_ONLY(if (jportal) { assert(JPortal, "jportal"); return _jportal_normal_table.table_for(); })
+    return _normal_table.table_for();
+  }
+  static address*   safept_table(TosState state, bool jportal = false)                {
+    JPORTAL_ONLY(if (jportal) { assert(JPortal, "jportal"); return _jportal_safept_table.table_for(state); })
+    return _safept_table.table_for(state);
+  }
 
   // Support for invokes
-  static address*   invoke_return_entry_table()                 { return _invoke_return_entry; }
-  static address*   invokeinterface_return_entry_table()        { return _invokeinterface_return_entry; }
-  static address*   invokedynamic_return_entry_table()          { return _invokedynamic_return_entry; }
+  static address*   invoke_return_entry_table(bool jportal = false)                 {
+    JPORTAL_ONLY(if (jportal) { assert(JPortal, "jportal"); return _jportal_invoke_return_entry; })
+    return _invoke_return_entry;
+  }
+
+  static address*   invokeinterface_return_entry_table(bool jportal = false)        {
+    JPORTAL_ONLY(if (jportal) { assert(JPortal, "jportal"); return _jportal_invokeinterface_return_entry; })
+    return _invokeinterface_return_entry;
+  }
+  static address*   invokedynamic_return_entry_table(bool jportal = false)          {
+    JPORTAL_ONLY(if (jportal) { assert(JPortal, "jportal"); return _jportal_invokedynamic_return_entry; })
+    return _invokedynamic_return_entry;
+  }
   static int        TosState_as_index(TosState state);
 
-  static address* invoke_return_entry_table_for(Bytecodes::Code code);
+  static address* invoke_return_entry_table_for(Bytecodes::Code code, bool jportal = false);
 
-  static address deopt_entry(TosState state, int length);
-  static address deopt_reexecute_return_entry()                 { return _deopt_reexecute_return_entry; }
-  static address return_entry(TosState state, int length, Bytecodes::Code code);
+  static address deopt_entry(TosState state, int length, bool jportal = false);
+  static address deopt_reexecute_return_entry(bool jportal = false)                 {
+    JPORTAL_ONLY(if (jportal) { assert(JPortal, "jportal"); return _deopt_reexecute_return_entry; })
+    return _deopt_reexecute_return_entry;
+  }
+  static address return_entry(TosState state, int length, Bytecodes::Code code, bool jportal = false);
 
   // Safepoint support
-  static void       notice_safepoints();                        // stops the thread when reaching a safepoint
-  static void       ignore_safepoints();                        // ignores safepoints
+  static void       notice_safepoints(bool jportal = false);                        // stops the thread when reaching a safepoint
+  static void       ignore_safepoints(bool jportal = false);                        // ignores safepoints
 
   // Deoptimization support
   // Compute the entry address for continuation after

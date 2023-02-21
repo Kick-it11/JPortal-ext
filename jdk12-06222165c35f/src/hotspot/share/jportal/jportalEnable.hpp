@@ -37,6 +37,9 @@ class JPortalEnable {
       _inline_cache_add_info,         // inline cache: a map between a source ip to a destination ip
       _inline_cache_clear_info,       // inline cache clear: delete the map
       _deoptimization_info,           // indicate a deoptimization
+      _throw_exception_info,          // indicate throwing a exception
+      _pop_frame_info,                // indicate a pop frame
+      _earlyret_info,                 // indicate an early ret
     };
 
     struct DumpInfo {
@@ -228,6 +231,36 @@ class JPortalEnable {
       }
     };
 
+    struct ThrowExceptionInfo {
+      struct DumpInfo info;
+      u8 addr;
+      ThrowExceptionInfo(u8 _addr, u4 _size) : addr(_addr) {
+        info.type = _throw_exception_info;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
+    };
+
+    struct PopFrameInfo {
+      struct DumpInfo info;
+      u8 addr;
+      PopFrameInfo(u8 _addr, u4 _size) : addr(_addr) {
+        info.type = _pop_frame_info;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
+    };
+
+    struct EarlyretInfo {
+      struct DumpInfo info;
+      u8 addr;
+      EarlyretInfo(u8 _addr, u4 _size) : addr(_addr) {
+        info.type = _earlyret_info;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
+    };
+
     inline static u8 get_timestamp() {
       unsigned int low, high;
       asm volatile("rdtsc" : "=a" (low), "=d" (high));
@@ -273,6 +306,12 @@ class JPortalEnable {
     static void dump_inline_cache_clear(address src);
 
     static void dump_deoptimization(address src);
+
+    static void dump_throw_exception(address src);
+
+    static void dump_pop_frame(address src);
+
+    static void dump_earlyret(address src);
 };
 #endif
 

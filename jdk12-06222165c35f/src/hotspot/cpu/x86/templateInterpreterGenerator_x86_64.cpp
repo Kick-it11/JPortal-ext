@@ -218,7 +218,8 @@ address TemplateInterpreterGenerator::generate_CRC32_update_entry() {
 
     // generate a vanilla native entry as the slow path
     __ bind(slow_path);
-    __ jump_to_entry(Interpreter::entry_for_kind(Interpreter::native));
+    // native method uses non-jportal entry
+    __ jump_to_entry(Interpreter::entry_for_kind(Interpreter::native, false));
     return entry;
   }
   return NULL;
@@ -276,7 +277,8 @@ address TemplateInterpreterGenerator::generate_CRC32_updateBytes_entry(AbstractI
 
     // generate a vanilla native entry as the slow path
     __ bind(slow_path);
-    __ jump_to_entry(Interpreter::entry_for_kind(Interpreter::native));
+    // native method use non-jportal entry
+    __ jump_to_entry(Interpreter::entry_for_kind(Interpreter::native, false));
     return entry;
   }
   return NULL;

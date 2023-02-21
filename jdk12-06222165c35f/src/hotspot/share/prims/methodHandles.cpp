@@ -99,6 +99,11 @@ void MethodHandlesAdapterGenerator::generate() {
     address entry = MethodHandles::generate_method_handle_interpreter_entry(_masm, iid);
     if (entry != NULL) {
       Interpreter::set_entry_for_kind(mk, entry);
+#ifdef JPORTAL_ENABLE
+      if (JPortal) {
+        Interpreter::set_entry_for_kind(mk, entry, true);
+      }
+#endif
     }
     // If the entry is not set, it will throw AbstractMethodError.
   }

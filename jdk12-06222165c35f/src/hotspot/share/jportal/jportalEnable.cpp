@@ -384,6 +384,66 @@ void JPortalEnable::dump_deoptimization(address addr) {
   return;
 }
 
+void JPortalEnable::dump_throw_exception(address addr) {
+  MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
+
+  if (!_initialized) {
+    warning("JPortalEnable error: dump deoptimization before initialize");
+    return;
+  }
+
+  u4 size = sizeof(struct ThrowExceptionInfo);
+  ThrowExceptionInfo tei((u8)addr, size);
+
+  if (!check_data(size)) {
+    warning("JPortalEnable error: ignore deoptimization for size too big");
+    return;
+  }
+
+  dump_data((address)&tei, sizeof(tei));
+  return;
+}
+
+void JPortalEnable::dump_pop_frame(address addr) {
+  MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
+
+  if (!_initialized) {
+    warning("JPortalEnable error: dump deoptimization before initialize");
+    return;
+  }
+
+  u4 size = sizeof(struct PopFrameInfo);
+  PopFrameInfo pfi((u8)addr, size);
+
+  if (!check_data(size)) {
+    warning("JPortalEnable error: ignore deoptimization for size too big");
+    return;
+  }
+
+  dump_data((address)&pfi, sizeof(pfi));
+  return;
+}
+
+void JPortalEnable::dump_earlyret(address addr) {
+  MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
+
+  if (!_initialized) {
+    warning("JPortalEnable error: dump deoptimization before initialize");
+    return;
+  }
+
+  u4 size = sizeof(struct EarlyretInfo);
+  EarlyretInfo ei((u8)addr, size);
+
+  if (!check_data(size)) {
+    warning("JPortalEnable error: ignore deoptimization for size too big");
+    return;
+  }
+
+  dump_data((address)&ei, sizeof(ei));
+  return;
+}
+
 void JPortalEnable::trace() {
   JPortalEnable_lock->lock_without_safepoint_check();
 

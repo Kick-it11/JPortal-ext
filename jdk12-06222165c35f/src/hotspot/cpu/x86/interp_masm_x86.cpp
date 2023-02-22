@@ -2004,22 +2004,6 @@ void InterpreterMacroAssembler::notify_method_entry() {
       rthread, rarg);
   }
 
-#ifdef JPORTAL_ENABLE
-  if (JPortal || JPortalMethod) {
-    get_method(rarg);
-    Label non_jportal;
-
-    movl(rdx, Address(rarg, Method::access_flags_offset()));
-    testl(rdx, JVM_ACC_JPORTAL);
-    jcc(Assembler::zero, non_jportal);
-
-    movptr(rscratch1, Address(rarg, Method::jportal_entry_offset()));
-    call(rscratch1);
-
-    bind(non_jportal);
-  }
-#endif
-
 }
 
 

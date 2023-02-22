@@ -4072,7 +4072,7 @@ void TemplateTable::invokeinterface(int byte_no, bool jportal) {
   __ pop(rdx);
   push_return_address(rbx, rdx, rcx, jportal);
 
-  __ jump_from_interpreted(rbx, rdx);
+  __ jump_from_interpreted(rbx, rdx, jportal, false);
   // no return from above
   __ bind(notVFinal);
 
@@ -4131,7 +4131,7 @@ void TemplateTable::invokeinterface(int byte_no, bool jportal) {
   // do the call
   // rcx: receiver
   // rbx,: Method*
-  __ jump_from_interpreted(rbx, rdx);
+  __ jump_from_interpreted(rbx, rdx, jportal, false);
   __ should_not_reach_here();
 
   // exception handling code follows...

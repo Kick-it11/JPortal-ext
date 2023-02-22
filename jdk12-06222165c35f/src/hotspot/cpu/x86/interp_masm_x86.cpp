@@ -774,9 +774,10 @@ void InterpreterMacroAssembler::prepare_to_jump_from_interpreted() {
 
 // Jump to from_interpreted entry of a call unless single stepping is possible
 // in this thread in which case we must call the i2i entry
-void InterpreterMacroAssembler::jump_from_interpreted(Register method, Register temp) {
+void InterpreterMacroAssembler::jump_from_interpreted(Register method, Register temp, bool jportal, bool determined) {
   prepare_to_jump_from_interpreted();
 
+  Label jportal_test;
   if (JvmtiExport::can_post_interpreter_events()) {
     Label run_compiled_code;
     // JVMTI events, such as single-stepping, are implemented partly by avoiding running
@@ -788,11 +789,29 @@ void InterpreterMacroAssembler::jump_from_interpreted(Register method, Register 
     NOT_LP64(get_thread(temp);)
     cmpb(Address(temp, JavaThread::interp_only_mode_offset()), 0);
     jccb(Assembler::zero, run_compiled_code);
-    jmp(Address(method, Method::interpreter_entry_offset()));
+    movptr(temp, Address(method, Method::interpreter_entry_offset()));
+    jmp(jportal_test);
     bind(run_compiled_code);
   }
 
-  jmp(Address(method, Method::from_interpreted_offset()));
+  movptr(temp, Address(method, Method::from_interpreted_offset()));
+  bind(jportal_test);
+#ifdef JPORTAL_ENABLE
+  if (JPortal && !(jportal && determined)) {
+    Label not_dump;
+    movptr(temp, Address(method, Method::from_interpreted_offset()));
+    cmpptr(temp, ExternalAddress(Interpreter::_jportal_inter_code_begin));
+    jcc(Assembler::below, not_dump);
+    cmpptr(temp, ExternalAddress(Interpreter::_jportal_inter_code_end));
+    jcc(Assembler::aboveEqual, not_dump);
+
+    movptr(rscratch1, Address(method, Method::jportal_entry_offset()));
+    call(rscratch1);
+
+    bind(not_dump);
+  }
+#endif
+  jmp(temp);
 }
 
 // The following two routines provide a hook so that an implementation

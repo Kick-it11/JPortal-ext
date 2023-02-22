@@ -464,6 +464,46 @@ void JPortalEnable::dump_non_invoke_ret(address addr) {
   return;
 }
 
+void JPortalEnable::dump_java_call_begin(address addr) {
+  MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
+
+  if (!_initialized) {
+    warning("JPortalEnable error: dump deoptimization before initialize");
+    return;
+  }
+
+  u4 size = sizeof(struct JavaCallBeginInfo);
+  JavaCallBeginInfo jcbi((u8)addr, size);
+
+  if (!check_data(size)) {
+    warning("JPortalEnable error: ignore deoptimization for size too big");
+    return;
+  }
+
+  dump_data((address)&jcbi, sizeof(jcbi));
+  return;
+}
+
+void JPortalEnable::dump_java_call_end(address addr) {
+  MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
+
+  if (!_initialized) {
+    warning("JPortalEnable error: dump deoptimization before initialize");
+    return;
+  }
+
+  u4 size = sizeof(struct JavaCallEndInfo);
+  JavaCallEndInfo jcei((u8)addr, size);
+
+  if (!check_data(size)) {
+    warning("JPortalEnable error: ignore deoptimization for size too big");
+    return;
+  }
+
+  dump_data((address)&jcei, sizeof(jcei));
+  return;
+}
+
 void JPortalEnable::trace() {
   JPortalEnable_lock->lock_without_safepoint_check();
 

@@ -132,6 +132,8 @@ class TemplateInterpreter: public AbstractInterpreter {
   static address       _wentry_point[DispatchTable::length];    // wide instructions only (vtos tosca always)
 
 #ifdef JPORTAL_ENABLE
+  static address    _jportal_inter_code_begin;
+  static address    _jportal_inter_code_end;
   static EntryPoint _jportal_return_entry[number_of_return_entries];    // entry points to return to from a call
   static EntryPoint _jportal_deopt_entry[number_of_deopt_entries];      // entry points to return to from a deoptimization
   static address    _jportal_deopt_reexecute_return_entry;
@@ -241,6 +243,10 @@ class TemplateInterpreter: public AbstractInterpreter {
   // Compute the address for reexecution
   static address deopt_reexecute_entry(Method* method, address bcp);
 
+#ifdef JPORTAL_ENABLE
+  static address jportal_inter_code_begin() { return _jportal_inter_code_begin; }
+  static address jportal_inter_code_end()   { return _jportal_inter_code_end; }
+#endif
   // Size of interpreter code.  Max size with JVMTI
   static int InterpreterCodeSize;
 };

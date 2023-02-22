@@ -122,7 +122,7 @@ void MethodHandles::jump_from_method_handle(MacroAssembler* _masm, Register meth
                                             bool for_compiler_entry) {
   assert(method == rbx, "interpreter calling convention");
 
-   Label L_no_such_method;
+   Label L_no_such_method, jportal_test;
    __ testptr(rbx, rbx);
    __ jcc(Assembler::zero, L_no_such_method);
 
@@ -143,13 +143,32 @@ void MethodHandles::jump_from_method_handle(MacroAssembler* _masm, Register meth
     // Is a cmpl faster?
     __ cmpb(Address(rthread, JavaThread::interp_only_mode_offset()), 0);
     __ jccb(Assembler::zero, run_compiled_code);
-    __ jmp(Address(method, Method::interpreter_entry_offset()));
+    __ movptr(temp, Address(method, Method::interpreter_entry_offset()));
+    __ jmp(jportal_test);
     __ BIND(run_compiled_code);
   }
 
   const ByteSize entry_offset = for_compiler_entry ? Method::from_compiled_offset() :
                                                      Method::from_interpreted_offset();
-  __ jmp(Address(method, entry_offset));
+  __ movptr(temp, Address(method, entry_offset));
+  __ BIND(jportal_test);
+
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    Label not_dump;
+    __ cmpptr(temp, ExternalAddress(Interpreter::jportal_inter_code_begin()));
+    __ jcc(Assembler::below, not_dump);
+    __ cmpptr(temp, ExternalAddress(Interpreter::jportal_inter_code_end()));
+    __ jcc(Assembler::aboveEqual, not_dump);
+
+    __ movptr(rscratch1, Address(method, Method::jportal_entry_offset()));
+    __ call(rscratch1);
+
+    __ bind(not_dump);
+  }
+#endif
+
+  __ jmp(temp);
 
   __ bind(L_no_such_method);
   __ jump(RuntimeAddress(StubRoutines::throw_AbstractMethodError_entry()));

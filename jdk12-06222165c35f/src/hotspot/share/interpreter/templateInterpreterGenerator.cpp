@@ -263,6 +263,7 @@ void TemplateInterpreterGenerator::generate_all() {
 
 #ifdef JPORTAL_ENABLE
   if (JPortal) {
+    Interpreter::_jportal_inter_code_begin = Interpreter::code()->code_end();
     { CodeletMark cm(_masm, "jportal return entry points(not dump)");
       const int index_size = sizeof(u2);
       Interpreter::_jportal_return_entry[0] = EntryPoint();
@@ -434,6 +435,7 @@ void TemplateInterpreterGenerator::generate_all() {
       vmassert(return_continuation != NULL, "return entry not generated yet");
       Interpreter::_jportal_deopt_reexecute_return_entry = generate_deopt_entry_for(vtos, 0, return_continuation, true);
     }
+    Interpreter::_jportal_inter_code_begin = Interpreter::code()->code_end();
 
   }
 #endif

@@ -699,6 +699,21 @@ static void gen_c2i_adapter(MacroAssembler *masm,
 
   // Schedule the branch target address early.
   __ movptr(rcx, Address(rbx, in_bytes(Method::interpreter_entry_offset())));
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    Label not_dump;
+    __ cmpptr(rcx, ExternalAddress(Interpreter::jportal_inter_code_begin()));
+    __ jcc(Assembler::below, not_dump);
+    __ cmpptr(rcx, ExternalAddress(Interpreter::jportal_inter_code_end()));
+    __ jcc(Assembler::aboveEqual, not_dump);
+
+    __ movptr(rscratch1, Address(rbx, Method::jportal_entry_offset()));
+    __ call(rscratch1);
+
+    __ bind(not_dump);
+  }
+#endif
+
   __ jmp(rcx);
 }
 

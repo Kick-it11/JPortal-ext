@@ -1599,16 +1599,6 @@ address TemplateInterpreterGenerator::generate_normal_entry(bool synchronized, b
   // jvmti support
   __ notify_method_entry();
 
-#ifdef JPORTAL_ENABLE
-  if (jportal) {
-    assert(JPortal || JPortalMethod, "jportal");
-    get_method(rbx);
-
-    movptr(rscratch1, Address(rbx, Method::jportal_entry_offset()));
-    call(rscratch1);
-  }
-#endif
-
   __ dispatch_next(vtos, 0, false, jportal);
 
   // invocation counter overflow

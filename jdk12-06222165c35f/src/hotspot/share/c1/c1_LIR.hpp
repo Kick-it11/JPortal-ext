@@ -1145,7 +1145,9 @@ class LIR_Op: public CompilationResourceObj {
   virtual LIR_OpCompareAndSwap* as_OpCompareAndSwap() { return NULL; }
   virtual LIR_OpProfileCall* as_OpProfileCall() { return NULL; }
   virtual LIR_OpProfileType* as_OpProfileType() { return NULL; }
+#ifdef JPORTAL_ENABLE
   virtual LIR_OpJPortalCall* as_OpJPortalCall() { return NULL; }
+#endif
 #ifdef ASSERT
   virtual LIR_OpAssert* as_OpAssert() { return NULL; }
 #endif

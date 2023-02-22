@@ -3765,7 +3765,6 @@ void TemplateTable::prepare_invoke(int byte_no,
   const bool load_receiver       = (recv  != noreg);
   const bool save_flags          = (flags != noreg);
   assert(load_receiver == (code != Bytecodes::_invokestatic && code != Bytecodes::_invokedynamic), "");
-  assert(save_flags    == (is_invokeinterface || is_invokevirtual), "need flags for vfinal");
   assert(flags == noreg || flags == rdx, "");
   assert(recv  == noreg || recv  == rcx, "");
 

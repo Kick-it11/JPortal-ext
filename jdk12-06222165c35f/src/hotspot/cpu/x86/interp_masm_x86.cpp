@@ -771,44 +771,125 @@ void InterpreterMacroAssembler::prepare_to_jump_from_interpreted() {
   movptr(Address(rbp, frame::interpreter_frame_last_sp_offset * wordSize), _bcp_register);
 }
 
+void InterpreterMacroAssembler::push_return_address(Register flags, Bytecodes::Code code, bool jportal, bool dump) {
+  // pop flags
+  pop(flags);
+
+  shrl(flags, ConstantPoolCacheEntry::tos_state_shift);
+  // Make sure we don't need to mask flags after the above shift
+  ConstantPoolCacheEntry::verify_tos_state_shift();
+  // load return address
+  const address table_addr = (address) Interpreter::invoke_return_entry_table_for(code, jportal, dump);
+  ExternalAddress table(table_addr);
+  lea(rscratch1, table);
+  movptr(flags, Address(rscratch1, flags, Address::times_ptr));
+
+  // push return address
+  push(flags);
+}
+
+// JPortal:
+//       jportal(caller) :
+//           inter only:
+//               jportal(callee):
+//                   determined -> no;
+//                   not determined -> entry only;
+//               not jportal(callee) -> ret site only;
+//           compiled code maybe: 
+//               not jportal(callee) || not inter code(callee) -> ret site only;
+//               jportal(callee) && inter(callee):
+//                   determined -> no;
+//                   not determined -> entry;
+//       not jportal(caller):
+//           inter only:
+//               jportal(callee) -> entry only
+//               not jportal(callee) -> no;
+//           compiled code maybe: 
+//               not jportal(callee) || not inter code(callee) -> no;
+//               jportal(callee) && inter(callee) -> entry only;
+void InterpreterMacroAssembler::do_jump_from_interpreted(Register method, Register tmp1, Register tmp2, Bytecodes::Code code, bool jportal, bool determined, bool inter_only) {
+  Label non_jportal;
+  assert_different_registers(method, tmp1, tmp2);
+
+  movptr(tmp2, Address(method, inter_only ? Method::interpreter_entry_offset()
+                                          : Method::from_interpreted_offset()));
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    movl(tmp1, Address(method, Method::access_flags_offset()));
+    testl(tmp1, JVM_ACC_JPORTAL);
+    jcc(Assembler::zero, non_jportal);
+
+    if (!inter_only) {
+      cmpptr(tmp2, Address(method, Method::interpreter_entry_offset()));
+      jcc(Assembler::notZero, non_jportal);      
+    }
+  }
+#endif
+
+  push_return_address(tmp1, code, jportal, false);
+
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    // jportal calls un-determined method(virtual, dynamic call)
+    // or non-jportal calls jportal method(callback)
+    if (!determined || !jportal) {
+      movptr(tmp1, Address(method, Method::jportal_entry_offset()));
+      call(tmp1);
+    }
+  }
+#endif
+
+  jmp(tmp2);
+
+  bind(non_jportal);
+
+  // if jportal is false, the dump argument is useless
+  push_return_address(tmp1, code, jportal, true);
+
+  jmp(tmp2);
+}
 
 // Jump to from_interpreted entry of a call unless single stepping is possible
 // in this thread in which case we must call the i2i entry
-void InterpreterMacroAssembler::jump_from_interpreted(Register method, Register temp) {
+void InterpreterMacroAssembler::jump_from_interpreted(Register method, Register tmp1, Register tmp2, Bytecodes::Code code, bool jportal, bool determined) {
   prepare_to_jump_from_interpreted();
-
+  assert_different_registers(method, tmp1, tmp2);
   if (JvmtiExport::can_post_interpreter_events()) {
-    Label run_compiled_code;
+    Label run_compiled_code, non_jportal;
     // JVMTI events, such as single-stepping, are implemented partly by avoiding running
     // compiled code in threads for which the event is enabled.  Check here for
     // interp_only_mode if these events CAN be enabled.
     // interp_only is an int, on little endian it is sufficient to test the byte only
     // Is a cmpl faster?
-    LP64_ONLY(temp = r15_thread;)
-    NOT_LP64(get_thread(temp);)
-    cmpb(Address(temp, JavaThread::interp_only_mode_offset()), 0);
+    Register thread = tmp1;
+    LP64_ONLY(thread = r15_thread;)
+    NOT_LP64(get_thread(thread);)
+    cmpb(Address(thread, JavaThread::interp_only_mode_offset()), 0);
     jccb(Assembler::zero, run_compiled_code);
-    jmp(Address(method, Method::interpreter_entry_offset()));
+
+    do_jump_from_interpreted(method, tmp1, tmp2, code, jportal, determined, true);
+
     bind(run_compiled_code);
   }
 
-  jmp(Address(method, Method::from_interpreted_offset()));
+  do_jump_from_interpreted(method, tmp1, tmp2, code, jportal, determined, false);
 }
 
 // The following two routines provide a hook so that an implementation
 // can schedule the dispatch in two parts.  x86 does not do this.
-void InterpreterMacroAssembler::dispatch_prolog(TosState state, int step) {
+void InterpreterMacroAssembler::dispatch_prolog(TosState state, int step, bool jportal) {
   // Nothing x86 specific to be done here
 }
 
-void InterpreterMacroAssembler::dispatch_epilog(TosState state, int step) {
-  dispatch_next(state, step);
+void InterpreterMacroAssembler::dispatch_epilog(TosState state, int step, bool jportal) {
+  dispatch_next(state, step, false, jportal);
 }
 
 void InterpreterMacroAssembler::dispatch_base(TosState state,
                                               address* table,
                                               bool verifyoop,
-                                              bool generate_poll) {
+                                              bool generate_poll,
+                                              bool jportal) {
   verify_FPU(1, state);
   if (VerifyActivationFrameSize) {
     Label L;
@@ -826,7 +907,7 @@ void InterpreterMacroAssembler::dispatch_base(TosState state,
     verify_oop(rax, state);
   }
 
-  address* const safepoint_table = Interpreter::safept_table(state);
+  address* const safepoint_table = Interpreter::safept_table(state, jportal);
 #ifdef _LP64
   Label no_safepoint, dispatch;
   if (SafepointMechanism::uses_thread_local_poll() && table != safepoint_table && generate_poll) {
@@ -865,31 +946,31 @@ void InterpreterMacroAssembler::dispatch_base(TosState state,
 #endif // _LP64
 }
 
-void InterpreterMacroAssembler::dispatch_only(TosState state, bool generate_poll) {
-  dispatch_base(state, Interpreter::dispatch_table(state), true, generate_poll);
+void InterpreterMacroAssembler::dispatch_only(TosState state, bool generate_poll, bool jportal) {
+  dispatch_base(state, Interpreter::dispatch_table(state, jportal), true, generate_poll, jportal);
 }
 
-void InterpreterMacroAssembler::dispatch_only_normal(TosState state) {
-  dispatch_base(state, Interpreter::normal_table(state));
+void InterpreterMacroAssembler::dispatch_only_normal(TosState state, bool jportal) {
+  dispatch_base(state, Interpreter::normal_table(state, jportal), true, false, jportal);
 }
 
-void InterpreterMacroAssembler::dispatch_only_noverify(TosState state) {
-  dispatch_base(state, Interpreter::normal_table(state), false);
+void InterpreterMacroAssembler::dispatch_only_noverify(TosState state, bool jportal) {
+  dispatch_base(state, Interpreter::normal_table(state, jportal), false, false, jportal);
 }
 
 
-void InterpreterMacroAssembler::dispatch_next(TosState state, int step, bool generate_poll) {
+void InterpreterMacroAssembler::dispatch_next(TosState state, int step, bool generate_poll, bool jportal) {
   // load next bytecode (load before advancing _bcp_register to prevent AGI)
   load_unsigned_byte(rbx, Address(_bcp_register, step));
   // advance _bcp_register
   increment(_bcp_register, step);
-  dispatch_base(state, Interpreter::dispatch_table(state), true, generate_poll);
+  dispatch_base(state, Interpreter::dispatch_table(state, jportal), true, generate_poll, jportal);
 }
 
-void InterpreterMacroAssembler::dispatch_via(TosState state, address* table) {
+void InterpreterMacroAssembler::dispatch_via(TosState state, address* table, bool jportal) {
   // load current bytecode
   load_unsigned_byte(rbx, Address(_bcp_register, 0));
-  dispatch_base(state, table);
+  dispatch_base(state, table, true, false, jportal);
 }
 
 void InterpreterMacroAssembler::narrow(Register result) {
@@ -2002,22 +2083,6 @@ void InterpreterMacroAssembler::notify_method_entry() {
       CAST_FROM_FN_PTR(address, SharedRuntime::rc_trace_method_entry),
       rthread, rarg);
   }
-
-#ifdef JPORTAL_ENABLE
-  if (JPortal || JPortalMethod) {
-    get_method(rarg);
-    Label non_jportal;
-
-    movl(rdx, Address(rarg, Method::access_flags_offset()));
-    testl(rdx, JVM_ACC_JPORTAL);
-    jcc(Assembler::zero, non_jportal);
-
-    movptr(rscratch1, Address(rarg, Method::jportal_entry_offset()));
-    call(rscratch1);
-
-    bind(non_jportal);
-  }
-#endif
 
 }
 

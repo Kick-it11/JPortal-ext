@@ -616,7 +616,7 @@ IRT_ENTRY(address, InterpreterRuntime::exception_handler_for_exception(JavaThrea
     handler_pc = h_method->code_base() + handler_bci;
 #ifndef CC_INTERP
     set_bcp_and_mdp(handler_pc, thread);
-    continuation = Interpreter::dispatch_table(vtos)[*handler_pc];
+    continuation = Interpreter::dispatch_table(vtos, JPortal && h_method->is_jportal())[*handler_pc];
 #endif
   }
   // notify debugger of an exception catch

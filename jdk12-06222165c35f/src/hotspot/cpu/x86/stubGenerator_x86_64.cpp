@@ -30,6 +30,8 @@
 #include "gc/shared/barrierSetAssembler.hpp"
 #include "gc/shared/barrierSetNMethod.hpp"
 #include "interpreter/interpreter.hpp"
+#include "jportal/jportalEnable.hpp"
+#include "jportal/jportalStub.hpp"
 #include "nativeInst_x86.hpp"
 #include "oops/instanceOop.hpp"
 #include "oops/method.hpp"
@@ -328,11 +330,47 @@ class StubGenerator: public StubCodeGenerator {
     __ movptr(rbx, method);             // get Method*
     __ movptr(c_rarg1, entry_point);    // get entry_point
     __ mov(r13, rsp);                   // set sender sp
+
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    JPortalStub *stub = JPortalStubBuffer::new_jportal_jump_stub();
+
+    __ jump(ExternalAddress(stub->code_begin()));
+
+    address addr = __ pc();
+    stub->set_jump_stub(addr);
+    JPortalEnable::dump_java_call_begin(stub->code_begin());
+
+    Label non_jportal_or_inter;
+    __ movl(rscratch1, Address(rbx, Method::access_flags_offset()));
+    __ testl(rscratch1, JVM_ACC_JPORTAL);
+    __ jcc(Assembler::zero, non_jportal_or_inter);
+    __ cmpptr(c_rarg1, Address(rbx, Method::interpreter_entry_offset()));
+    __ jcc(Assembler::notZero, non_jportal_or_inter);
+
+    __ movptr(rscratch1, Address(rbx, Method::jportal_entry_offset()));
+    __ call(rscratch1);
+
+    __ bind(non_jportal_or_inter);
+  }
+#endif
     BLOCK_COMMENT("call Java function");
     __ call(c_rarg1);
 
     BLOCK_COMMENT("call_stub_return_address:");
     return_address = __ pc();
+
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    JPortalStub *stub = JPortalStubBuffer::new_jportal_jump_stub();
+
+    __ jump(ExternalAddress(stub->code_begin()));
+
+    address addr = __ pc();
+    stub->set_jump_stub(addr);
+    JPortalEnable::dump_java_call_end(stub->code_begin());
+  }
+#endif
 
     // store result depending on type (everything that is not
     // T_OBJECT, T_LONG, T_FLOAT or T_DOUBLE is treated as T_INT)

@@ -437,10 +437,10 @@ void InterpreterMacroAssembler::jump_from_interpreted(Register method, Register 
 
 // The following two routines provide a hook so that an implementation
 // can schedule the dispatch in two parts.  amd64 does not do this.
-void InterpreterMacroAssembler::dispatch_prolog(TosState state, int step) {
+void InterpreterMacroAssembler::dispatch_prolog(TosState state, int step, bool jportal) {
 }
 
-void InterpreterMacroAssembler::dispatch_epilog(TosState state, int step) {
+void InterpreterMacroAssembler::dispatch_epilog(TosState state, int step, bool jportal) {
     dispatch_next(state, step);
 }
 
@@ -496,10 +496,10 @@ void InterpreterMacroAssembler::dispatch_only_noverify(TosState state) {
 }
 
 
-void InterpreterMacroAssembler::dispatch_next(TosState state, int step, bool generate_poll) {
+void InterpreterMacroAssembler::dispatch_next(TosState state, int step, bool generate_poll, bool jportal) {
   // load next bytecode
   ldrb(rscratch1, Address(pre(rbcp, step)));
-  dispatch_base(state, Interpreter::dispatch_table(state), generate_poll);
+  dispatch_base(state, Interpreter::dispatch_table(state), true, generate_poll);
 }
 
 void InterpreterMacroAssembler::dispatch_via(TosState state, address* table) {

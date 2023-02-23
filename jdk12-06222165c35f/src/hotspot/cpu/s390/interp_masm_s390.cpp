@@ -67,18 +67,18 @@ void InterpreterMacroAssembler::empty_expression_stack(void) {
 
 // Dispatch code executed in the prolog of a bytecode which does not do it's
 // own dispatch.
-void InterpreterMacroAssembler::dispatch_prolog(TosState state, int bcp_incr) {
+void InterpreterMacroAssembler::dispatch_prolog(TosState state, int bcp_incr, bool jportal) {
   // On z/Architecture we are short on registers, therefore we do not preload the
   // dispatch address of the next bytecode.
 }
 
 // Dispatch code executed in the epilog of a bytecode which does not do it's
 // own dispatch.
-void InterpreterMacroAssembler::dispatch_epilog(TosState state, int step) {
+void InterpreterMacroAssembler::dispatch_epilog(TosState state, int step, bool jportal) {
   dispatch_next(state, step);
 }
 
-void InterpreterMacroAssembler::dispatch_next(TosState state, int bcp_incr, bool generate_poll) {
+void InterpreterMacroAssembler::dispatch_next(TosState state, int bcp_incr, bool generate_poll, bool jportal) {
   z_llgc(Z_bytecode, bcp_incr, Z_R0, Z_bcp);  // Load next bytecode.
   add2reg(Z_bcp, bcp_incr);                   // Advance bcp. Add2reg produces optimal code.
   dispatch_base(state, Interpreter::dispatch_table(state), generate_poll);

@@ -3936,10 +3936,11 @@ bool GraphBuilder::try_inline_full(ciMethod* callee, bool holder_known, bool ign
     append(new RuntimeCall(voidType, "dtrace_method_entry", CAST_FROM_FN_PTR(address, SharedRuntime::dtrace_method_entry), args));
   }
 
+#ifdef JPORTAL_ENABLE
   if (JPortalMethod && method()->is_jportal()) {
     append(new JPortalCall(((Method *)(method()->constant_encoding()))->jportal_entry()));
   }
-
+#endif
   if (profile_inlined_calls()) {
     profile_invocation(callee, copy_state_before_with_bci(SynchronizationEntryBCI));
   }

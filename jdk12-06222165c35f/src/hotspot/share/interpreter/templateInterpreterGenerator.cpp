@@ -230,6 +230,151 @@ void TemplateInterpreterGenerator::generate_all() {
 
 #undef method_entry
 
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    { CodeletMark cm(_masm, "jportal return entry points(not dump)");
+      const int index_size = sizeof(u2);
+      Interpreter::_jportal_return_entry[0] = EntryPoint();
+      for (int i = 1; i < Interpreter::number_of_return_entries; i++) {
+        address return_itos = generate_return_entry_for(itos, i, index_size, true);
+        Interpreter::_jportal_return_entry[i] =
+          EntryPoint(
+                     return_itos,
+                     return_itos,
+                     return_itos,
+                     return_itos,
+                     generate_return_entry_for(atos, i, index_size, true),
+                     return_itos,
+                     generate_return_entry_for(ltos, i, index_size, true),
+                     generate_return_entry_for(ftos, i, index_size, true),
+                     generate_return_entry_for(dtos, i, index_size, true),
+                     generate_return_entry_for(vtos, i, index_size, true)
+                     );
+      }
+    }
+
+    { CodeletMark cm(_masm, "jportal invoke return entry points(not dump)");
+      // These states are in order specified in TosState, except btos/ztos/ctos/stos are
+      // really the same as itos since there is no top of stack optimization for these types
+      const TosState states[] = {itos, itos, itos, itos, itos, ltos, ftos, dtos, atos, vtos, ilgl};
+      const int invoke_length = Bytecodes::length_for(Bytecodes::_invokestatic);
+      const int invokeinterface_length = Bytecodes::length_for(Bytecodes::_invokeinterface);
+      const int invokedynamic_length = Bytecodes::length_for(Bytecodes::_invokedynamic);
+
+      for (int i = 0; i < Interpreter::number_of_return_addrs; i++) {
+        TosState state = states[i];
+        assert(state != ilgl, "states array is wrong above");
+        Interpreter::_jportal_invoke_return_entry[i] = generate_return_entry_for(state, invoke_length, sizeof(u2), true);
+        Interpreter::_jportal_invokeinterface_return_entry[i] = generate_return_entry_for(state, invokeinterface_length, sizeof(u2), true);
+        Interpreter::_jportal_invokedynamic_return_entry[i] = generate_return_entry_for(state, invokedynamic_length, sizeof(u4), true);
+      }
+    }
+
+    { CodeletMark cm(_masm, "jportal return entry points(dump return site)");
+      const int index_size = sizeof(u2);
+      Interpreter::_jportal_dump_return_entry[0] = EntryPoint();
+      for (int i = 1; i < Interpreter::number_of_return_entries; i++) {
+        address return_itos = generate_return_entry_for(itos, i, index_size, true, true, false);
+        Interpreter::_jportal_dump_return_entry[i] =
+          EntryPoint(
+                     return_itos,
+                     return_itos,
+                     return_itos,
+                     return_itos,
+                     generate_return_entry_for(atos, i, index_size, true, true, false),
+                     return_itos,
+                     generate_return_entry_for(ltos, i, index_size, true, true, false),
+                     generate_return_entry_for(ftos, i, index_size, true, true, false),
+                     generate_return_entry_for(dtos, i, index_size, true, true, false),
+                     generate_return_entry_for(vtos, i, index_size, true, true, false)
+                     );
+      }
+    }
+
+    { CodeletMark cm(_masm, "jportal invoke return entry points(dump return site)");
+      // These states are in order specified in TosState, except btos/ztos/ctos/stos are
+      // really the same as itos since there is no top of stack optimization for these types
+      const TosState states[] = {itos, itos, itos, itos, itos, ltos, ftos, dtos, atos, vtos, ilgl};
+      const int invoke_length = Bytecodes::length_for(Bytecodes::_invokestatic);
+      const int invokeinterface_length = Bytecodes::length_for(Bytecodes::_invokeinterface);
+      const int invokedynamic_length = Bytecodes::length_for(Bytecodes::_invokedynamic);
+
+      for (int i = 0; i < Interpreter::number_of_return_addrs; i++) {
+        TosState state = states[i];
+        assert(state != ilgl, "states array is wrong above");
+        Interpreter::_jportal_dump_invoke_return_entry[i] = generate_return_entry_for(state, invoke_length, sizeof(u2), true, true, true);
+        Interpreter::_jportal_dump_invokeinterface_return_entry[i] = generate_return_entry_for(state, invokeinterface_length, sizeof(u2), true, true, true);
+        Interpreter::_jportal_dump_invokedynamic_return_entry[i] = generate_return_entry_for(state, invokedynamic_length, sizeof(u4), true, true, true);
+      }
+    }
+
+    { CodeletMark cm(_masm, "jportal safepoint entry points");
+      Interpreter::_jportal_safept_entry =
+        EntryPoint(
+                   generate_safept_entry_for(btos, CAST_FROM_FN_PTR(address, InterpreterRuntime::at_safepoint), true),
+                   generate_safept_entry_for(ztos, CAST_FROM_FN_PTR(address, InterpreterRuntime::at_safepoint), true),
+                   generate_safept_entry_for(ctos, CAST_FROM_FN_PTR(address, InterpreterRuntime::at_safepoint), true),
+                   generate_safept_entry_for(stos, CAST_FROM_FN_PTR(address, InterpreterRuntime::at_safepoint), true),
+                   generate_safept_entry_for(atos, CAST_FROM_FN_PTR(address, InterpreterRuntime::at_safepoint), true),
+                   generate_safept_entry_for(itos, CAST_FROM_FN_PTR(address, InterpreterRuntime::at_safepoint), true),
+                   generate_safept_entry_for(ltos, CAST_FROM_FN_PTR(address, InterpreterRuntime::at_safepoint), true),
+                   generate_safept_entry_for(ftos, CAST_FROM_FN_PTR(address, InterpreterRuntime::at_safepoint), true),
+                   generate_safept_entry_for(dtos, CAST_FROM_FN_PTR(address, InterpreterRuntime::at_safepoint), true),
+                   generate_safept_entry_for(vtos, CAST_FROM_FN_PTR(address, InterpreterRuntime::at_safepoint), true)
+                   );
+    }
+
+    // for some JPortal entries, reuse normal entries
+#define method_entry(kind)                                              \
+    { CodeletMark cm(_masm, "jportal method entry point (kind = " #kind ")"); \
+      Interpreter::_jportal_entry_table[Interpreter::kind] = generate_method_entry(Interpreter::kind, true); \
+      Interpreter::update_cds_entry_table(Interpreter::kind, true); \
+    }
+
+#define reuse_non_jportal_entry(kind)                                   \
+    { Interpreter::_jportal_entry_table[Interpreter::kind] = Interpreter::_entry_table[Interpreter::kind]; \
+      Interpreter::_jportal_cds_entry_table[Interpreter::kind] = Interpreter::_cds_entry_table[Interpreter::kind]; \
+    }
+    // all non-native method kinds
+    method_entry(zerolocals)
+    method_entry(zerolocals_synchronized)
+    method_entry(empty)
+    method_entry(accessor)
+    reuse_non_jportal_entry(abstract)
+    reuse_non_jportal_entry(java_lang_math_sin  )
+    reuse_non_jportal_entry(java_lang_math_cos  )
+    reuse_non_jportal_entry(java_lang_math_tan  )
+    reuse_non_jportal_entry(java_lang_math_abs  )
+    reuse_non_jportal_entry(java_lang_math_sqrt )
+    reuse_non_jportal_entry(java_lang_math_log  )
+    reuse_non_jportal_entry(java_lang_math_log10)
+    reuse_non_jportal_entry(java_lang_math_exp  )
+    reuse_non_jportal_entry(java_lang_math_pow  )
+    reuse_non_jportal_entry(java_lang_math_fmaF )
+    reuse_non_jportal_entry(java_lang_math_fmaD )
+    method_entry(java_lang_ref_reference_get)
+
+    AbstractInterpreter::initialize_method_handle_entries(true);
+
+    reuse_non_jportal_entry(native)
+    reuse_non_jportal_entry(native_synchronized)
+
+    reuse_non_jportal_entry(java_util_zip_CRC32_update)
+    reuse_non_jportal_entry(java_util_zip_CRC32_updateBytes)
+    reuse_non_jportal_entry(java_util_zip_CRC32_updateByteBuffer)
+    reuse_non_jportal_entry(java_util_zip_CRC32C_updateBytes)
+    reuse_non_jportal_entry(java_util_zip_CRC32C_updateDirectByteBuffer)
+
+    reuse_non_jportal_entry(java_lang_Float_intBitsToFloat);
+    reuse_non_jportal_entry(java_lang_Float_floatToRawIntBits);
+    reuse_non_jportal_entry(java_lang_Double_longBitsToDouble);
+    reuse_non_jportal_entry(java_lang_Double_doubleToRawLongBits);
+
+#undef reuse_non_jportal_entry
+#undef method_entry
+  }
+#endif
+
   // Bytecodes
   set_entry_points_for_all_bytes();
 
@@ -261,6 +406,40 @@ void TemplateInterpreterGenerator::generate_all() {
     Interpreter::_deopt_reexecute_return_entry = generate_deopt_entry_for(vtos, 0, return_continuation);
   }
 
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    // Bytecodes
+    set_entry_points_for_all_bytes(true);
+
+    // installation of code in other places in the runtime
+    // (ExcutableCodeManager calls not needed to copy the entries)
+    set_safepoints_for_all_bytes(true);
+
+    { CodeletMark cm(_masm, "jportal deoptimization entry points");
+      Interpreter::_jportal_deopt_entry[0] = EntryPoint();
+      Interpreter::_jportal_deopt_entry[0].set_entry(vtos, generate_deopt_entry_for(vtos, 0, NULL, true));
+      for (int i = 1; i < Interpreter::number_of_deopt_entries; i++) {
+        address deopt_itos = generate_deopt_entry_for(itos, i, NULL, true);
+        Interpreter::_jportal_deopt_entry[i] =
+          EntryPoint(
+                     deopt_itos, /* btos */
+                     deopt_itos, /* ztos */
+                     deopt_itos, /* ctos */
+                     deopt_itos, /* stos */
+                     generate_deopt_entry_for(atos, i, NULL, true),
+                     deopt_itos, /* itos */
+                     generate_deopt_entry_for(ltos, i, NULL, true),
+                     generate_deopt_entry_for(ftos, i, NULL, true),
+                     generate_deopt_entry_for(dtos, i, NULL, true),
+                     generate_deopt_entry_for(vtos, i, NULL, true)
+                     );
+      }
+      address return_continuation = Interpreter::_jportal_normal_table.entry(Bytecodes::_return).entry(vtos);
+      vmassert(return_continuation != NULL, "return entry not generated yet");
+      Interpreter::_jportal_deopt_reexecute_return_entry = generate_deopt_entry_for(vtos, 0, return_continuation, true);
+    }
+  }
+#endif
 }
 
 //------------------------------------------------------------------------------------------------------------------------
@@ -274,35 +453,48 @@ address TemplateInterpreterGenerator::generate_error_exit(const char* msg) {
 
 //------------------------------------------------------------------------------------------------------------------------
 
-void TemplateInterpreterGenerator::set_entry_points_for_all_bytes() {
+void TemplateInterpreterGenerator::set_entry_points_for_all_bytes(bool jportal) {
   for (int i = 0; i < DispatchTable::length; i++) {
     Bytecodes::Code code = (Bytecodes::Code)i;
     if (Bytecodes::is_defined(code)) {
-      set_entry_points(code);
+      set_entry_points(code, jportal);
     } else {
-      set_unimplemented(i);
+      set_unimplemented(i, jportal);
     }
   }
 }
 
 
-void TemplateInterpreterGenerator::set_safepoints_for_all_bytes() {
+void TemplateInterpreterGenerator::set_safepoints_for_all_bytes(bool jportal) {
   for (int i = 0; i < DispatchTable::length; i++) {
     Bytecodes::Code code = (Bytecodes::Code)i;
-    if (Bytecodes::is_defined(code)) Interpreter::_safept_table.set_entry(code, Interpreter::_safept_entry);
+    if (Bytecodes::is_defined(code)) {
+      JPORTAL_ONLY(if (jportal) { assert(JPortal, "jportal"); Interpreter::_jportal_safept_table.set_entry(code, Interpreter::_jportal_safept_entry);} else)
+      Interpreter::_safept_table.set_entry(code, Interpreter::_safept_entry);
+    }
   }
 }
 
 
-void TemplateInterpreterGenerator::set_unimplemented(int i) {
+void TemplateInterpreterGenerator::set_unimplemented(int i, bool jportal) {
   address e = _unimplemented_bytecode;
   EntryPoint entry(e, e, e, e, e, e, e, e, e, e);
+#ifdef JPORTAL_ENABLE
+  if (jportal) {
+    assert(JPortal, "jportal");
+    Interpreter::_jportal_normal_table.set_entry(i, entry);
+    Interpreter::_jportal_wentry_point[i] = _unimplemented_bytecode;
+  } else {
+#endif
   Interpreter::_normal_table.set_entry(i, entry);
   Interpreter::_wentry_point[i] = _unimplemented_bytecode;
+#ifdef JPORTAL_ENABLE
+  }
+#endif
 }
 
 
-void TemplateInterpreterGenerator::set_entry_points(Bytecodes::Code code) {
+void TemplateInterpreterGenerator::set_entry_points(Bytecodes::Code code, bool jportal) {
   CodeletMark cm(_masm, Bytecodes::name(code), code);
   // initialize entry points
   assert(_unimplemented_bytecode    != NULL, "should have been generated before");
@@ -320,30 +512,40 @@ void TemplateInterpreterGenerator::set_entry_points(Bytecodes::Code code) {
   address wep = _unimplemented_bytecode;
   // code for short & wide version of bytecode
   if (Bytecodes::is_defined(code)) {
-    Template* t = TemplateTable::template_for(code);
+    Template* t = TemplateTable::template_for(code, jportal);
     assert(t->is_valid(), "just checking");
-    set_short_entry_points(t, bep, cep, sep, aep, iep, lep, fep, dep, vep);
+    set_short_entry_points(t, bep, cep, sep, aep, iep, lep, fep, dep, vep, jportal);
   }
   if (Bytecodes::wide_is_defined(code)) {
-    Template* t = TemplateTable::template_for_wide(code);
+    Template* t = TemplateTable::template_for_wide(code, jportal);
     assert(t->is_valid(), "just checking");
-    set_wide_entry_point(t, wep);
+    set_wide_entry_point(t, wep, jportal);
   }
   // set entry points
   EntryPoint entry(bep, zep, cep, sep, aep, iep, lep, fep, dep, vep);
+#ifdef JPORTAL_ENABLE
+  if (jportal) {
+    assert(JPortal, "jportal");
+    Interpreter::_jportal_normal_table.set_entry(code, entry);
+    Interpreter::_jportal_wentry_point[code] = wep;
+  } else {
+#endif
   Interpreter::_normal_table.set_entry(code, entry);
   Interpreter::_wentry_point[code] = wep;
+#ifdef JPORTAL_ENABLE
+  }
+#endif
 }
 
 
-void TemplateInterpreterGenerator::set_wide_entry_point(Template* t, address& wep) {
+void TemplateInterpreterGenerator::set_wide_entry_point(Template* t, address& wep, bool jportal) {
   assert(t->is_valid(), "template must exist");
   assert(t->tos_in() == vtos, "only vtos tos_in supported for wide instructions");
-  wep = __ pc(); generate_and_dispatch(t);
+  wep = __ pc(); generate_and_dispatch(t, ilgl, jportal);
 }
 
 
-void TemplateInterpreterGenerator::set_short_entry_points(Template* t, address& bep, address& cep, address& sep, address& aep, address& iep, address& lep, address& fep, address& dep, address& vep) {
+void TemplateInterpreterGenerator::set_short_entry_points(Template* t, address& bep, address& cep, address& sep, address& aep, address& iep, address& lep, address& fep, address& dep, address& vep, bool jportal) {
   assert(t->is_valid(), "template must exist");
   switch (t->tos_in()) {
     case btos:
@@ -352,12 +554,12 @@ void TemplateInterpreterGenerator::set_short_entry_points(Template* t, address& 
     case stos:
       ShouldNotReachHere();  // btos/ctos/stos should use itos.
       break;
-    case atos: vep = __ pc(); __ pop(atos); aep = __ pc(); generate_and_dispatch(t); break;
-    case itos: vep = __ pc(); __ pop(itos); iep = __ pc(); generate_and_dispatch(t); break;
-    case ltos: vep = __ pc(); __ pop(ltos); lep = __ pc(); generate_and_dispatch(t); break;
-    case ftos: vep = __ pc(); __ pop(ftos); fep = __ pc(); generate_and_dispatch(t); break;
-    case dtos: vep = __ pc(); __ pop(dtos); dep = __ pc(); generate_and_dispatch(t); break;
-    case vtos: set_vtos_entry_points(t, bep, cep, sep, aep, iep, lep, fep, dep, vep);     break;
+    case atos: vep = __ pc(); __ pop(atos); aep = __ pc(); generate_and_dispatch(t, ilgl, jportal); break;
+    case itos: vep = __ pc(); __ pop(itos); iep = __ pc(); generate_and_dispatch(t, ilgl, jportal); break;
+    case ltos: vep = __ pc(); __ pop(ltos); lep = __ pc(); generate_and_dispatch(t, ilgl, jportal); break;
+    case ftos: vep = __ pc(); __ pop(ftos); fep = __ pc(); generate_and_dispatch(t, ilgl, jportal); break;
+    case dtos: vep = __ pc(); __ pop(dtos); dep = __ pc(); generate_and_dispatch(t, ilgl, jportal); break;
+    case vtos: set_vtos_entry_points(t, bep, cep, sep, aep, iep, lep, fep, dep, vep, jportal);     break;
     default  : ShouldNotReachHere();                                                 break;
   }
 }
@@ -365,7 +567,7 @@ void TemplateInterpreterGenerator::set_short_entry_points(Template* t, address& 
 
 //------------------------------------------------------------------------------------------------------------------------
 
-void TemplateInterpreterGenerator::generate_and_dispatch(Template* t, TosState tos_out) {
+void TemplateInterpreterGenerator::generate_and_dispatch(Template* t, TosState tos_out, bool jportal) {
   if (PrintBytecodeHistogram)                                    histogram_bytecode(t);
 #ifndef PRODUCT
   // debugging code
@@ -386,7 +588,7 @@ void TemplateInterpreterGenerator::generate_and_dispatch(Template* t, TosState t
         && MethodData::bytecode_has_profile(t->bytecode())) {
       __ verify_method_data_pointer();
     }
-    __ dispatch_prolog(tos_out, step);
+    __ dispatch_prolog(tos_out, step, jportal);
   }
   // generate template
   t->generate(_masm);
@@ -398,13 +600,13 @@ void TemplateInterpreterGenerator::generate_and_dispatch(Template* t, TosState t
 #endif // ASSERT
   } else {
     // dispatch to next bytecode
-    __ dispatch_epilog(tos_out, step);
+    __ dispatch_epilog(tos_out, step, jportal);
   }
 }
 
 // Generate method entries
 address TemplateInterpreterGenerator::generate_method_entry(
-                                        AbstractInterpreter::MethodKind kind) {
+                                        AbstractInterpreter::MethodKind kind, bool jportal) {
   // determine code generation flags
   bool native = false;
   bool synchronized = false;
@@ -431,7 +633,7 @@ address TemplateInterpreterGenerator::generate_method_entry(
   case Interpreter::java_lang_math_fmaD    : // fall thru
   case Interpreter::java_lang_math_fmaF    : entry_point = generate_math_entry(kind);      break;
   case Interpreter::java_lang_ref_reference_get
-                                           : entry_point = generate_Reference_get_entry(); break;
+                                           : entry_point = generate_Reference_get_entry(jportal); break;
   case Interpreter::java_util_zip_CRC32_update
                                            : native = true; entry_point = generate_CRC32_update_entry();  break;
   case Interpreter::java_util_zip_CRC32_updateBytes
@@ -477,9 +679,9 @@ address TemplateInterpreterGenerator::generate_method_entry(
       entry_point = generate_native_entry(synchronized);
     }
   } else {
-    entry_point = Interpreter::entry_for_kind(synchronized ? Interpreter::zerolocals_synchronized : Interpreter::zerolocals);
+    entry_point = Interpreter::entry_for_kind(synchronized ? Interpreter::zerolocals_synchronized : Interpreter::zerolocals, jportal);
     if (entry_point == NULL) {
-      entry_point = generate_normal_entry(synchronized);
+      entry_point = generate_normal_entry(synchronized, jportal);
     }
   }
 

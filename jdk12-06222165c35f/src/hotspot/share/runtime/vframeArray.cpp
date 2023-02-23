@@ -185,7 +185,7 @@ void vframeArrayElement::unpack_on_stack(int caller_actual_parameters,
   if (raw_bci() == SynchronizationEntryBCI) {
     // We are deoptimizing while hanging in prologue code for synchronized method
     bcp = method()->bcp_from(0); // first byte code
-    pc  = Interpreter::deopt_entry(vtos, 0); // step = 0 since we don't skip current bytecode
+    pc  = Interpreter::deopt_entry(vtos, 0, JPortal && method()->is_jportal()); // step = 0 since we don't skip current bytecode
   } else if (should_reexecute()) { //reexecute this bytecode
     assert(is_top_frame, "reexecute allowed only for the top frame");
     bcp = method()->bcp_from(bci());
@@ -236,7 +236,7 @@ void vframeArrayElement::unpack_on_stack(int caller_actual_parameters,
 #endif
       } else {
         // Reexecute invoke in top frame
-        pc = Interpreter::deopt_entry(vtos, 0);
+        pc = Interpreter::deopt_entry(vtos, 0, JPortal && method()->is_jportal());
         use_next_mdp = false;
         popframe_preserved_args_size_in_bytes = in_bytes(thread->popframe_preserved_args_size());
         // Note: the PopFrame-related extension of the expression stack size is done in
@@ -269,7 +269,7 @@ void vframeArrayElement::unpack_on_stack(int caller_actual_parameters,
       case Deoptimization::Unpack_uncommon_trap:
       case Deoptimization::Unpack_reexecute:
         // redo last byte code
-        pc  = Interpreter::deopt_entry(vtos, 0);
+        pc  = Interpreter::deopt_entry(vtos, 0, JPortal && method()->is_jportal());
         use_next_mdp = false;
         break;
       default:

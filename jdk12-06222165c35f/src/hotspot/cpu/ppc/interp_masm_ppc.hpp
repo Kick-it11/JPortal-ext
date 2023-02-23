@@ -57,14 +57,14 @@ class InterpreterMacroAssembler: public MacroAssembler {
   static const Address d_tmp;
 
   // dispatch routines
-  void dispatch_next(TosState state, int step = 0, bool generate_poll = false);
+  void dispatch_next(TosState state, int step = 0, bool generate_poll = false, bool jportal = false);
   void dispatch_via (TosState state, address* table);
   void load_dispatch_table(Register dst, address* table);
   void dispatch_Lbyte_code(TosState state, Register bytecode, address* table, bool generate_poll = false);
 
   // Called by shared interpreter generator.
-  void dispatch_prolog(TosState state, int step = 0);
-  void dispatch_epilog(TosState state, int step = 0);
+  void dispatch_prolog(TosState state, int step = 0, bool jportal = false);
+  void dispatch_epilog(TosState state, int step = 0, bool jportal = false);
 
   // Super call_VM calls - correspond to MacroAssembler::call_VM(_leaf) calls.
   void super_call_VM_leaf(Register thread_cache, address entry_point, Register arg_1);

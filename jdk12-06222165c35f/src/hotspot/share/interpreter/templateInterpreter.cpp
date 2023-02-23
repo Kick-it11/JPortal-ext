@@ -65,6 +65,11 @@ void TemplateInterpreter::initialize() {
 
   // initialize dispatch table
   _active_table = _normal_table;
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    _jportal_active_table = _jportal_normal_table;
+  }
+#endif
 }
 
 //------------------------------------------------------------------------------------------------------------------------
@@ -207,6 +212,26 @@ DispatchTable TemplateInterpreter::_normal_table;
 DispatchTable TemplateInterpreter::_safept_table;
 address    TemplateInterpreter::_wentry_point[DispatchTable::length];
 
+#ifdef JPORTAL_ENABLE
+EntryPoint TemplateInterpreter::_jportal_return_entry[TemplateInterpreter::number_of_return_entries];
+EntryPoint TemplateInterpreter::_jportal_deopt_entry [TemplateInterpreter::number_of_deopt_entries ];
+address    TemplateInterpreter::_jportal_deopt_reexecute_return_entry;
+EntryPoint TemplateInterpreter::_jportal_safept_entry;
+
+address TemplateInterpreter::_jportal_invoke_return_entry[TemplateInterpreter::number_of_return_addrs];
+address TemplateInterpreter::_jportal_invokeinterface_return_entry[TemplateInterpreter::number_of_return_addrs];
+address TemplateInterpreter::_jportal_invokedynamic_return_entry[TemplateInterpreter::number_of_return_addrs];
+
+DispatchTable TemplateInterpreter::_jportal_active_table;
+DispatchTable TemplateInterpreter::_jportal_normal_table;
+DispatchTable TemplateInterpreter::_jportal_safept_table;
+address    TemplateInterpreter::_jportal_wentry_point[DispatchTable::length];
+
+EntryPoint TemplateInterpreter::_jportal_dump_return_entry[TemplateInterpreter::number_of_return_entries];
+address TemplateInterpreter::_jportal_dump_invoke_return_entry[TemplateInterpreter::number_of_return_addrs];
+address TemplateInterpreter::_jportal_dump_invokeinterface_return_entry[TemplateInterpreter::number_of_return_addrs];
+address TemplateInterpreter::_jportal_dump_invokedynamic_return_entry[TemplateInterpreter::number_of_return_addrs];
+#endif
 
 //------------------------------------------------------------------------------------------------------------------------
 // Entry points
@@ -214,17 +239,17 @@ address    TemplateInterpreter::_wentry_point[DispatchTable::length];
 /**
  * Returns the return entry table for the given invoke bytecode.
  */
-address* TemplateInterpreter::invoke_return_entry_table_for(Bytecodes::Code code) {
+address* TemplateInterpreter::invoke_return_entry_table_for(Bytecodes::Code code, bool jportal, bool dump) {
   switch (code) {
   case Bytecodes::_invokestatic:
   case Bytecodes::_invokespecial:
   case Bytecodes::_invokevirtual:
   case Bytecodes::_invokehandle:
-    return Interpreter::invoke_return_entry_table();
+    return Interpreter::invoke_return_entry_table(jportal, dump);
   case Bytecodes::_invokeinterface:
-    return Interpreter::invokeinterface_return_entry_table();
+    return Interpreter::invokeinterface_return_entry_table(jportal, dump);
   case Bytecodes::_invokedynamic:
-    return Interpreter::invokedynamic_return_entry_table();
+    return Interpreter::invokedynamic_return_entry_table(jportal, dump);
   default:
     fatal("invalid bytecode: %s", Bytecodes::name(code));
     return NULL;
@@ -233,32 +258,28 @@ address* TemplateInterpreter::invoke_return_entry_table_for(Bytecodes::Code code
 
 /**
  * Returns the return entry address for the given top-of-stack state and bytecode.
+ *   Since this is only used for deoptimization so far,
+ *     Even if it is an invoke bytecode, it is from compiled jitted code rather than bytecode template.
+ *       We use return_entry instead of invoke_return entry
+ *          To mark it is from an deoptimized frame for JPortal
+ *   In JPortal:
+ *     generate return entry: if it is non invoke return , it will have an indication
+ *       Decoding will new an interpretation frame rather rather do the return
  */
-address TemplateInterpreter::return_entry(TosState state, int length, Bytecodes::Code code) {
+address TemplateInterpreter::return_entry(TosState state, int length, bool jportal, bool dump) {
   guarantee(0 <= length && length < Interpreter::number_of_return_entries, "illegal length");
   const int index = TosState_as_index(state);
-  switch (code) {
-  case Bytecodes::_invokestatic:
-  case Bytecodes::_invokespecial:
-  case Bytecodes::_invokevirtual:
-  case Bytecodes::_invokehandle:
-    return _invoke_return_entry[index];
-  case Bytecodes::_invokeinterface:
-    return _invokeinterface_return_entry[index];
-  case Bytecodes::_invokedynamic:
-    return _invokedynamic_return_entry[index];
-  default:
-    assert(!Bytecodes::is_invoke(code), "invoke instructions should be handled separately: %s", Bytecodes::name(code));
-    address entry = _return_entry[length].entry(state);
-    vmassert(entry != NULL, "unsupported return entry requested, length=%d state=%d", length, index);
-    return entry;
-  }
+  address entry = _return_entry[length].entry(state);
+  JPORTAL_ONLY(if (jportal) { assert(JPortal, "jportal"); entry = _jportal_return_entry[length].entry(state); })
+  vmassert(entry != NULL, "unsupported return entry requested, length=%d state=%d", length, index);
+  return entry;
 }
 
 
-address TemplateInterpreter::deopt_entry(TosState state, int length) {
+address TemplateInterpreter::deopt_entry(TosState state, int length, bool jportal) {
   guarantee(0 <= length && length < Interpreter::number_of_deopt_entries, "illegal length");
   address entry = _deopt_entry[length].entry(state);
+  JPORTAL_ONLY(if (jportal) { assert(JPortal, "jportal"); entry = _jportal_deopt_entry[length].entry(state); })
   vmassert(entry != NULL, "unsupported deopt entry requested, length=%d state=%d", length, TosState_as_index(state));
   return entry;
 }
@@ -281,10 +302,11 @@ static inline void copy_table(address* from, address* to, int size) {
   while (size-- > 0) *to++ = *from++;
 }
 
-void TemplateInterpreter::notice_safepoints() {
+void TemplateInterpreter::notice_safepoints(bool jportal) {
   if (!_notice_safepoints) {
     // switch to safepoint dispatch table
     _notice_safepoints = true;
+    JPORTAL_ONLY(if (jportal) { assert(JPortal, "jportal"); copy_table((address*)&_jportal_safept_table, (address*)&_jportal_active_table, sizeof(_jportal_active_table) / sizeof(address)); } else )
     copy_table((address*)&_safept_table, (address*)&_active_table, sizeof(_active_table) / sizeof(address));
   }
 }
@@ -294,11 +316,12 @@ void TemplateInterpreter::notice_safepoints() {
 // keep the safepoint dispatch table if we are single stepping in JVMTI.
 // Note that the should_post_single_step test is exactly as fast as the
 // JvmtiExport::_enabled test and covers both cases.
-void TemplateInterpreter::ignore_safepoints() {
+void TemplateInterpreter::ignore_safepoints(bool jportal) {
   if (_notice_safepoints) {
     if (!JvmtiExport::should_post_single_step()) {
       // switch to normal dispatch table
       _notice_safepoints = false;
+      JPORTAL_ONLY(if (jportal) { assert(JPortal, "jportal"); copy_table((address*)&_jportal_normal_table, (address*)&_jportal_active_table, sizeof(_jportal_active_table) / sizeof(address)); } else )
       copy_table((address*)&_normal_table, (address*)&_active_table, sizeof(_active_table) / sizeof(address));
     }
   }
@@ -325,7 +348,7 @@ address TemplateInterpreter::deopt_reexecute_entry(Method* method, address bcp) 
     // the standard return vtos bytecode to pop the frame normally.
     // reexecuting the real bytecode would cause double registration
     // of the finalizable object.
-    return Interpreter::deopt_reexecute_return_entry();
+    return Interpreter::deopt_reexecute_return_entry(JPortal && method->is_jportal());
   } else {
     return AbstractInterpreter::deopt_reexecute_entry(method, bcp);
   }

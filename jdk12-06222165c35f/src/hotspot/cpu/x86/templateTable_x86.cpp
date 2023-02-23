@@ -2138,7 +2138,7 @@ void TemplateTable::float_cmp(bool is_float, int unordered_result) {
   }
 }
 
-void TemplateTable::branch(bool is_jsr, bool is_wide) {
+void TemplateTable::branch(bool is_jsr, bool is_wide, bool jportal) {
   __ get_method(rcx); // rcx holds method
   __ profile_taken_branch(rax, rbx); // rax holds updated MDP, rbx
                                      // holds bumped taken count
@@ -2176,7 +2176,7 @@ void TemplateTable::branch(bool is_jsr, bool is_wide) {
     __ addptr(rbcp, rdx);
     // jsr returns atos that is not an oop
     __ push_i(rax);
-    __ dispatch_only(vtos, true);
+    __ dispatch_only(vtos, true, jportal);
     return;
   }
 
@@ -2296,7 +2296,7 @@ void TemplateTable::branch(bool is_jsr, bool is_wide) {
   // rax: return bci for jsr's, unused otherwise
   // rbx: target bytecode
   // r13: target bcp
-  __ dispatch_only(vtos, true);
+  __ dispatch_only(vtos, true, jportal);
 
   if (UseLoopCounter) {
     if (ProfileInterpreter) {
@@ -2371,32 +2371,22 @@ void TemplateTable::branch(bool is_jsr, bool is_wide) {
 
 #ifdef JPORTAL_ENABLE
 void TemplateTable::jportal_taken_branch() {
-  __ get_method(rdx);
-  Label non_jportal;
   JPortalStub *stub = JPortalStubBuffer::new_jportal_jump_stub();
 
-  __ movl(rdx, Address(rdx, Method::access_flags_offset()));
-  __ testl(rdx, JVM_ACC_JPORTAL);
-  __ jcc(Assembler::zero, non_jportal);
+  assert(JPortal, "jportal");
   __ jump(ExternalAddress(stub->code_begin()));
 
-  __ bind(non_jportal);
   address addr = __ pc();
   stub->set_jump_stub(addr);
   JPortalEnable::dump_branch_taken(stub->code_begin());
 }
 
 void TemplateTable::jportal_not_taken_branch() {
-  __ get_method(rdx);
-  Label non_jportal;
   JPortalStub *stub = JPortalStubBuffer::new_jportal_jump_stub();
 
-  __ movl(rdx, Address(rdx, Method::access_flags_offset()));
-  __ testl(rdx, JVM_ACC_JPORTAL);
-  __ jcc(Assembler::zero, non_jportal);
+  assert(JPortal, "jportal");
   __ jump(ExternalAddress(stub->code_begin()));
 
-  __ bind(non_jportal);
   address addr = __ pc();
   stub->set_jump_stub(addr);
   JPortalEnable::dump_branch_not_taken(stub->code_begin());
@@ -2404,7 +2394,7 @@ void TemplateTable::jportal_not_taken_branch() {
 
 #endif
 
-void TemplateTable::if_0cmp(Condition cc) {
+void TemplateTable::if_0cmp(Condition cc, bool jportal) {
   transition(itos, vtos);
   // assume branch is more often taken than not (loops use backward branches)
   Label not_taken;
@@ -2412,7 +2402,7 @@ void TemplateTable::if_0cmp(Condition cc) {
   __ jcc(j_not(cc), not_taken);
 
 #ifdef JPORTAL_ENABLE
-  if (JPortal) {
+  if (jportal) {
     jportal_taken_branch();
   }
 #endif
@@ -2422,7 +2412,7 @@ void TemplateTable::if_0cmp(Condition cc) {
   __ bind(not_taken);
 
 #ifdef JPORTAL_ENABLE
-  if (JPortal) {
+  if (jportal) {
     jportal_not_taken_branch();
   }
 #endif
@@ -2430,7 +2420,7 @@ void TemplateTable::if_0cmp(Condition cc) {
   __ profile_not_taken_branch(rax);
 }
 
-void TemplateTable::if_icmp(Condition cc) {
+void TemplateTable::if_icmp(Condition cc, bool jportal) {
   transition(itos, vtos);
   // assume branch is more often taken than not (loops use backward branches)
   Label not_taken;
@@ -2439,7 +2429,7 @@ void TemplateTable::if_icmp(Condition cc) {
   __ jcc(j_not(cc), not_taken);
 
 #ifdef JPORTAL_ENABLE
-  if (JPortal) {
+  if (jportal) {
     jportal_taken_branch();
   }
 #endif
@@ -2448,7 +2438,7 @@ void TemplateTable::if_icmp(Condition cc) {
   __ bind(not_taken);
 
 #ifdef JPORTAL_ENABLE
-  if (JPortal) {
+  if (jportal) {
     jportal_not_taken_branch();
   }
 #endif
@@ -2456,7 +2446,7 @@ void TemplateTable::if_icmp(Condition cc) {
   __ profile_not_taken_branch(rax);
 }
 
-void TemplateTable::if_nullcmp(Condition cc) {
+void TemplateTable::if_nullcmp(Condition cc, bool jportal) {
   transition(atos, vtos);
   // assume branch is more often taken than not (loops use backward branches)
   Label not_taken;
@@ -2464,7 +2454,7 @@ void TemplateTable::if_nullcmp(Condition cc) {
   __ jcc(j_not(cc), not_taken);
 
 #ifdef JPORTAL_ENABLE
-  if (JPortal) {
+  if (jportal) {
     jportal_taken_branch();
   }
 #endif
@@ -2473,7 +2463,7 @@ void TemplateTable::if_nullcmp(Condition cc) {
   __ bind(not_taken);
 
 #ifdef JPORTAL_ENABLE
-  if (JPortal) {
+  if (jportal) {
     jportal_not_taken_branch();
   }
 #endif
@@ -2481,7 +2471,7 @@ void TemplateTable::if_nullcmp(Condition cc) {
   __ profile_not_taken_branch(rax);
 }
 
-void TemplateTable::if_acmp(Condition cc) {
+void TemplateTable::if_acmp(Condition cc, bool jportal) {
   transition(atos, vtos);
   // assume branch is more often taken than not (loops use backward branches)
   Label not_taken;
@@ -2490,7 +2480,7 @@ void TemplateTable::if_acmp(Condition cc) {
   __ jcc(j_not(cc), not_taken);
 
 #ifdef JPORTAL_ENABLE
-  if (JPortal) {
+  if (jportal) {
     jportal_taken_branch();
   }
 #endif
@@ -2499,7 +2489,7 @@ void TemplateTable::if_acmp(Condition cc) {
   __ bind(not_taken);
 
 #ifdef JPORTAL_ENABLE
-  if (JPortal) {
+  if (jportal) {
     jportal_not_taken_branch();
   }
 #endif
@@ -2507,7 +2497,7 @@ void TemplateTable::if_acmp(Condition cc) {
   __ profile_not_taken_branch(rax);
 }
 
-void TemplateTable::ret() {
+void TemplateTable::ret(bool jportal) {
   transition(vtos, vtos);
   locals_index(rbx);
   LP64_ONLY(__ movslq(rbx, iaddress(rbx))); // get return bci, compute return bcp
@@ -2517,10 +2507,10 @@ void TemplateTable::ret() {
   __ movptr(rbcp, Address(rax, Method::const_offset()));
   __ lea(rbcp, Address(rbcp, rbx, Address::times_1,
                       ConstMethod::codes_offset()));
-  __ dispatch_next(vtos, 0, true);
+  __ dispatch_next(vtos, 0, true, jportal);
 }
 
-void TemplateTable::wide_ret() {
+void TemplateTable::wide_ret(bool jportal) {
   transition(vtos, vtos);
   locals_index_wide(rbx);
   __ movptr(rbx, aaddress(rbx)); // get return bci, compute return bcp
@@ -2528,38 +2518,23 @@ void TemplateTable::wide_ret() {
   __ get_method(rax);
   __ movptr(rbcp, Address(rax, Method::const_offset()));
   __ lea(rbcp, Address(rbcp, rbx, Address::times_1, ConstMethod::codes_offset()));
-  __ dispatch_next(vtos, 0, true);
+  __ dispatch_next(vtos, 0, true, jportal);
 }
 
 #ifdef JPORTAL_ENABLE
-void TemplateTable::jportal_switch_case(Register index) {
-  __ get_method(rdx);
-  Label non_jportal;
-
-  __ movl(rdx, Address(rdx, Method::access_flags_offset()));
-  __ testl(rdx, JVM_ACC_JPORTAL);
-  __ jcc(Assembler::zero, non_jportal);
-
+void TemplateTable::jportal_switch_case(Register index, Register temp) {
+  assert(JPortal, "jportal");
+  assert_different_registers(index, temp);
   __ lea(rscratch1, ExternalAddress(JPortalStubBuffer::switch_table()->code_begin()));
-  __ imulptr(rdx, index, JPortalStubBuffer::jportal_table_stub_entry_size());
-  __ addptr(rscratch1, rdx);
+  __ imulptr(temp, index, JPortalStubBuffer::jportal_table_stub_entry_size());
+  __ addptr(rscratch1, temp);
   __ call(rscratch1);
-
-  __ bind(non_jportal);
 }
 
 void TemplateTable::jportal_switch_default() {
+  assert(JPortal, "jportal");
   JPortalStub *stub = JPortalStubBuffer::new_jportal_jump_stub();
-  __ get_method(rdx);
-  Label non_jportal;
-
-  __ movl(rdx, Address(rdx, Method::access_flags_offset()));
-  __ testl(rdx, JVM_ACC_JPORTAL);
-  __ jcc(Assembler::zero, non_jportal);
-
   __ jump(ExternalAddress(stub->code_begin()));
-
-  __ bind(non_jportal);
 
   address addr = __ pc();
   stub->set_jump_stub(addr);
@@ -2567,7 +2542,7 @@ void TemplateTable::jportal_switch_default() {
 }
 
 #endif
-void TemplateTable::tableswitch() {
+void TemplateTable::tableswitch(bool jportal) {
   Label default_case, continue_execution;
   transition(itos, vtos);
 
@@ -2588,8 +2563,8 @@ void TemplateTable::tableswitch() {
   __ subl(rax, rcx);
 
 #ifdef JPORTAL_ENABLE
-  if (JPortal) {
-    jportal_switch_case(rax);
+  if (jportal) {
+    jportal_switch_case(rax, rdx);
   }
 #endif
 
@@ -2601,12 +2576,12 @@ void TemplateTable::tableswitch() {
   LP64_ONLY(__ movl2ptr(rdx, rdx));
   __ load_unsigned_byte(rbx, Address(rbcp, rdx, Address::times_1));
   __ addptr(rbcp, rdx);
-  __ dispatch_only(vtos, true);
+  __ dispatch_only(vtos, true, jportal);
   // handle default
   __ bind(default_case);
 
 #ifdef JPORTAL_ENABLE
-  if (JPortal) {
+  if (jportal) {
     jportal_switch_default();
   }
 #endif
@@ -2616,12 +2591,12 @@ void TemplateTable::tableswitch() {
   __ jmp(continue_execution);
 }
 
-void TemplateTable::lookupswitch() {
+void TemplateTable::lookupswitch(bool jportal) {
   transition(itos, itos);
   __ stop("lookupswitch bytecode should have been rewritten");
 }
 
-void TemplateTable::fast_linearswitch() {
+void TemplateTable::fast_linearswitch(bool jportal) {
   transition(itos, vtos);
   Label loop_entry, loop, found, continue_execution;
   // bswap rax so we can avoid bswapping the table entries
@@ -2645,7 +2620,7 @@ void TemplateTable::fast_linearswitch() {
   // default case
 
 #ifdef JPORTAL_ENABLE
-  if (JPortal) {
+  if (jportal) {
     jportal_switch_default();
   }
 #endif
@@ -2657,8 +2632,8 @@ void TemplateTable::fast_linearswitch() {
   __ bind(found);
 
 #ifdef JPORTAL_ENABLE
-  if (JPortal) {
-    jportal_switch_case(rcx);
+  if (jportal) {
+    jportal_switch_case(rcx, rdx);
   }
 #endif
 
@@ -2670,10 +2645,10 @@ void TemplateTable::fast_linearswitch() {
   __ movl2ptr(rdx, rdx);
   __ load_unsigned_byte(rbx, Address(rbcp, rdx, Address::times_1));
   __ addptr(rbcp, rdx);
-  __ dispatch_only(vtos, true);
+  __ dispatch_only(vtos, true, jportal);
 }
 
-void TemplateTable::fast_binaryswitch() {
+void TemplateTable::fast_binaryswitch(bool jportal) {
   transition(itos, vtos);
   // Implementation using the following core algorithm:
   //
@@ -2764,8 +2739,8 @@ void TemplateTable::fast_binaryswitch() {
   __ jcc(Assembler::notEqual, default_case);
 
 #ifdef JPORTAL_ENABLE
-  if (JPortal) {
-    jportal_switch_case(i);
+  if (jportal) {
+    jportal_switch_case(i, j);
   }
 #endif
 
@@ -2780,13 +2755,13 @@ void TemplateTable::fast_binaryswitch() {
 
   __ load_unsigned_byte(rbx, Address(rbcp, j, Address::times_1));
   __ addptr(rbcp, j);
-  __ dispatch_only(vtos, true);
+  __ dispatch_only(vtos, true, jportal);
 
   // default case -> j = default offset
   __ bind(default_case);
 
 #ifdef JPORTAL_ENABLE
-  if (JPortal) {
+  if (jportal) {
     jportal_switch_default();
   }
 #endif
@@ -2801,10 +2776,10 @@ void TemplateTable::fast_binaryswitch() {
 
   __ load_unsigned_byte(rbx, Address(rbcp, j, Address::times_1));
   __ addptr(rbcp, j);
-  __ dispatch_only(vtos, true);
+  __ dispatch_only(vtos, true, jportal);
 }
 
-void TemplateTable::_return(TosState state) {
+void TemplateTable::_return(TosState state, bool jportal) {
   transition(state, state);
 
   assert(_desc->calls_vm(),
@@ -3777,7 +3752,8 @@ void TemplateTable::prepare_invoke(int byte_no,
                                    Register method,  // linked method (or i-klass)
                                    Register index,   // itable index, MethodType, etc.
                                    Register recv,    // if caller wants to see it
-                                   Register flags    // if caller wants to test it
+                                   Register flags,    // if caller wants to test it
+                                   bool jportal
                                    ) {
   // determine flags
   const Bytecodes::Code code = bytecode();
@@ -3832,37 +3808,15 @@ void TemplateTable::prepare_invoke(int byte_no,
     __ verify_oop(recv);
   }
 
-  if (save_flags) {
-    __ movl(rbcp, flags);
-  }
-
-  // compute return type
-  __ shrl(flags, ConstantPoolCacheEntry::tos_state_shift);
-  // Make sure we don't need to mask flags after the above shift
-  ConstantPoolCacheEntry::verify_tos_state_shift();
-  // load return address
-  {
-    const address table_addr = (address) Interpreter::invoke_return_entry_table_for(code);
-    ExternalAddress table(table_addr);
-    LP64_ONLY(__ lea(rscratch1, table));
-    LP64_ONLY(__ movptr(flags, Address(rscratch1, flags, Address::times_ptr)));
-    NOT_LP64(__ movptr(flags, ArrayAddress(table, Address(noreg, flags, Address::times_ptr))));
-  }
-
-  // push return address
+  // load return address in jump_from_interpreted
+  // always save flags here to load return address
   __ push(flags);
-
-  // Restore flags value from the constant pool cache, and restore rsi
-  // for later null checks.  r13 is the bytecode pointer
-  if (save_flags) {
-    __ movl(flags, rbcp);
-    __ restore_bcp();
-  }
 }
 
 void TemplateTable::invokevirtual_helper(Register index,
                                          Register recv,
-                                         Register flags) {
+                                         Register flags,
+                                         bool jportal) {
   // Uses temporary registers rax, rdx
   assert_different_registers(index, recv, rax, rdx);
   assert(index == rbx, "");
@@ -3888,7 +3842,7 @@ void TemplateTable::invokevirtual_helper(Register index,
   __ profile_final_call(rax);
   __ profile_arguments_type(rax, method, rbcp, true);
 
-  __ jump_from_interpreted(method, rax);
+  __ jump_from_interpreted(method, rax, rdx, bytecode(), jportal, true);
 
   __ bind(notFinal);
 
@@ -3903,60 +3857,60 @@ void TemplateTable::invokevirtual_helper(Register index,
   __ profile_called_method(method, rdx, rbcp);
 
   __ profile_arguments_type(rdx, method, rbcp, true);
-  __ jump_from_interpreted(method, rdx);
+  __ jump_from_interpreted(method, rax, rdx, bytecode(), jportal, false);
 }
 
-void TemplateTable::invokevirtual(int byte_no) {
+void TemplateTable::invokevirtual(int byte_no, bool jportal) {
   transition(vtos, vtos);
   assert(byte_no == f2_byte, "use this argument");
   prepare_invoke(byte_no,
                  rbx,    // method or vtable index
                  noreg,  // unused itable index
-                 rcx, rdx); // recv, flags
+                 rcx, rdx, jportal); // recv, flags
 
   // rbx: index
   // rcx: receiver
   // rdx: flags
 
-  invokevirtual_helper(rbx, rcx, rdx);
+  invokevirtual_helper(rbx, rcx, rdx, jportal);
 }
 
-void TemplateTable::invokespecial(int byte_no) {
+void TemplateTable::invokespecial(int byte_no, bool jportal) {
   transition(vtos, vtos);
   assert(byte_no == f1_byte, "use this argument");
   prepare_invoke(byte_no, rbx, noreg,  // get f1 Method*
-                 rcx);  // get receiver also for null check
+                 rcx, noreg, jportal);  // get receiver also for null check
   __ verify_oop(rcx);
   __ null_check(rcx);
   // do the call
   __ profile_call(rax);
   __ profile_arguments_type(rax, rbx, rbcp, false);
-  __ jump_from_interpreted(rbx, rax);
+  __ jump_from_interpreted(rbx, rax, rdx, bytecode(), jportal, true);
 }
 
-void TemplateTable::invokestatic(int byte_no) {
+void TemplateTable::invokestatic(int byte_no, bool jportal) {
   transition(vtos, vtos);
   assert(byte_no == f1_byte, "use this argument");
-  prepare_invoke(byte_no, rbx);  // get f1 Method*
+  prepare_invoke(byte_no, rbx, noreg, noreg, noreg, jportal);  // get f1 Method*
   // do the call
   __ profile_call(rax);
   __ profile_arguments_type(rax, rbx, rbcp, false);
-  __ jump_from_interpreted(rbx, rax);
+  __ jump_from_interpreted(rbx, rax, rdx, bytecode(), jportal, true);
 }
 
 
-void TemplateTable::fast_invokevfinal(int byte_no) {
+void TemplateTable::fast_invokevfinal(int byte_no, bool jportal) {
   transition(vtos, vtos);
   assert(byte_no == f2_byte, "use this argument");
   __ stop("fast_invokevfinal not used on x86");
 }
 
 
-void TemplateTable::invokeinterface(int byte_no) {
+void TemplateTable::invokeinterface(int byte_no, bool jportal) {
   transition(vtos, vtos);
   assert(byte_no == f1_byte, "use this argument");
   prepare_invoke(byte_no, rax, rbx,  // get f1 Klass*, f2 Method*
-                 rcx, rdx); // recv, flags
+                 rcx, rdx, jportal); // recv, flags
 
   // rax: reference klass (from f1) if interface method
   // rbx: method (from f2)
@@ -3972,7 +3926,7 @@ void TemplateTable::invokeinterface(int byte_no) {
   __ movl(rlocals, rdx);
   __ andl(rlocals, (1 << ConstantPoolCacheEntry::is_forced_virtual_shift));
   __ jcc(Assembler::zero, notObjectMethod);
-  invokevirtual_helper(rbx, rcx, rdx);
+  invokevirtual_helper(rbx, rcx, rdx, jportal);
   // no return from above
   __ bind(notObjectMethod);
 
@@ -4003,7 +3957,7 @@ void TemplateTable::invokeinterface(int byte_no) {
   __ profile_final_call(rdx);
   __ profile_arguments_type(rdx, rbx, rbcp, true);
 
-  __ jump_from_interpreted(rbx, rdx);
+  __ jump_from_interpreted(rbx, rax, rdx, bytecode(), jportal, true);
   // no return from above
   __ bind(notVFinal);
 
@@ -4060,7 +4014,7 @@ void TemplateTable::invokeinterface(int byte_no) {
   // do the call
   // rcx: receiver
   // rbx,: Method*
-  __ jump_from_interpreted(rbx, rdx);
+  __ jump_from_interpreted(rbx, rax, rdx, bytecode(), jportal, false);
   __ should_not_reach_here();
 
   // exception handling code follows...
@@ -4069,7 +4023,7 @@ void TemplateTable::invokeinterface(int byte_no) {
 
   __ bind(no_such_method);
   // throw exception
-  __ pop(rbx);           // pop return address (pushed by prepare_invoke)
+  __ pop(rbx);           // pop flags (pushed by prepare_invoke)
   __ restore_bcp();      // rbcp must be correct for exception handler   (was destroyed)
   __ restore_locals();   // make sure locals pointer is correct as well (was destroyed)
   // Pass arguments for generating a verbose error message.
@@ -4089,7 +4043,7 @@ void TemplateTable::invokeinterface(int byte_no) {
 
   __ bind(no_such_interface);
   // throw exception
-  __ pop(rbx);           // pop return address (pushed by prepare_invoke)
+  __ pop(rbx);           // pop flags (pushed by prepare_invoke)
   __ restore_bcp();      // rbcp must be correct for exception handler   (was destroyed)
   __ restore_locals();   // make sure locals pointer is correct as well (was destroyed)
   // Pass arguments for generating a verbose error message.
@@ -4100,7 +4054,7 @@ void TemplateTable::invokeinterface(int byte_no) {
   __ should_not_reach_here();
 }
 
-void TemplateTable::invokehandle(int byte_no) {
+void TemplateTable::invokehandle(int byte_no, bool jportal) {
   transition(vtos, vtos);
   assert(byte_no == f1_byte, "use this argument");
   const Register rbx_method = rbx;
@@ -4108,7 +4062,7 @@ void TemplateTable::invokehandle(int byte_no) {
   const Register rcx_recv   = rcx;
   const Register rdx_flags  = rdx;
 
-  prepare_invoke(byte_no, rbx_method, rax_mtype, rcx_recv);
+  prepare_invoke(byte_no, rbx_method, rax_mtype, rcx_recv, noreg, jportal);
   __ verify_method_ptr(rbx_method);
   __ verify_oop(rcx_recv);
   __ null_check(rcx_recv);
@@ -4122,17 +4076,17 @@ void TemplateTable::invokehandle(int byte_no) {
   __ profile_final_call(rax);
   __ profile_arguments_type(rdx, rbx_method, rbcp, true);
 
-  __ jump_from_interpreted(rbx_method, rdx);
+  __ jump_from_interpreted(rbx_method, rax, rdx, bytecode(), jportal, false);
 }
 
-void TemplateTable::invokedynamic(int byte_no) {
+void TemplateTable::invokedynamic(int byte_no, bool jportal) {
   transition(vtos, vtos);
   assert(byte_no == f1_byte, "use this argument");
 
   const Register rbx_method   = rbx;
   const Register rax_callsite = rax;
 
-  prepare_invoke(byte_no, rbx_method, rax_callsite);
+  prepare_invoke(byte_no, rbx_method, rax_callsite, noreg, noreg, jportal);
 
   // rax: CallSite object (from cpool->resolved_references[f1])
   // rbx: MH.linkToCallSite method (from f2)
@@ -4146,7 +4100,7 @@ void TemplateTable::invokedynamic(int byte_no) {
 
   __ verify_oop(rax_callsite);
 
-  __ jump_from_interpreted(rbx_method, rdx);
+  __ jump_from_interpreted(rbx_method, rax, rdx, bytecode(), jportal, false);
 }
 
 //-----------------------------------------------------------------------------
@@ -4462,7 +4416,7 @@ void TemplateTable::instanceof() {
 
 //----------------------------------------------------------------------------------------------------
 // Breakpoints
-void TemplateTable::_breakpoint() {
+void TemplateTable::_breakpoint(bool jportal) {
   // Note: We get here even if we are single stepping..
   // jbug insists on setting breakpoints at every bytecode
   // even if we are in single step mode.
@@ -4486,13 +4440,13 @@ void TemplateTable::_breakpoint() {
              rarg, rbcp);
 
   // complete the execution of original bytecode
-  __ dispatch_only_normal(vtos);
+  __ dispatch_only_normal(vtos, jportal);
 }
 
 //-----------------------------------------------------------------------------
 // Exceptions
 
-void TemplateTable::athrow() {
+void TemplateTable::athrow(bool jportal) {
   transition(atos, vtos);
   __ null_check(rax);
   __ jump(ExternalAddress(Interpreter::throw_exception_entry()));
@@ -4515,7 +4469,7 @@ void TemplateTable::athrow() {
 // [frame data   ] <--- monitor block bot
 // ...
 // [saved rbp    ] <--- rbp
-void TemplateTable::monitorenter() {
+void TemplateTable::monitorenter(bool jportal) {
   transition(atos, vtos);
 
   // check for NULL object
@@ -4611,10 +4565,10 @@ void TemplateTable::monitorenter() {
 
   // The bcp has already been incremented. Just need to dispatch to
   // next instruction.
-  __ dispatch_next(vtos);
+  __ dispatch_next(vtos, 0, false, jportal);
 }
 
-void TemplateTable::monitorexit() {
+void TemplateTable::monitorexit(bool jportal) {
   transition(atos, vtos);
 
   // check for NULL object
@@ -4669,10 +4623,18 @@ void TemplateTable::monitorexit() {
 }
 
 // Wide instructions
-void TemplateTable::wide() {
+void TemplateTable::wide(bool jportal) {
   transition(vtos, vtos);
   __ load_unsigned_byte(rbx, at_bcp(1));
+
+  if (jportal) {
+    assert(JPortal, "jportal");
+  }
+#ifdef JPORTAL_ENABLE
+  ExternalAddress wtable((address)(jportal?Interpreter::_jportal_wentry_point:Interpreter::_wentry_point));
+#else
   ExternalAddress wtable((address)Interpreter::_wentry_point);
+#endif
   __ jump(ArrayAddress(wtable, Address(noreg, rbx, Address::times_ptr)));
   // Note: the rbcp increment step is part of the individual wide bytecode implementations
 }

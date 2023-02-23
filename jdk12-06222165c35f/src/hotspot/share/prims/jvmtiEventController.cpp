@@ -342,6 +342,7 @@ void VM_ChangeSingleStep::doit() {
   JvmtiEventControllerPrivate::set_should_post_single_step(_on);
   if (_on) {
     Interpreter::notice_safepoints();
+    JPORTAL_ONLY(if (JPortal) Interpreter::notice_safepoints(true));
   }
 }
 

@@ -121,6 +121,10 @@ class AbstractInterpreter: AllStatic {
 
   static address    _rethrow_exception_entry;                   // rethrows an activation in previous frame
 
+#ifdef JPORTAL_ENABLE
+  static address    _jportal_entry_table[number_of_method_entries];     // entry points for a given method
+  static address    _jportal_cds_entry_table[number_of_method_entries]; // entry points for methods in the CDS archive
+#endif
   friend class      AbstractInterpreterGenerator;
   friend class      InterpreterMacroAssembler;
 
@@ -132,22 +136,28 @@ class AbstractInterpreter: AllStatic {
 
   // Method activation
   static MethodKind method_kind(const methodHandle& m);
-  static address    entry_for_kind(MethodKind k)                { assert(0 <= k && k < number_of_method_entries, "illegal kind"); return _entry_table[k]; }
-  static address    entry_for_method(const methodHandle& m)     { return entry_for_kind(method_kind(m)); }
+  static address    entry_for_kind(MethodKind k, bool jportal = false)  {
+    assert(0 <= k && k < number_of_method_entries, "illegal kind");
+    JPORTAL_ONLY( if(jportal) {assert(JPortal, "jportal"); return _jportal_entry_table[k];} )
+    return _entry_table[k];
+  }
+
+  static address    entry_for_method(const methodHandle& m)     { return entry_for_kind(method_kind(m), JPortal && m->is_jportal()); }
 
   static address entry_for_cds_method(const methodHandle& m) {
     MethodKind k = method_kind(m);
     assert(0 <= k && k < number_of_method_entries, "illegal kind");
+    JPORTAL_ONLY(if (JPortal && m->is_jportal()) return _jportal_cds_entry_table[k]);
     return _cds_entry_table[k];
   }
 
   // used by class data sharing
-  static void       update_cds_entry_table(MethodKind kind) NOT_CDS_RETURN;
+  static void       update_cds_entry_table(MethodKind kind, bool jportal = false) NOT_CDS_RETURN;
 
   static address    get_trampoline_code_buffer(AbstractInterpreter::MethodKind kind) NOT_CDS_RETURN_(0);
 
   // used for bootstrapping method handles:
-  static void       set_entry_for_kind(MethodKind k, address e);
+  static void       set_entry_for_kind(MethodKind k, address e, bool jportal = false);
 
   static void       print_method_kind(MethodKind kind)          PRODUCT_RETURN;
 
@@ -175,8 +185,8 @@ class AbstractInterpreter: AllStatic {
   // Runtime support
 
   // length = invoke bytecode length (to advance to next bytecode)
-  static address deopt_entry(TosState state, int length) { ShouldNotReachHere(); return NULL; }
-  static address return_entry(TosState state, int length, Bytecodes::Code code) { ShouldNotReachHere(); return NULL; }
+  static address deopt_entry(TosState state, int length, bool jportal = false) { ShouldNotReachHere(); return NULL; }
+  static address return_entry(TosState state, int length, bool jportal = false, bool dump = false) { ShouldNotReachHere(); return NULL; }
 
   static address    rethrow_exception_entry()                   { return _rethrow_exception_entry; }
 
@@ -219,8 +229,8 @@ class AbstractInterpreter: AllStatic {
   // Runtime support
   static bool       is_not_reached(const methodHandle& method, int bci);
   // Safepoint support
-  static void       notice_safepoints()                         { ShouldNotReachHere(); } // stops the thread when reaching a safepoint
-  static void       ignore_safepoints()                         { ShouldNotReachHere(); } // ignores safepoints
+  static void       notice_safepoints(bool jportal = false)                         { ShouldNotReachHere(); } // stops the thread when reaching a safepoint
+  static void       ignore_safepoints(bool jportal = false)                         { ShouldNotReachHere(); } // ignores safepoints
 
   // Support for native calls
   static address    slow_signature_handler()                    { return _slow_signature_handler; }
@@ -318,7 +328,7 @@ class AbstractInterpreter: AllStatic {
     }
   }
 
-  static void initialize_method_handle_entries();
+  static void initialize_method_handle_entries(bool jportal = false);
 };
 
 //------------------------------------------------------------------------------------------------------------------------

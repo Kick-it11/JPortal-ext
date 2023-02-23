@@ -515,8 +515,10 @@ class Method : public Metadata {
     }
   }
 
+#ifdef JPORTAL_ENABLE
   address jportal_entry() const                  { return _jportal_entry; }
   address jportal_exit()  const                  { return _jportal_exit; }
+#endif
   // native function (used for native methods only)
   enum {
     native_bind_event_is_interesting = true

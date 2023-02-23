@@ -246,7 +246,7 @@ address TemplateInterpreterGenerator::generate_exception_handler_common(const ch
   return entry;
 }
 
-address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, int step, size_t index_size) {
+address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, int step, size_t index_size, bool jportal, bool dump, bool is_invoke) {
   address entry = __ pc();
 
   __ interp_verify_oop(R0_tos, state, __FILE__, __LINE__);
@@ -282,7 +282,7 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
 }
 
 
-address TemplateInterpreterGenerator::generate_deopt_entry_for(TosState state, int step, address continuation) {
+address TemplateInterpreterGenerator::generate_deopt_entry_for(TosState state, int step, address continuation, bool jportal) {
   address entry = __ pc();
 
   __ interp_verify_oop(R0_tos, state, __FILE__, __LINE__);
@@ -339,7 +339,7 @@ address TemplateInterpreterGenerator::generate_result_handler_for(BasicType type
   return entry;
 }
 
-address TemplateInterpreterGenerator::generate_safept_entry_for(TosState state, address runtime_entry) {
+address TemplateInterpreterGenerator::generate_safept_entry_for(TosState state, address runtime_entry, bool jportal) {
   address entry = __ pc();
   __ push(state);
   __ call_VM(noreg, runtime_entry);
@@ -683,7 +683,7 @@ void TemplateInterpreterGenerator::generate_fixed_frame(bool native_call) {
 // [ parameter 1        ] <--- Rlocals
 //
 
-address TemplateInterpreterGenerator::generate_Reference_get_entry(void) {
+address TemplateInterpreterGenerator::generate_Reference_get_entry(bool jportal) {
   // Code: _aload_0, _getfield, _areturn
   // parameter size = 1
   //
@@ -1074,7 +1074,7 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
 //
 // Generic interpreted method entry to (asm) interpreter
 //
-address TemplateInterpreterGenerator::generate_normal_entry(bool synchronized) {
+address TemplateInterpreterGenerator::generate_normal_entry(bool synchronized, bool jportal) {
   // determine code generation flags
   bool inc_counter  = UseCompiler || CountCompiledCalls || LogTouchedMethods;
 
@@ -1482,7 +1482,7 @@ address TemplateInterpreterGenerator::generate_earlyret_entry_for(TosState state
 //------------------------------------------------------------------------------------------------------------------------
 // Helper for vtos entry point generation
 
-void TemplateInterpreterGenerator::set_vtos_entry_points (Template* t, address& bep, address& cep, address& sep, address& aep, address& iep, address& lep, address& fep, address& dep, address& vep) {
+void TemplateInterpreterGenerator::set_vtos_entry_points (Template* t, address& bep, address& cep, address& sep, address& aep, address& iep, address& lep, address& fep, address& dep, address& vep, bool jportal) {
   assert(t->is_valid() && t->tos_in() == vtos, "illegal template");
   Label L;
 

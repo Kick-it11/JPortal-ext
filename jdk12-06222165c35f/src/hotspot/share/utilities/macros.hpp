@@ -645,4 +645,10 @@
 #define JPORTAL_ENABLE 1
 #endif
 
+#ifdef JPORTAL_ENABLE
+#define JPORTAL_ONLY(CODE) CODE
+#else
+#define JPORTAL_ONLY(CODE)
+#endif
+
 #endif // SHARE_VM_UTILITIES_MACROS_HPP

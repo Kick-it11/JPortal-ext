@@ -75,7 +75,7 @@ void InterpreterMacroAssembler::compute_extra_locals_size_in_bytes(Register args
 
 // Dispatch code executed in the prolog of a bytecode which does not do it's
 // own dispatch. The dispatch address is computed and placed in IdispatchAddress
-void InterpreterMacroAssembler::dispatch_prolog(TosState state, int bcp_incr) {
+void InterpreterMacroAssembler::dispatch_prolog(TosState state, int bcp_incr, bool jportal) {
   assert_not_delayed();
   ldub( Lbcp, bcp_incr, Lbyte_code);                    // load next bytecode
   // dispatch table to use
@@ -89,7 +89,7 @@ void InterpreterMacroAssembler::dispatch_prolog(TosState state, int bcp_incr) {
 // Dispatch code executed in the epilog of a bytecode which does not do it's
 // own dispatch. The dispatch address in IdispatchAddress is used for the
 // dispatch.
-void InterpreterMacroAssembler::dispatch_epilog(TosState state, int bcp_incr) {
+void InterpreterMacroAssembler::dispatch_epilog(TosState state, int bcp_incr, bool jportal) {
   assert_not_delayed();
   verify_FPU(1, state);
   interp_verify_oop(Otos_i, state, __FILE__, __LINE__);
@@ -98,7 +98,7 @@ void InterpreterMacroAssembler::dispatch_epilog(TosState state, int bcp_incr) {
   else                delayed()->nop();
 }
 
-void InterpreterMacroAssembler::dispatch_next(TosState state, int bcp_incr, bool generate_poll) {
+void InterpreterMacroAssembler::dispatch_next(TosState state, int bcp_incr, bool generate_poll, bool jportal) {
   // %%%% consider branching to a single shared dispatch stub (for each bcp_incr)
   assert_not_delayed();
   ldub( Lbcp, bcp_incr, Lbyte_code);               // load next bytecode

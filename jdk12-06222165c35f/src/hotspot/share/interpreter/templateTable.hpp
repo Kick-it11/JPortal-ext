@@ -91,6 +91,11 @@ class TemplateTable: AllStatic {
   static Template        _template_table     [Bytecodes::number_of_codes];
   static Template        _template_table_wide[Bytecodes::number_of_codes];
 
+#ifdef JPORTAL_ENABLE
+  static Template        _jportal_template_table     [Bytecodes::number_of_codes];
+  static Template        _jportal_template_table_wide[Bytecodes::number_of_codes];
+#endif
+
   static Template*       _desc;                  // the current template to be generated
   static Bytecodes::Code bytecode()              { return _desc->bytecode(); }
 
@@ -240,26 +245,69 @@ class TemplateTable: AllStatic {
   static void double_cmp(int unordered_result);
 
   static void count_calls(Register method, Register temp);
-  static void branch(bool is_jsr, bool is_wide);
-  static void if_0cmp   (Condition cc);
-  static void if_icmp   (Condition cc);
-  static void if_nullcmp(Condition cc);
-  static void if_acmp   (Condition cc);
+  static void branch(bool is_jsr, bool is_wide, bool jportal = false);
 
-  static void _goto();
-  static void jsr();
-  static void ret();
-  static void wide_ret();
+  static void if_0cmp   (Condition cc, bool jportal = false);
+  static void if_icmp   (Condition cc, bool jportal = false);
+  static void if_nullcmp(Condition cc, bool jportal = false);
+  static void if_acmp   (Condition cc, bool jportal = false);
 
-  static void goto_w();
-  static void jsr_w();
+  static void _goto(bool jportal = false);
+  static void jsr(bool jportal = false);
+  static void ret(bool jportal = false);
+  static void wide_ret(bool jportal = false);
 
-  static void tableswitch();
-  static void lookupswitch();
-  static void fast_linearswitch();
-  static void fast_binaryswitch();
+  static void goto_w(bool jportal = false);
+  static void jsr_w(bool jportal = false);
 
-  static void _return(TosState state);
+  static void tableswitch(bool jportal = false);
+  static void lookupswitch(bool jportal = false);
+  static void fast_linearswitch(bool jportal = false);
+  static void fast_binaryswitch(bool jportal = false);
+
+  static void _return(TosState state, bool jportal = false);
+
+  static void normal_if_0cmp   (Condition cc)          { if_0cmp(cc, false); }
+  static void normal_if_icmp   (Condition cc)          { if_icmp(cc, false); }
+  static void normal_if_nullcmp(Condition cc)          { if_nullcmp(cc, false); }
+  static void normal_if_acmp   (Condition cc)          { if_acmp(cc, false); }
+
+  static void normal_goto()                            { _goto(false); }
+  static void normal_jsr()                             { jsr(false); }
+  static void normal_ret()                             { ret(false); }
+  static void normal_wide_ret()                        { ret(false); }
+
+  static void normal_goto_w()                          { goto_w(false); }
+  static void normal_jsr_w()                           { jsr_w(false); }
+
+  static void normal_tableswitch()                     { tableswitch(false); }
+  static void normal_lookupswitch()                    { lookupswitch(false); }
+  static void normal_fast_linearswitch()               { fast_linearswitch(false); }
+  static void normal_fast_binaryswitch()               { fast_binaryswitch(false); }
+
+  static void normal_return(TosState state)            { _return(state, false); }
+
+#ifdef JPORTAL_ENABLE
+  static void jportal_if_0cmp   (Condition cc)          { if_0cmp(cc, true); }
+  static void jportal_if_icmp   (Condition cc)          { if_icmp(cc, true); }
+  static void jportal_if_nullcmp(Condition cc)          { if_nullcmp(cc, true); }
+  static void jportal_if_acmp   (Condition cc)          { if_acmp(cc, true); }
+
+  static void jportal_goto()                            { _goto(true); }
+  static void jportal_jsr()                             { jsr(true); }
+  static void jportal_ret()                             { ret(true); }
+  static void jportal_wide_ret()                        { ret(true); }
+
+  static void jportal_goto_w()                          { goto_w(true); }
+  static void jportal_jsr_w()                           { jsr_w(true); }
+
+  static void jportal_tableswitch()                     { tableswitch(true); }
+  static void jportal_lookupswitch()                    { lookupswitch(true); }
+  static void jportal_fast_linearswitch()               { fast_linearswitch(true); }
+  static void jportal_fast_binaryswitch()               { fast_binaryswitch(true); }
+
+  static void jportal_return(TosState state)            { _return(state, true); }
+#endif
 
   static void resolve_cache_and_index(int byte_no,       // one of 1,2,11
                                       Register cache,    // output for CP cache
@@ -278,13 +326,31 @@ class TemplateTable: AllStatic {
                                         Register offset,
                                         Register flags,
                                         bool is_static);
-  static void invokevirtual(int byte_no);
-  static void invokespecial(int byte_no);
-  static void invokestatic(int byte_no);
-  static void invokeinterface(int byte_no);
-  static void invokedynamic(int byte_no);
-  static void invokehandle(int byte_no);
-  static void fast_invokevfinal(int byte_no);
+  static void invokevirtual(int byte_no, bool jportal = false);
+  static void invokespecial(int byte_no, bool jportal = false);
+  static void invokestatic(int byte_no, bool jportal = false);
+  static void invokeinterface(int byte_no, bool jportal = false);
+  static void invokedynamic(int byte_no, bool jportal = false);
+  static void invokehandle(int byte_no, bool jportal = false);
+  static void fast_invokevfinal(int byte_no, bool jportal = false);
+
+  static void normal_invokevirtual(int byte_no)    { invokevirtual(byte_no, false); }
+  static void normal_invokespecial(int byte_no)    { invokespecial(byte_no, false); }
+  static void normal_invokestatic(int byte_no)     { invokestatic(byte_no, false); }
+  static void normal_invokeinterface(int byte_no)  { invokeinterface(byte_no, false); }
+  static void normal_invokedynamic(int byte_no)    { invokedynamic(byte_no, false); }
+  static void normal_invokehandle(int byte_no)     { invokehandle(byte_no, false); }
+  static void normal_fast_invokevfinal(int byte_no){ fast_invokevfinal(byte_no, false); }
+
+#ifdef JPORTAL_ENABLE
+  static void jportal_invokevirtual(int byte_no)    { invokevirtual(byte_no, true); }
+  static void jportal_invokespecial(int byte_no)    { invokespecial(byte_no, true); }
+  static void jportal_invokestatic(int byte_no)     { invokestatic(byte_no, true); }
+  static void jportal_invokeinterface(int byte_no)  { invokeinterface(byte_no, true); }
+  static void jportal_invokedynamic(int byte_no)    { invokedynamic(byte_no, true); }
+  static void jportal_invokehandle(int byte_no)     { invokehandle(byte_no, true); }
+  static void jportal_fast_invokevfinal(int byte_no){ fast_invokevfinal(byte_no, true); } 
+#endif
 
   static void getfield_or_static(int byte_no, bool is_static, RewriteControl rc = may_rewrite);
   static void putfield_or_static(int byte_no, bool is_static, RewriteControl rc = may_rewrite);
@@ -305,19 +371,45 @@ class TemplateTable: AllStatic {
   static void checkcast();
   static void instanceof();
 
-  static void athrow();
+  static void athrow(bool jportal = false);
 
-  static void monitorenter();
-  static void monitorexit();
+  static void monitorenter(bool jportal = false);
+  static void monitorexit(bool jportal = false);
 
-  static void wide();
+  static void normal_athrow() { athrow(false); }
+
+  static void normal_monitorenter() { monitorenter(false); }
+  static void normal_monitorexit()  { monitorexit(false); }
+
+#ifdef JPORTAL_ENABLE
+  static void jportal_athrow() { athrow(true); }
+
+
+  static void jportal_monitorenter() { monitorenter(true); }
+  static void jportal_monitorexit()  { monitorexit(true); }
+#endif
+
+  static void wide(bool jportal = false);
+
+  static void normal_wide() { wide(false); }
+
+#ifdef JPORTAL_ENABLE
+  static void jportal_wide() { wide(true); }
+#endif
+
   static void multianewarray();
 
   static void fast_xaccess(TosState state);
   static void fast_accessfield(TosState state);
   static void fast_storefield(TosState state);
 
-  static void _breakpoint();
+  static void _breakpoint(bool jportal = false);
+
+  static void normal_breakpoint() { return _breakpoint(false); }
+
+#ifdef JPORTAL_ENABLE
+  static void jportal_breakpoint() { return _breakpoint(true); }
+#endif
 
   static void shouldnotreachhere();
 
@@ -330,17 +422,17 @@ class TemplateTable: AllStatic {
   static void transition(TosState tos_in, TosState tos_out);// checks if in/out states expected by template generator correspond to table entries
 
   // initialization helpers
-  static void def(Bytecodes::Code code, int flags, TosState in, TosState out, void (*gen)(            ), char filler );
-  static void def(Bytecodes::Code code, int flags, TosState in, TosState out, void (*gen)(int arg     ), int arg     );
- static void def(Bytecodes::Code code, int flags, TosState in, TosState out, void (*gen)(bool arg    ), bool arg    );
-  static void def(Bytecodes::Code code, int flags, TosState in, TosState out, void (*gen)(TosState tos), TosState tos);
-  static void def(Bytecodes::Code code, int flags, TosState in, TosState out, void (*gen)(Operation op), Operation op);
-  static void def(Bytecodes::Code code, int flags, TosState in, TosState out, void (*gen)(Condition cc), Condition cc);
+  static void def(Bytecodes::Code code, int flags, TosState in, TosState out, void (*gen)(            ), char filler , bool jportal = false);
+  static void def(Bytecodes::Code code, int flags, TosState in, TosState out, void (*gen)(int arg     ), int arg     , bool jportal = false);
+ static void def(Bytecodes::Code code, int flags, TosState in, TosState out, void (*gen)(bool arg    ), bool arg     , bool jportal = false);
+  static void def(Bytecodes::Code code, int flags, TosState in, TosState out, void (*gen)(TosState tos), TosState tos, bool jportal = false);
+  static void def(Bytecodes::Code code, int flags, TosState in, TosState out, void (*gen)(Operation op), Operation op, bool jportal = false);
+  static void def(Bytecodes::Code code, int flags, TosState in, TosState out, void (*gen)(Condition cc), Condition cc, bool jportal = false);
 
 #ifdef JPORTAL_ENABLE
   static void jportal_taken_branch();
   static void jportal_not_taken_branch();
-  static void jportal_switch_case(Register index);
+  static void jportal_switch_case(Register index, Register temp);
   static void jportal_switch_default();
 #endif
 
@@ -355,8 +447,16 @@ class TemplateTable: AllStatic {
   static void pd_initialize();
 
   // Templates
-  static Template* template_for     (Bytecodes::Code code)  { Bytecodes::check     (code); return &_template_table     [code]; }
-  static Template* template_for_wide(Bytecodes::Code code)  { Bytecodes::wide_check(code); return &_template_table_wide[code]; }
+  static Template* template_for     (Bytecodes::Code code, bool jportal)  {
+    Bytecodes::check     (code);
+    JPORTAL_ONLY(if (jportal) { assert(JPortal, "jportal"); return &_jportal_template_table[code]; })
+    return &_template_table[code];
+  }
+  static Template* template_for_wide(Bytecodes::Code code, bool jportal)  {
+    Bytecodes::wide_check(code);
+    JPORTAL_ONLY(if (jportal) { assert(JPortal, "jporal"); return &_jportal_template_table_wide[code]; })
+    return &_template_table_wide[code];
+  }
 
   // Platform specifics
 #include CPU_HEADER(templateTable)

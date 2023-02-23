@@ -771,47 +771,108 @@ void InterpreterMacroAssembler::prepare_to_jump_from_interpreted() {
   movptr(Address(rbp, frame::interpreter_frame_last_sp_offset * wordSize), _bcp_register);
 }
 
+void InterpreterMacroAssembler::push_return_address(Register flags, Bytecodes::Code code, bool jportal, bool dump) {
+  // pop flags
+  pop(flags);
+
+  shrl(flags, ConstantPoolCacheEntry::tos_state_shift);
+  // Make sure we don't need to mask flags after the above shift
+  ConstantPoolCacheEntry::verify_tos_state_shift();
+  // load return address
+  const address table_addr = (address) Interpreter::invoke_return_entry_table_for(code, jportal, dump);
+  ExternalAddress table(table_addr);
+  lea(rscratch1, table);
+  movptr(flags, Address(rscratch1, flags, Address::times_ptr));
+
+  // push return address
+  push(flags);
+}
+
+// JPortal:
+//       jportal(caller) :
+//           inter only:
+//               jportal(callee):
+//                   determined -> no;
+//                   not determined -> entry only;
+//               not jportal(callee) -> ret site only;
+//           compiled code maybe: 
+//               not jportal(callee) || not inter code(callee) -> ret site only;
+//               jportal(callee) && inter(callee):
+//                   determined -> no;
+//                   not determined -> entry;
+//       not jportal(caller):
+//           inter only:
+//               jportal(callee) -> entry only
+//               not jportal(callee) -> no;
+//           compiled code maybe: 
+//               not jportal(callee) || not inter code(callee) -> no;
+//               jportal(callee) && inter(callee) -> entry only;
+void InterpreterMacroAssembler::do_jump_from_interpreted(Register method, Register tmp1, Register tmp2, Bytecodes::Code code, bool jportal, bool determined, bool inter_only) {
+  Label non_jportal;
+  assert_different_registers(method, tmp1, tmp2);
+
+  movptr(tmp2, Address(method, inter_only ? Method::interpreter_entry_offset()
+                                          : Method::from_interpreted_offset()));
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    movl(tmp1, Address(method, Method::access_flags_offset()));
+    testl(tmp1, JVM_ACC_JPORTAL);
+    jcc(Assembler::zero, non_jportal);
+
+    if (!inter_only) {
+      cmpptr(tmp2, Address(method, Method::interpreter_entry_offset()));
+      jcc(Assembler::notZero, non_jportal);      
+    }
+  }
+#endif
+
+  push_return_address(tmp1, code, jportal, false);
+
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    // jportal calls un-determined method(virtual, dynamic call)
+    // or non-jportal calls jportal method(callback)
+    if (!determined || !jportal) {
+      movptr(tmp1, Address(method, Method::jportal_entry_offset()));
+      call(tmp1);
+    }
+  }
+#endif
+
+  jmp(tmp2);
+
+  bind(non_jportal);
+
+  // if jportal is false, the dump argument is useless
+  push_return_address(tmp1, code, jportal, true);
+
+  jmp(tmp2);
+}
 
 // Jump to from_interpreted entry of a call unless single stepping is possible
 // in this thread in which case we must call the i2i entry
-void InterpreterMacroAssembler::jump_from_interpreted(Register method, Register temp, bool jportal, bool determined) {
+void InterpreterMacroAssembler::jump_from_interpreted(Register method, Register tmp1, Register tmp2, Bytecodes::Code code, bool jportal, bool determined) {
   prepare_to_jump_from_interpreted();
-
-  Label jportal_test;
+  assert_different_registers(method, tmp1, tmp2);
   if (JvmtiExport::can_post_interpreter_events()) {
-    Label run_compiled_code;
+    Label run_compiled_code, non_jportal;
     // JVMTI events, such as single-stepping, are implemented partly by avoiding running
     // compiled code in threads for which the event is enabled.  Check here for
     // interp_only_mode if these events CAN be enabled.
     // interp_only is an int, on little endian it is sufficient to test the byte only
     // Is a cmpl faster?
-    LP64_ONLY(temp = r15_thread;)
-    NOT_LP64(get_thread(temp);)
-    cmpb(Address(temp, JavaThread::interp_only_mode_offset()), 0);
+    Register thread = tmp1;
+    LP64_ONLY(thread = r15_thread;)
+    NOT_LP64(get_thread(thread);)
+    cmpb(Address(thread, JavaThread::interp_only_mode_offset()), 0);
     jccb(Assembler::zero, run_compiled_code);
-    movptr(temp, Address(method, Method::interpreter_entry_offset()));
-    jmp(jportal_test);
+
+    do_jump_from_interpreted(method, tmp1, tmp2, code, jportal, determined, true);
+
     bind(run_compiled_code);
   }
 
-  movptr(temp, Address(method, Method::from_interpreted_offset()));
-  bind(jportal_test);
-#ifdef JPORTAL_ENABLE
-  if (JPortal && !(jportal && determined)) {
-    Label not_dump;
-    movptr(temp, Address(method, Method::from_interpreted_offset()));
-    cmpptr(temp, ExternalAddress(Interpreter::_jportal_inter_code_begin));
-    jcc(Assembler::below, not_dump);
-    cmpptr(temp, ExternalAddress(Interpreter::_jportal_inter_code_end));
-    jcc(Assembler::aboveEqual, not_dump);
-
-    movptr(rscratch1, Address(method, Method::jportal_entry_offset()));
-    call(rscratch1);
-
-    bind(not_dump);
-  }
-#endif
-  jmp(temp);
+  do_jump_from_interpreted(method, tmp1, tmp2, code, jportal, determined, false);
 }
 
 // The following two routines provide a hook so that an implementation

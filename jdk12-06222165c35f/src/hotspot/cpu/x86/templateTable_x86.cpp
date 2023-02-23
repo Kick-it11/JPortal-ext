@@ -3765,6 +3765,7 @@ void TemplateTable::prepare_invoke(int byte_no,
   const bool load_receiver       = (recv  != noreg);
   const bool save_flags          = (flags != noreg);
   assert(load_receiver == (code != Bytecodes::_invokestatic && code != Bytecodes::_invokedynamic), "");
+  assert(save_flags    == (is_invokeinterface || is_invokevirtual), "need flags for vfinal");
   assert(flags == noreg || flags == rdx, "");
   assert(recv  == noreg || recv  == rcx, "");
 
@@ -3807,108 +3808,8 @@ void TemplateTable::prepare_invoke(int byte_no,
     __ verify_oop(recv);
   }
 
-  // invokestatic, invokespecial, invokedynamic, invokehandle push address
-  if (!save_flags) {
-    Label push_addr;
-    // compute return type
-    __ shrl(flags, ConstantPoolCacheEntry::tos_state_shift);
-    // Make sure we don't need to mask flags after the above shift
-    ConstantPoolCacheEntry::verify_tos_state_shift();
-    // load return address
-
-#ifdef JPORTAL_ENABLE
-    if (jportal) {
-      if (is_invokedynamic || is_invokehandle) {
-        // Always record jportal ret site if dynamic
-        const address table_addr = (address) Interpreter::invoke_return_entry_table_for(code, jportal, true);
-        ExternalAddress table(table_addr);
-        __ lea(rscratch1, table);
-        __ movptr(flags, Address(rscratch1, flags, Address::times_ptr));
-      } else {
-        Label non_jportal;
-        __ movl(rscratch1, Address(method, Method::access_flags_offset()));
-        __ testl(rscratch1, JVM_ACC_JPORTAL);
-        __ jcc(Assembler::zero, non_jportal);
-
-        const address table_addr1 = (address) Interpreter::invoke_return_entry_table_for(code, jportal, false);
-        ExternalAddress table1(table_addr1);
-        __ lea(rscratch1, table1);
-        __ movptr(flags, Address(rscratch1, flags, Address::times_ptr));
-        __ jmp(push_addr);
-
-        __ bind(non_jportal);
-        // Record non-jportal method return site for non dynamic call
-        const address table_addr2 = (address) Interpreter::invoke_return_entry_table_for(code, jportal, true);
-        ExternalAddress table2(table_addr2);
-        __ lea(rscratch1, table2);
-        __ movptr(flags, Address(rscratch1, flags, Address::times_ptr));
-      }
-    } else {
-#endif
-    {
-      const address table_addr = (address) Interpreter::invoke_return_entry_table_for(code, jportal, false);
-      ExternalAddress table(table_addr);
-      LP64_ONLY(__ lea(rscratch1, table));
-      LP64_ONLY(__ movptr(flags, Address(rscratch1, flags, Address::times_ptr)));
-      NOT_LP64(__ movptr(flags, ArrayAddress(table, Address(noreg, flags, Address::times_ptr))));
-    }
-#ifdef JPORTAL_ENABLE
-    }
-#endif
-    __ bind(push_addr);
-    // push return address
-    __ push(flags);
-  }
-}
-
-void TemplateTable::push_return_address(Register method, Register flags, Register temp, bool jportal) {
-  Label push_addr;
-  const Bytecodes::Code code = bytecode();
-
-  assert_different_registers(method, flags, temp);
-
-  // compute return type
-  __ shrl(flags, ConstantPoolCacheEntry::tos_state_shift);
-  // Make sure we don't need to mask flags after the above shift
-  ConstantPoolCacheEntry::verify_tos_state_shift();
-  // load return address
-
-#ifdef JPORTAL_ENABLE
-  if (jportal) {
-    Label non_jportal;
-    __ movl(temp, Address(method, Method::access_flags_offset()));
-    __ testl(temp, JVM_ACC_JPORTAL);
-    __ jcc(Assembler::zero, non_jportal);
-
-    const address table_addr1 = (address) Interpreter::invoke_return_entry_table_for(code, jportal, false);
-    ExternalAddress table1(table_addr1);
-    __ lea(rscratch1, table1);
-    __ movptr(flags, Address(rscratch1, flags, Address::times_ptr));
-    __ jmp(push_addr);
-
-    __ bind(non_jportal);
-    // Record non-jportal method return site for non dynamic call
-    const address table_addr2 = (address) Interpreter::invoke_return_entry_table_for(code, jportal, true);
-    ExternalAddress table2(table_addr2);
-    __ lea(rscratch1, table2);
-    __ movptr(flags, Address(rscratch1, flags, Address::times_ptr));
-  } else {
-#endif
-
-  {
-    const address table_addr = (address) Interpreter::invoke_return_entry_table_for(code, jportal, false);
-    ExternalAddress table(table_addr);
-    LP64_ONLY(__ lea(rscratch1, table));
-    LP64_ONLY(__ movptr(flags, Address(rscratch1, flags, Address::times_ptr)));
-    NOT_LP64(__ movptr(flags, ArrayAddress(table, Address(noreg, flags, Address::times_ptr))));
-  }
-
-#ifdef JPORTAL_ENABLE
-  }
-#endif
-
-  __ bind(push_addr);
-  // push return address
+  // load return address in jump_from_interpreted
+  // always save flags here to load return address
   __ push(flags);
 }
 
@@ -3920,7 +3821,6 @@ void TemplateTable::invokevirtual_helper(Register index,
   assert_different_registers(index, recv, rax, rdx);
   assert(index == rbx, "");
   assert(recv  == rcx, "");
-  assert(flags == rdx, "");
 
   // Test for an invoke of a final method
   Label notFinal;
@@ -3938,14 +3838,11 @@ void TemplateTable::invokevirtual_helper(Register index,
   // It's final, need a null check here!
   __ null_check(recv);
 
-  // for invokevirtual, push return address here
-  push_return_address(method, flags, rax, jportal);
-
   // profile this call
   __ profile_final_call(rax);
   __ profile_arguments_type(rax, method, rbcp, true);
 
-  __ jump_from_interpreted(method, rax);
+  __ jump_from_interpreted(method, rax, rdx, bytecode(), jportal, true);
 
   __ bind(notFinal);
 
@@ -3954,18 +3851,13 @@ void TemplateTable::invokevirtual_helper(Register index,
   __ load_klass(rax, recv);
 
   // profile this call
-  __ profile_virtual_call(rax, rlocals, rcx);
+  __ profile_virtual_call(rax, rlocals, rdx);
   // get target Method* & entry point
   __ lookup_virtual_method(rax, index, method);
+  __ profile_called_method(method, rdx, rbcp);
 
-  // for invokevirtual, push return address here
-  push_return_address(method, flags, rcx, jportal);
-
-  __ profile_called_method(method, rcx, rbcp);
-
-  __ profile_arguments_type(rcx, method, rbcp, true);
-
-  __ jump_from_interpreted(method, rdx);
+  __ profile_arguments_type(rdx, method, rbcp, true);
+  __ jump_from_interpreted(method, rax, rdx, bytecode(), jportal, false);
 }
 
 void TemplateTable::invokevirtual(int byte_no, bool jportal) {
@@ -3993,8 +3885,7 @@ void TemplateTable::invokespecial(int byte_no, bool jportal) {
   // do the call
   __ profile_call(rax);
   __ profile_arguments_type(rax, rbx, rbcp, false);
-
-  __ jump_from_interpreted(rbx, rax);
+  __ jump_from_interpreted(rbx, rax, rdx, bytecode(), jportal, true);
 }
 
 void TemplateTable::invokestatic(int byte_no, bool jportal) {
@@ -4004,8 +3895,7 @@ void TemplateTable::invokestatic(int byte_no, bool jportal) {
   // do the call
   __ profile_call(rax);
   __ profile_arguments_type(rax, rbx, rbcp, false);
-
-  __ jump_from_interpreted(rbx, rax);
+  __ jump_from_interpreted(rbx, rax, rdx, bytecode(), jportal, true);
 }
 
 
@@ -4043,7 +3933,6 @@ void TemplateTable::invokeinterface(int byte_no, bool jportal) {
   Label no_such_interface; // for receiver subtype check
   Register recvKlass; // used for exception processing
 
-  __ push(rdx);
   // Check for private method invocation - indicated by vfinal
   Label notVFinal;
   __ movl(rlocals, rdx);
@@ -4068,10 +3957,7 @@ void TemplateTable::invokeinterface(int byte_no, bool jportal) {
   __ profile_final_call(rdx);
   __ profile_arguments_type(rdx, rbx, rbcp, true);
 
-  __ pop(rdx);
-  push_return_address(rbx, rdx, rcx, jportal);
-
-  __ jump_from_interpreted(rbx, rdx, jportal, false);
+  __ jump_from_interpreted(rbx, rax, rdx, bytecode(), jportal, true);
   // no return from above
   __ bind(notVFinal);
 
@@ -4125,12 +4011,10 @@ void TemplateTable::invokeinterface(int byte_no, bool jportal) {
   __ profile_called_method(rbx, rbcp, rdx);
   __ profile_arguments_type(rdx, rbx, rbcp, true);
 
-  __ pop(rdx);
-  push_return_address(rbx, rdx, rcx, jportal);
   // do the call
   // rcx: receiver
   // rbx,: Method*
-  __ jump_from_interpreted(rbx, rdx, jportal, false);
+  __ jump_from_interpreted(rbx, rax, rdx, bytecode(), jportal, false);
   __ should_not_reach_here();
 
   // exception handling code follows...
@@ -4139,7 +4023,7 @@ void TemplateTable::invokeinterface(int byte_no, bool jportal) {
 
   __ bind(no_such_method);
   // throw exception
-  __ pop(rbx);           // pop falg
+  __ pop(rbx);           // pop flags (pushed by prepare_invoke)
   __ restore_bcp();      // rbcp must be correct for exception handler   (was destroyed)
   __ restore_locals();   // make sure locals pointer is correct as well (was destroyed)
   // Pass arguments for generating a verbose error message.
@@ -4159,7 +4043,7 @@ void TemplateTable::invokeinterface(int byte_no, bool jportal) {
 
   __ bind(no_such_interface);
   // throw exception
-  __ pop(rbx);           // pop flag
+  __ pop(rbx);           // pop flags (pushed by prepare_invoke)
   __ restore_bcp();      // rbcp must be correct for exception handler   (was destroyed)
   __ restore_locals();   // make sure locals pointer is correct as well (was destroyed)
   // Pass arguments for generating a verbose error message.
@@ -4190,9 +4074,9 @@ void TemplateTable::invokehandle(int byte_no, bool jportal) {
 
   // FIXME: profile the LambdaForm also
   __ profile_final_call(rax);
-  __ profile_arguments_type(rcx, rbx_method, rbcp, true);
+  __ profile_arguments_type(rdx, rbx_method, rbcp, true);
 
-  __ jump_from_interpreted(rbx_method, rdx);
+  __ jump_from_interpreted(rbx_method, rax, rdx, bytecode(), jportal, false);
 }
 
 void TemplateTable::invokedynamic(int byte_no, bool jportal) {
@@ -4212,11 +4096,11 @@ void TemplateTable::invokedynamic(int byte_no, bool jportal) {
   // %%% should make a type profile for any invokedynamic that takes a ref argument
   // profile this call
   __ profile_call(rbcp);
-  __ profile_arguments_type(rcx, rbx_method, rbcp, false);
+  __ profile_arguments_type(rdx, rbx_method, rbcp, false);
 
   __ verify_oop(rax_callsite);
 
-  __ jump_from_interpreted(rbx_method, rdx);
+  __ jump_from_interpreted(rbx_method, rax, rdx, bytecode(), jportal, false);
 }
 
 //-----------------------------------------------------------------------------

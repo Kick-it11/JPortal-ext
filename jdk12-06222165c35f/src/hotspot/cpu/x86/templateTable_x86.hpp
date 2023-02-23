@@ -44,6 +44,4 @@
                                         Register obj, Register off, Register flags);
   static void fast_storefield_helper(Address field, Register rax);
 
-  static void push_return_address(Register method, Register flag, Register temp, bool jportal);
-
 #endif // CPU_X86_VM_TEMPLATETABLE_X86_HPP

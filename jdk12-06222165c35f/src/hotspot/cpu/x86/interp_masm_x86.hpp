@@ -195,7 +195,10 @@ class InterpreterMacroAssembler: public MacroAssembler {
 
   // jump to an invoked target
   void prepare_to_jump_from_interpreted();
-  void jump_from_interpreted(Register method, Register temp, bool jportal, bool determined);
+  void do_jump_from_interpreted(Register method, Register tmp1, Register tmp2, Bytecodes::Code code, bool jportal, bool determined, bool inter_only);
+  void jump_from_interpreted(Register method, Register tmp1, Register tmp2, Bytecodes::Code code, bool jportal, bool determined);
+
+  void push_return_address(Register temp, Bytecodes::Code code, bool jportal, bool dump);
 
   // narrow int return value
   void narrow(Register result);

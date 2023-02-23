@@ -341,20 +341,24 @@ class StubGenerator: public StubCodeGenerator {
     stub->set_jump_stub(addr);
     JPortalEnable::dump_java_call_begin(stub->code_begin());
 
-    Label not_dump;
-    __ cmpptr(c_rarg1, ExternalAddress(Interpreter::jportal_inter_code_begin()));
-    __ jcc(Assembler::below, not_dump);
-    __ cmpptr(c_rarg2, ExternalAddress(Interpreter::jportal_inter_code_end()));
-    __ jcc(Assembler::aboveEqual, not_dump);
+    Label non_jportal_or_inter;
+    __ movl(rscratch1, Address(rbx, Method::access_flags_offset()));
+    __ testl(rscratch1, JVM_ACC_JPORTAL);
+    __ jcc(Assembler::zero, non_jportal_or_inter);
+    __ cmpptr(c_rarg1, Address(rbx, Method::interpreter_entry_offset()));
+    __ jcc(Assembler::notZero, non_jportal_or_inter);
 
     __ movptr(rscratch1, Address(rbx, Method::jportal_entry_offset()));
     __ call(rscratch1);
 
-    __ bind(not_dump);
+    __ bind(non_jportal_or_inter);
   }
 #endif
     BLOCK_COMMENT("call Java function");
     __ call(c_rarg1);
+
+    BLOCK_COMMENT("call_stub_return_address:");
+    return_address = __ pc();
 
 #ifdef JPORTAL_ENABLE
   if (JPortal) {
@@ -367,9 +371,6 @@ class StubGenerator: public StubCodeGenerator {
     JPortalEnable::dump_java_call_end(stub->code_begin());
   }
 #endif
-
-    BLOCK_COMMENT("call_stub_return_address:");
-    return_address = __ pc();
 
     // store result depending on type (everything that is not
     // T_OBJECT, T_LONG, T_FLOAT or T_DOUBLE is treated as T_INT)

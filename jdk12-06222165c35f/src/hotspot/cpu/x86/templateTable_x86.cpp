@@ -3807,9 +3807,62 @@ void TemplateTable::prepare_invoke(int byte_no,
     __ movptr(recv, recv_addr);
     __ verify_oop(recv);
   }
+
+  // invokestatic, invokespecial, invokedynamic, invokehandle push address
+  if (!save_flags) {
+    Label push_addr;
+    // compute return type
+    __ shrl(flags, ConstantPoolCacheEntry::tos_state_shift);
+    // Make sure we don't need to mask flags after the above shift
+    ConstantPoolCacheEntry::verify_tos_state_shift();
+    // load return address
+
+#ifdef JPORTAL_ENABLE
+    if (jportal) {
+      if (is_invokedynamic || is_invokehandle) {
+        // Always record jportal ret site if dynamic
+        const address table_addr = (address) Interpreter::invoke_return_entry_table_for(code, jportal, true);
+        ExternalAddress table(table_addr);
+        __ lea(rscratch1, table);
+        __ movptr(flags, Address(rscratch1, flags, Address::times_ptr));
+      } else {
+        Label non_jportal;
+        __ movl(rscratch1, Address(method, Method::access_flags_offset()));
+        __ testl(rscratch1, JVM_ACC_JPORTAL);
+        __ jcc(Assembler::zero, non_jportal);
+
+        const address table_addr1 = (address) Interpreter::invoke_return_entry_table_for(code, jportal, false);
+        ExternalAddress table1(table_addr1);
+        __ lea(rscratch1, table1);
+        __ movptr(flags, Address(rscratch1, flags, Address::times_ptr));
+        __ jmp(push_addr);
+
+        __ bind(non_jportal);
+        // Record non-jportal method return site for non dynamic call
+        const address table_addr2 = (address) Interpreter::invoke_return_entry_table_for(code, jportal, true);
+        ExternalAddress table2(table_addr2);
+        __ lea(rscratch1, table2);
+        __ movptr(flags, Address(rscratch1, flags, Address::times_ptr));
+      }
+    } else {
+#endif
+    {
+      const address table_addr = (address) Interpreter::invoke_return_entry_table_for(code, jportal, false);
+      ExternalAddress table(table_addr);
+      LP64_ONLY(__ lea(rscratch1, table));
+      LP64_ONLY(__ movptr(flags, Address(rscratch1, flags, Address::times_ptr)));
+      NOT_LP64(__ movptr(flags, ArrayAddress(table, Address(noreg, flags, Address::times_ptr))));
+    }
+#ifdef JPORTAL_ENABLE
+    }
+#endif
+    __ bind(push_addr);
+    // push return address
+    __ push(flags);
+  }
 }
 
-void TemplateTable::push_return_address(Register method, Register flags, Register temp, bool jportal, bool is_dynamic) {
+void TemplateTable::push_return_address(Register method, Register flags, Register temp, bool jportal) {
   Label push_addr;
   const Bytecodes::Code code = bytecode();
 
@@ -3823,34 +3876,23 @@ void TemplateTable::push_return_address(Register method, Register flags, Registe
 
 #ifdef JPORTAL_ENABLE
   if (jportal) {
-    if (is_dynamic) {
-      // Always record jportal ret site if dynamic
-      const address table_addr = (address) Interpreter::invoke_return_entry_table_for(code, jportal, true);
-      ExternalAddress table(table_addr);
-      LP64_ONLY(__ lea(rscratch1, table));
-      LP64_ONLY(__ movptr(flags, Address(rscratch1, flags, Address::times_ptr)));
-      NOT_LP64(__ movptr(flags, ArrayAddress(table, Address(noreg, flags, Address::times_ptr))));
-    } else {
-      Label non_jportal;
-      __ movl(method, Address(method, Method::access_flags_offset()));
-      __ testl(method, JVM_ACC_JPORTAL);
-      __ jcc(Assembler::zero, non_jportal);
+    Label non_jportal;
+    __ movl(temp, Address(method, Method::access_flags_offset()));
+    __ testl(temp, JVM_ACC_JPORTAL);
+    __ jcc(Assembler::zero, non_jportal);
 
-      const address table_addr1 = (address) Interpreter::invoke_return_entry_table_for(code, jportal, false);
-      ExternalAddress table1(table_addr1);
-      LP64_ONLY(__ lea(rscratch1, table1));
-      LP64_ONLY(__ movptr(flags, Address(rscratch1, flags, Address::times_ptr)));
-      NOT_LP64(__ movptr(flags, ArrayAddress(table1, Address(noreg, flags, Address::times_ptr))));
-      __ jmp(push_addr);
+    const address table_addr1 = (address) Interpreter::invoke_return_entry_table_for(code, jportal, false);
+    ExternalAddress table1(table_addr1);
+    __ lea(rscratch1, table1);
+    __ movptr(flags, Address(rscratch1, flags, Address::times_ptr));
+    __ jmp(push_addr);
 
-      __ bind(non_jportal);
-      // Record non-jportal method return site for non dynamic call
-      const address table_addr2 = (address) Interpreter::invoke_return_entry_table_for(code, jportal, true);
-      ExternalAddress table2(table_addr2);
-      LP64_ONLY(__ lea(rscratch1, table2));
-      LP64_ONLY(__ movptr(flags, Address(rscratch1, flags, Address::times_ptr)));
-      NOT_LP64(__ movptr(flags, ArrayAddress(table, Address(noreg, flags, Address::times_ptr))));
-    }
+    __ bind(non_jportal);
+    // Record non-jportal method return site for non dynamic call
+    const address table_addr2 = (address) Interpreter::invoke_return_entry_table_for(code, jportal, true);
+    ExternalAddress table2(table_addr2);
+    __ lea(rscratch1, table2);
+    __ movptr(flags, Address(rscratch1, flags, Address::times_ptr));
   } else {
 #endif
 
@@ -3897,11 +3939,12 @@ void TemplateTable::invokevirtual_helper(Register index,
   // It's final, need a null check here!
   __ null_check(recv);
 
+  // for invokevirtual, push return address here
+  push_return_address(method, flags, rax, jportal);
+
   // profile this call
   __ profile_final_call(rax);
   __ profile_arguments_type(rax, method, rbcp, true);
-
-  push_return_address(method, flags, rcx, jportal, false);
 
   __ jump_from_interpreted(method, rax);
 
@@ -3915,11 +3958,13 @@ void TemplateTable::invokevirtual_helper(Register index,
   __ profile_virtual_call(rax, rlocals, rcx);
   // get target Method* & entry point
   __ lookup_virtual_method(rax, index, method);
+
+  // for invokevirtual, push return address here
+  push_return_address(method, flags, rcx, jportal);
+
   __ profile_called_method(method, rcx, rbcp);
 
   __ profile_arguments_type(rcx, method, rbcp, true);
-
-  push_return_address(method, flags, rcx, jportal, false);
 
   __ jump_from_interpreted(method, rdx);
 }
@@ -3943,14 +3988,12 @@ void TemplateTable::invokespecial(int byte_no, bool jportal) {
   transition(vtos, vtos);
   assert(byte_no == f1_byte, "use this argument");
   prepare_invoke(byte_no, rbx, noreg,  // get f1 Method*
-                 rcx, rdx, jportal);  // get receiver also for null check
+                 rcx, noreg, jportal);  // get receiver also for null check
   __ verify_oop(rcx);
   __ null_check(rcx);
   // do the call
   __ profile_call(rax);
   __ profile_arguments_type(rax, rbx, rbcp, false);
-
-  push_return_address(rbx, rdx, rcx, jportal, false);
 
   __ jump_from_interpreted(rbx, rax);
 }
@@ -3958,12 +4001,10 @@ void TemplateTable::invokespecial(int byte_no, bool jportal) {
 void TemplateTable::invokestatic(int byte_no, bool jportal) {
   transition(vtos, vtos);
   assert(byte_no == f1_byte, "use this argument");
-  prepare_invoke(byte_no, rbx, noreg, noreg, rdx, jportal);  // get f1 Method*
+  prepare_invoke(byte_no, rbx, noreg, noreg, noreg, jportal);  // get f1 Method*
   // do the call
   __ profile_call(rax);
   __ profile_arguments_type(rax, rbx, rbcp, false);
-
-  push_return_address(rbx, rdx, rcx, jportal, false);
 
   __ jump_from_interpreted(rbx, rax);
 }
@@ -4029,7 +4070,7 @@ void TemplateTable::invokeinterface(int byte_no, bool jportal) {
   __ profile_arguments_type(rdx, rbx, rbcp, true);
 
   __ pop(rdx);
-  push_return_address(rbx, rdx, rcx, jportal, false);
+  push_return_address(rbx, rdx, rcx, jportal);
 
   __ jump_from_interpreted(rbx, rdx);
   // no return from above
@@ -4086,7 +4127,7 @@ void TemplateTable::invokeinterface(int byte_no, bool jportal) {
   __ profile_arguments_type(rdx, rbx, rbcp, true);
 
   __ pop(rdx);
-  push_return_address(rbx, rdx, rcx, jportal, false);
+  push_return_address(rbx, rdx, rcx, jportal);
   // do the call
   // rcx: receiver
   // rbx,: Method*
@@ -4138,7 +4179,7 @@ void TemplateTable::invokehandle(int byte_no, bool jportal) {
   const Register rcx_recv   = rcx;
   const Register rdx_flags  = rdx;
 
-  prepare_invoke(byte_no, rbx_method, rax_mtype, rcx_recv, rdx_flags, jportal);
+  prepare_invoke(byte_no, rbx_method, rax_mtype, rcx_recv, noreg, jportal);
   __ verify_method_ptr(rbx_method);
   __ verify_oop(rcx_recv);
   __ null_check(rcx_recv);
@@ -4152,8 +4193,6 @@ void TemplateTable::invokehandle(int byte_no, bool jportal) {
   __ profile_final_call(rax);
   __ profile_arguments_type(rcx, rbx_method, rbcp, true);
 
-  push_return_address(rbx_method, rdx, rcx, jportal, true);
-
   __ jump_from_interpreted(rbx_method, rdx);
 }
 
@@ -4164,7 +4203,7 @@ void TemplateTable::invokedynamic(int byte_no, bool jportal) {
   const Register rbx_method   = rbx;
   const Register rax_callsite = rax;
 
-  prepare_invoke(byte_no, rbx_method, rax_callsite, noreg, rdx, jportal);
+  prepare_invoke(byte_no, rbx_method, rax_callsite, noreg, noreg, jportal);
 
   // rax: CallSite object (from cpool->resolved_references[f1])
   // rbx: MH.linkToCallSite method (from f2)
@@ -4177,8 +4216,6 @@ void TemplateTable::invokedynamic(int byte_no, bool jportal) {
   __ profile_arguments_type(rcx, rbx_method, rbcp, false);
 
   __ verify_oop(rax_callsite);
-
-  push_return_address(rbx_method, rdx, rcx, jportal, true);
 
   __ jump_from_interpreted(rbx_method, rdx);
 }

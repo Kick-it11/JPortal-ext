@@ -31,11 +31,7 @@ class JPortalEnable {
       _switch_default_info,           // switch default
       _branch_taken_info,             // branch taken
       _branch_not_taken_info,         // branch not taken
-      _compiled_method_load_info,     // after loading a compiled method: entry, codes, scopes data etc included
-      _compiled_method_unload_info,   // after unloading a compiled method
-      _thread_start_info,             // a thread begins, map between system tid and java tid
-      _inline_cache_add_info,         // inline cache: a map between a source ip to a destination ip
-      _inline_cache_clear_info,       // inline cache clear: delete the map
+      _ret_code_info,                 // indicate a ret or wide ret [jsr/ret]
       _deoptimization_info,           // indicate a deoptimization
       _throw_exception_info,          // indicate throwing a exception
       _pop_frame_info,                // indicate a pop frame
@@ -43,6 +39,11 @@ class JPortalEnable {
       _non_invoke_ret_info,           // non invoke ret, such as deoptimization
       _java_call_begin_info,          // JavaCalls::call() begin
       _java_call_end_info,            // JavaCalls::call() end
+      _compiled_method_load_info,     // after loading a compiled method: entry, codes, scopes data etc included
+      _compiled_method_unload_info,   // after unloading a compiled method
+      _thread_start_info,             // a thread begins, map between system tid and java tid
+      _inline_cache_add_info,         // inline cache: a map between a source ip to a destination ip
+      _inline_cache_clear_info,       // inline cache clear: delete the map
     };
 
     struct DumpInfo {
@@ -58,16 +59,17 @@ class JPortalEnable {
       u4 method_signature_length;
       u4 _pending;
       u8 addr1;
-      u8 addr2; // only for JPortalMethod, addr2 is useful, for exit
+      u8 addr2; // JPortalMethod: exit
+      u8 addr3; // JPortal: method point
 
       MethodInfo(u4 _klass_name_length,
                  u4 _method_name_length,
                  u4 _method_signature_length,
-                 u8 _addr1, u8 _addr2, u4 _size) :
+                 u8 _addr1, u8 _addr2, u8 _addr3, u4 _size) :
         klass_name_length(_klass_name_length),
         method_name_length(_method_name_length),
         method_signature_length(_method_signature_length),
-        addr1(_addr1), addr2(_addr2) {
+        addr1(_addr1), addr2(_addr2), addr3(_addr3) {
         info.type = _method_info;
         info.size = _size;
         info.time = get_timestamp();
@@ -126,6 +128,16 @@ class JPortalEnable {
       u8 addr;
       BranchNotTakenInfo(u8 _addr, u4 _size) : addr(_addr) {
         info.type = _branch_not_taken_info;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
+    };
+
+    struct RetCodeInfo {
+      struct DumpInfo info;
+      u8 addr;
+      RetCodeInfo(u8 _addr, u4 _size) : addr(_addr) {
+        info.type = _ret_code_info;
         info.size = _size;
         info.time = get_timestamp();
       }
@@ -322,11 +334,13 @@ class JPortalEnable {
 
     static void dump_switch_table_stub(address addr, u4 num, u4 ssize);
 
+    static void dump_switch_default(address addr);
+
     static void dump_branch_taken(address addr);
 
     static void dump_branch_not_taken(address addr);
 
-    static void dump_switch_default(address addr);
+    static void dump_ret_code(address addr);
 
     static void dump_compiled_method_load(Method *moop, nmethod *nm);
 

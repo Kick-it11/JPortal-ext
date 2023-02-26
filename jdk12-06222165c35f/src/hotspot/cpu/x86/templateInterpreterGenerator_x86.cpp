@@ -82,7 +82,7 @@ void TemplateInterpreterGenerator::jportal_method_and_bci(int step, Register tem
   assert(JPortal, "jportal");
   assert_different_registers(temp1, temp2);
 
-  __ movptr(rscratch1, Address(temp1, Method::jportal_entry_offset()));
+  __ movptr(rscratch1, Address(temp1, Method::jportal_method_point_offset()));
   __ call(rscratch1);
 
   __ movptr(temp1, Address(temp1, Method::const_offset()));   // get ConstMethod*

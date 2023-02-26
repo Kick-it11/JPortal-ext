@@ -363,8 +363,6 @@ public:
     {
         return (code >= _ifeq && code <= _if_acmpne) || code == _ifnull || code == _ifnonnull;
     }
-    /* return false if it has a follow code */
-    static void java_bytecode(Code &code, Code &follow_code);
     /* Initialization */
     static void initialize();
 };

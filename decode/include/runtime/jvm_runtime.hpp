@@ -41,41 +41,25 @@ public:
     /* JVMRuntime dump type from JPortalTrace.data file */
     enum DumpType
     {
-        /* First method entry: map between ip to method */
-        _method_info,
-
-        /* jportal table stub, exception handling */
-        _bci_table_stub_info,
-
-        /* jportal table stub, exception handling */
-        _switch_table_stub_info,
-
-        /* switch default */
-        _switch_default_info,
-
-        /* branch taken */
-        _branch_taken_info,
-
-        /* branch taken */
-        _branch_not_taken_info,
-
-        /* After loading a compiled method: entry, codes, scopes data etc included*/
-        _compiled_method_load_info,
-
-        /* After unloading a compiled method */
-        _compiled_method_unload_info,
-
-        /* A thread begins*/
-        _thread_start_info,
-
-        /* A inline cache: a map between a source ip to a destination ip */
-        _inline_cache_add_info,
-
-        /* Inline cache clear: delete the map */
-        _inline_cache_clear_info,
-
-        /* deoptimization indication */
-        _deoptimization_info,
+        _method_info,                   /* method info */
+        _bci_table_stub_info,           /* portal table stub */
+        _switch_table_stub_info,        /* jportal table stub */
+        _switch_default_info,           /* switch default */
+        _branch_taken_info,             /* branch taken */
+        _branch_not_taken_info,         /* branch not taken */
+        _ret_code_info,                 /* indicate a ret or wide ret [jsr/ret] */
+        _deoptimization_info,           /* indicate a deoptimization */
+        _throw_exception_info,          /* indicate throwing a exception */
+        _pop_frame_info,                /* indicate a pop frame */
+        _earlyret_info,                 /* indicate an early ret */
+        _non_invoke_ret_info,           /* non invoke ret, such as deoptimization */
+        _java_call_begin_info,          /* JavaCalls::call() begin */
+        _java_call_end_info,            /* JavaCalls::call() end */
+        _compiled_method_load_info,     /* after loading a compiled method: entry, codes, scopes data etc included */
+        _compiled_method_unload_info,   /* after unloading a compiled method */
+        _thread_start_info,             /* a thread begins, map between system tid and java tid */
+        _inline_cache_add_info,         /* inline cache: a map between a source ip to a destination ip */
+        _inline_cache_clear_info,       /* inline cache clear: delete the map */
     };
 
     struct DumpInfo
@@ -92,7 +76,8 @@ public:
         uint32_t method_signature_length;
         uint32_t _pending;
         uint64_t addr1;
-        uint64_t addr2; // only work for JPortalMethod
+        uint64_t addr2; /* JPortalMethod */
+        uint64_t addr3; /* JPortal Only */
     };
 
     struct BciTableStubInfo {
@@ -117,6 +102,11 @@ public:
     };
 
     struct BranchNotTakenInfo
+    {
+        uint64_t addr;
+    };
+
+    struct RetCodeInfo
     {
         uint64_t addr;
     };
@@ -169,6 +159,36 @@ public:
         uint64_t addr;
     };
 
+    struct ThrowExceptionInfo
+    {
+        uint64_t addr;
+    };
+
+    struct PopFrameInfo
+    {
+        uint64_t addr;
+    };
+
+    struct EarlyretInfo
+    {
+        uint64_t addr;
+    };
+
+    struct NonInvokeRetInfo
+    {
+        uint64_t addr;
+    };
+
+    struct JavaCallBeginInfo
+    {
+        uint64_t addr;
+    };
+
+    struct JavaCallEndInfo
+    {
+        uint64_t addr;
+    };
+
     JVMRuntime();
     ~JVMRuntime();
 
@@ -195,14 +215,19 @@ public:
         return _takens.count(ip);
     }
 
-    static const Method *method(uint64_t ip)
+    static const Method *method_entry(uint64_t ip)
     {
-        return _methods.count(ip) ? _methods[ip] : nullptr;
+        return _entries.count(ip) ? _entries[ip] : nullptr;
     }
 
     static const Method *method_exit(uint64_t ip)
     {
         return _exits.count(ip) ? _exits[ip] : nullptr;
+    }
+
+    static const Method *method_point(uint64_t ip)
+    {
+        return _points.count(ip) ? _points[ip] : nullptr;
     }
 
     static bool in_bci_table(uint64_t ip)
@@ -236,6 +261,11 @@ public:
         return _switch_defaults.count(ip);
     }
 
+    static bool ret_code(uint64_t ip)
+    {
+        return _ret_codes.count(ip);
+    }
+
     static JitSection *jit_section(const uint8_t *pointer)
     {
         return _section_map.count(pointer) ? _section_map[pointer] : nullptr;
@@ -261,6 +291,36 @@ public:
         return _deopts.count(ip);
     }
 
+    static bool throw_exception(uint64_t ip)
+    {
+        return _throw_exceptions.count(ip);
+    }
+
+    static bool pop_frame(uint64_t ip)
+    {
+        return _pop_frames.count(ip);
+    }
+
+    static bool earlyret(uint64_t ip)
+    {
+        return _earlyrets.count(ip);
+    }
+
+    static bool non_invoke_ret(uint64_t ip)
+    {
+        return _non_invoke_rets.count(ip);
+    }
+
+    static bool java_call_begin(uint64_t ip)
+    {
+        return _java_call_begins.count(ip);
+    }
+
+    static bool java_call_end(uint64_t ip)
+    {
+        return _java_call_ends.count(ip);
+    }
+
     /* print all jvm runtime event */
     static void print(uint8_t *buffer, uint64_t size);
 
@@ -276,9 +336,12 @@ private:
     /* runtime buffer end */
     static uint8_t *_end;
 
-    /* map between method entry address and method */
-    static std::map<uint64_t, const Method *> _methods;
+    /* map between method entry and method */
+    static std::map<uint64_t, const Method *> _entries;
+    /* map between method exit and method */
     static std::map<uint64_t, const Method *> _exits;
+    /* map between method exit and method middle points */
+    static std::map<uint64_t, const Method *> _points;
 
     static std::set<uint64_t> _takens;
     static std::set<uint64_t> _not_takens;
@@ -304,9 +367,33 @@ private:
     /* map id to section */
     static std::map<int, JitSection *> _id_to_sections;
 
+    /* indication to deoptimization */
     static std::set<uint64_t> _deopts;
 
+    /* indication to ret or wide ret*/
+    static std::set<uint64_t> _ret_codes;
+
+    /* indication to throw exception */
+    static std::set<uint64_t> _throw_exceptions;
+
+    /* indication to pop frame */
+    static std::set<uint64_t> _pop_frames;
+
+    /* indication to early ret*/
+    static std::set<uint64_t> _earlyrets;
+
+    /* indicate non invoke ret */
+    static std::set<uint64_t> _non_invoke_rets;
+
+    /* indication to java call begin*/
+    static std::set<uint64_t> _java_call_begins;
+
+    /* indication to java call end */
+    static std::set<uint64_t> _java_call_ends;
+
     static bool _initialized;
+
+    static bool check_duplicated_entry(uint64_t ip, std::string str);
 };
 
 #endif /* JVM_RUNTIME_HPP */

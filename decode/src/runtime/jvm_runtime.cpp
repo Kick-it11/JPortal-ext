@@ -10,19 +10,112 @@
 
 uint8_t *JVMRuntime::_begin = nullptr;
 uint8_t *JVMRuntime::_end = nullptr;
-std::map<uint64_t, const Method *> JVMRuntime::_methods;
+std::map<uint64_t, const Method *> JVMRuntime::_entries;
 std::map<uint64_t, const Method *> JVMRuntime::_exits;
+std::map<uint64_t, const Method *> JVMRuntime::_points;
 std::set<uint64_t> JVMRuntime::_takens;
 std::set<uint64_t> JVMRuntime::_not_takens;
-std::pair<uint64_t, std::pair<int, int>> JVMRuntime::_bci_tables;
-std::pair<uint64_t, std::pair<int, int>> JVMRuntime::_switch_tables;
+std::pair<uint64_t, std::pair<int, int>> JVMRuntime::_bci_tables = {0, {0, 0}};
+std::pair<uint64_t, std::pair<int, int>> JVMRuntime::_switch_tables = {0, {0, 0}};
 std::set<uint64_t> JVMRuntime::_switch_defaults;
 std::map<uint64_t, uint64_t> JVMRuntime::_tid_map;
 std::map<const uint8_t *, JitSection *> JVMRuntime::_section_map;
 std::map<int, const Method *> JVMRuntime::_id_to_methods;
 std::map<int, JitSection *> JVMRuntime::_id_to_sections;
 std::set<uint64_t> JVMRuntime::_deopts;
+std::set<uint64_t> JVMRuntime::_ret_codes;
+std::set<uint64_t> JVMRuntime::_throw_exceptions;
+std::set<uint64_t> JVMRuntime::_pop_frames;
+std::set<uint64_t> JVMRuntime::_earlyrets;
+std::set<uint64_t> JVMRuntime::_non_invoke_rets;
+std::set<uint64_t> JVMRuntime::_java_call_begins;
+std::set<uint64_t> JVMRuntime::_java_call_ends;
 bool JVMRuntime::_initialized = false;
+
+bool JVMRuntime::check_duplicated_entry(uint64_t ip, std::string str)
+{
+    if (_entries.count(ip))
+    {
+        std::cerr << "JVMRuntime error: " << ip << "both in entries & " << str << std::endl;
+        return true;
+    }
+    if (_exits.count(ip))
+    {
+        std::cerr << "JVMRuntime error: " << ip << "both in exits & " << str << std::endl;
+        return true;
+    }
+    if (_points.count(ip))
+    {
+        std::cerr << "JVMRuntime error: " << ip << "both in points & " << str << std::endl;
+        return true;
+    }
+    if (_takens.count(ip))
+    {
+        std::cerr << "JVMRuntime error: " << ip << "both in takens & " << str << std::endl;
+        return true;
+    }
+    if (_not_takens.count(ip))
+    {
+        std::cerr << "JVMRuntime error: " << ip << "both in not takens & " << str << std::endl;
+        return true;
+    }
+    if (ip >= _bci_tables.first && ip < _bci_tables.first + _bci_tables.second.first*_bci_tables.second.second)
+    {
+        std::cerr << "JVMRuntime error: " << ip << "both in bci table & " << str << std::endl;
+        return true;
+    }
+    if (ip >= _switch_tables.first && ip <= _switch_tables.second.first*_switch_tables.second.second)
+    {
+        std::cerr << "JVMRuntime error: " << ip << "both in switch table & " << str << std::endl;
+        return true;
+    }
+    if (_switch_defaults.count(ip))
+    {
+        std::cerr << "JVMRuntime error: " << ip << "both in switch defaults & " << str << std::endl;
+        return true;
+    }
+    if (_deopts.count(ip))
+    {
+        std::cerr << "JVMRuntime error: " << ip << "both in deopts & " << str << std::endl;
+        return true;
+    }
+    if (_ret_codes.count(ip))
+    {
+        std::cerr << "JVMRuntime error: " << ip << "both in ret codes & " << str << std::endl;
+        return true;
+    }
+    if (_throw_exceptions.count(ip))
+    {
+        std::cerr << "JVMRuntime error: " << ip << "both in exceptions & " << str << std::endl;
+        return true;
+    }
+    if (_pop_frames.count(ip))
+    {
+        std::cerr << "JVMRuntime error: " << ip << "both in pop frames & " << str << std::endl;
+        return true;
+    }
+    if (_earlyrets.count(ip))
+    {
+        std::cerr << "JVMRuntime error: " << ip << "both in earlyrets & " << str << std::endl;
+        return true;
+    }
+    if (_non_invoke_rets.count(ip))
+    {
+        std::cerr << "JVMRuntime error: " << ip << "both in non invoke rets & " << str << std::endl;
+        return true;
+    }
+    if (_java_call_begins.count(ip))
+    {
+        std::cerr << "JVMRuntime error: " << ip << "both in java call begins & " << str << std::endl;
+        return true;
+    }
+    if (_java_call_ends.count(ip))
+    {
+        std::cerr << "JVMRuntime error: " << ip << "both in java call ends & " << str << std::endl;
+        return true;
+    }
+    return false;
+}
 
 JVMRuntime::JVMRuntime()
 {
@@ -99,6 +192,12 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
                 std::cerr << "JvmRuntime error: Unknown or un-jportal method" << std::endl;
                 break;
             }
+            if (check_duplicated_entry(mei->addr1, "entries") ||
+                mei->addr2 && check_duplicated_entry(mei->addr2, "exits") ||
+                mei->addr3 && check_duplicated_entry(mei->addr3, "points"))
+            {
+                break;
+            }
             if (_id_to_methods.count(method->id()) && _id_to_methods[method->id()] != method)
             {
                 std::cerr << "JVMRuntime error: Method with the same id" << std::endl;
@@ -108,10 +207,14 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
             {
                 _id_to_methods[method->id()] = method;
             }
-            _methods[mei->addr1] = method;
+            _entries[mei->addr1] = method;
             if (mei->addr2)
             {
                 _exits[mei->addr2] = method;
+            }
+            if (mei->addr3)
+            {
+                _points[mei->addr3] = method;
             }
             break;
         }
@@ -119,16 +222,26 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
         {
             const BciTableStubInfo *btsi;
             btsi = (const BciTableStubInfo *)buffer;
-            _bci_tables = {btsi->addr, {btsi->num, btsi->ssize}};
             buffer += sizeof(BciTableStubInfo);
+            if (_bci_tables.second.first != 0 || _bci_tables.second.second != 0)
+            {
+                std::cerr << "JVMRuntime error: bci table re inited " << std::endl;
+                break;
+            }
+            _bci_tables = {btsi->addr, {btsi->num, btsi->ssize}};
             break;
         }
         case _switch_table_stub_info:
         {
             const SwitchTableStubInfo *stsi;
             stsi = (const SwitchTableStubInfo *)buffer;
-            _switch_tables = {stsi->addr, {stsi->num, stsi->ssize}};
             buffer += sizeof(SwitchTableStubInfo);
+            if (_switch_tables.second.first != 0 || _switch_tables.second.second != 0)
+            {
+                std::cerr << "JVMRuntime error: switch table re inited " << std::endl;
+                break;
+            }
+            _switch_tables = {stsi->addr, {stsi->num, stsi->ssize}};
             break;
         }
         case _switch_default_info:
@@ -136,6 +249,10 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
             const SwitchDefaultInfo *sdi;
             sdi = (const SwitchDefaultInfo *)buffer;
             buffer += sizeof(SwitchDefaultInfo);
+            if (check_duplicated_entry(sdi->addr, "switch defaults"))
+            {
+                break;
+            }
             _switch_defaults.insert({sdi->addr});
             break;
         }
@@ -144,6 +261,10 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
             const BranchTakenInfo *bti;
             bti = (const BranchTakenInfo *)buffer;
             buffer += sizeof(BranchTakenInfo);
+            if (check_duplicated_entry(bti->addr, "takens"))
+            {
+                break;
+            }
             _takens.insert(bti->addr);
             break;
         }
@@ -152,7 +273,107 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
             const BranchNotTakenInfo *bnti;
             bnti = (const BranchNotTakenInfo *)buffer;
             buffer += sizeof(BranchNotTakenInfo);
+            if (check_duplicated_entry(bnti->addr, "not takens"))
+            {
+                break;
+            }
             _not_takens.insert(bnti->addr);
+            break;
+        }
+        case _ret_code_info:
+        {
+            const RetCodeInfo *rci;
+            rci = (const RetCodeInfo *)buffer;
+            buffer += sizeof(RetCodeInfo);
+            if (check_duplicated_entry(rci->addr, "rci takens"))
+            {
+                break;
+            }
+            _ret_codes.insert(rci->addr);
+            break;
+        }
+        case _deoptimization_info:
+        {
+            const DeoptimizationInfo *di;
+            di = (const DeoptimizationInfo *)buffer;
+            buffer += sizeof(DeoptimizationInfo);
+            if (check_duplicated_entry(di->addr, "deopts"))
+            {
+                break;
+            }
+            _deopts.insert(di->addr);
+            break;
+        }
+        case _throw_exception_info:
+        {
+            const ThrowExceptionInfo *tei;
+            tei = (const ThrowExceptionInfo *)buffer;
+            buffer += sizeof(ThrowExceptionInfo);
+            if (check_duplicated_entry(tei->addr, "throw exceptions"))
+            {
+                break;
+            }
+            _throw_exceptions.insert(tei->addr);
+            break;
+        }
+        case _pop_frame_info:
+        {
+            const PopFrameInfo *pfi;
+            pfi = (const PopFrameInfo *)buffer;
+            buffer += sizeof(PopFrameInfo);
+            if (check_duplicated_entry(pfi->addr, "pop frames"))
+            {
+                break;
+            }
+            _pop_frames.insert(pfi->addr);
+            break;
+        }
+        case _earlyret_info:
+        {
+            const EarlyretInfo *ei;
+            ei = (const EarlyretInfo *)buffer;
+            buffer += sizeof(EarlyretInfo);
+            if (check_duplicated_entry(ei->addr, "earlyrets"))
+            {
+                break;
+            }
+            _earlyrets.insert(ei->addr);
+            break;
+        }
+        case _non_invoke_ret_info:
+        {
+            const NonInvokeRetInfo *niri;
+            niri = (const NonInvokeRetInfo *)buffer;
+            buffer += sizeof(NonInvokeRetInfo);
+            if (check_duplicated_entry(niri->addr, "non invoke rets"))
+            {
+                break;
+            }
+            _earlyrets.insert(niri->addr);
+            break;
+        }
+        case _java_call_begin_info:
+        {
+            const JavaCallBeginInfo *jcbi;
+            jcbi = (const JavaCallBeginInfo *)buffer;
+            buffer += sizeof(JavaCallBeginInfo);
+            if (check_duplicated_entry(jcbi->addr, "java call begins"))
+            {
+                break;
+            }
+            _java_call_begins.insert(jcbi->addr);
+            break;
+        }
+        case _java_call_end_info:
+        {
+            const JavaCallEndInfo *jcei;
+            jcei = (const JavaCallEndInfo *)buffer;
+            buffer += sizeof(JavaCallEndInfo);
+            if (check_duplicated_entry(jcei->addr, "java call ends"))
+            {
+                break;
+            }
+            _java_call_ends.insert(jcei->addr);
             break;
         }
         case _compiled_method_load_info:
@@ -202,7 +423,7 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
                                                  methods, mainm, mainm->get_name());
             if (_id_to_sections.count(section->id()) && _id_to_sections[section->id()] != section)
             {
-                std::cerr << "JVMRuntime error: Method with the same id" << std::endl;
+                std::cerr << "JVMRuntime error: Section with the same id" << std::endl;
                 break;
             } else {
                 _id_to_sections[section->id()] = section;
@@ -240,14 +461,6 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
             buffer += sizeof(InlineCacheClearInfo);
             break;
         }
-        case _deoptimization_info:
-        {
-            const DeoptimizationInfo *di;
-            di = (const DeoptimizationInfo *)buffer;
-            buffer += sizeof(DeoptimizationInfo);
-            _deopts.insert(di->addr);
-            break;
-        }
         default:
         {
             buffer = _end;
@@ -268,7 +481,24 @@ void JVMRuntime::destroy()
         delete section.second;
     _section_map.clear();
 
-    _methods.clear();
+    _entries.clear();
+    _exits.clear();
+    _points.clear();
+    _takens.clear();
+    _not_takens.clear();
+    _bci_tables = {0, {0, 0}};
+    _switch_tables = {0, {0, 0}};
+    _switch_defaults.clear();
+    _tid_map.clear();
+    _id_to_methods.clear();
+    _id_to_sections.clear();
+    _deopts.clear();
+    _ret_codes.clear();
+    _throw_exceptions.clear();
+    _pop_frames.clear();
+    _earlyrets.clear();
+    _java_call_begins.clear();
+    _java_call_ends.clear();
 
     delete[] _begin;
 
@@ -351,6 +581,70 @@ void JVMRuntime::print(uint8_t *buffer, uint64_t size)
             std::cout << "BranchNotTakenInfo: " << bnti->addr << " " << info->time << std::endl;
             break;
         }
+        case _ret_code_info:
+        {
+            const RetCodeInfo *rci;
+            rci = (const RetCodeInfo *)buffer;
+            buffer += sizeof(RetCodeInfo);
+            std::cout << "RetCodeInfo: " << rci->addr << std::endl;
+            break;
+        }
+        case _deoptimization_info:
+        {
+            const DeoptimizationInfo *di;
+            di = (const DeoptimizationInfo *)buffer;
+            buffer += sizeof(DeoptimizationInfo);
+            std::cout << "DeoptimizationInfo: " << di->addr << " " << info->time << std::endl;
+            break;
+        }
+        case _throw_exception_info:
+        {
+            const ThrowExceptionInfo *tei;
+            tei = (const ThrowExceptionInfo *)buffer;
+            buffer += sizeof(ThrowExceptionInfo);
+            std::cout << "ThrowExceptionInfo: " << tei->addr << std::endl;
+            break;
+        }
+        case _pop_frame_info:
+        {
+            const PopFrameInfo *pfi;
+            pfi = (const PopFrameInfo *)buffer;
+            buffer += sizeof(PopFrameInfo);
+            std::cout << "PopFrameInfo: " << pfi->addr << std::endl;
+            break;
+        }
+        case _earlyret_info:
+        {
+            const EarlyretInfo *ei;
+            ei = (const EarlyretInfo *)buffer;
+            buffer += sizeof(EarlyretInfo);
+            std::cout << "EarlyretInfo: " << ei->addr << std::endl;
+            break;
+        }
+        case _non_invoke_ret_info:
+        {
+            const NonInvokeRetInfo *ei;
+            ei = (const NonInvokeRetInfo *)buffer;
+            buffer += sizeof(NonInvokeRetInfo);
+            std::cout << "NonInvokeRetInfo: " << ei->addr << std::endl;
+            break;
+        }
+        case _java_call_begin_info:
+        {
+            const JavaCallBeginInfo *jcbi;
+            jcbi = (const JavaCallBeginInfo *)buffer;
+            buffer += sizeof(JavaCallBeginInfo);
+            std::cout << "JavaCallBeginInfo: " << jcbi->addr << std::endl;
+            break;
+        }
+        case _java_call_end_info:
+        {
+            const JavaCallEndInfo *jcei;
+            jcei = (const JavaCallEndInfo *)buffer;
+            buffer += sizeof(JavaCallEndInfo);
+            std::cout << "JavaCallEndInfo: " << jcei->addr << std::endl;
+            break;
+        }
         case _compiled_method_load_info:
         {
             const CompiledMethodLoadInfo *cmi;
@@ -415,14 +709,6 @@ void JVMRuntime::print(uint8_t *buffer, uint64_t size)
             std::cout << "Inline cache Clear " << icci->src
                       << " " << info->time << std::endl;
             buffer += sizeof(InlineCacheClearInfo);
-            break;
-        }
-        case _deoptimization_info:
-        {
-            const DeoptimizationInfo *di;
-            di = (const DeoptimizationInfo *)buffer;
-            buffer += sizeof(DeoptimizationInfo);
-            std::cout << "DeoptimizationInfo: " << di->addr << " " << info->time << std::endl;
             break;
         }
         default:

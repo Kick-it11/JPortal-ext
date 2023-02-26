@@ -50,49 +50,74 @@ public:
         _illegal = -1,
 
         /* method entry in a java method level, follows a method pointer -> for inter */
-        _method = 0,
+        _method_entry = 0,
 
         /* method exit */
         _method_exit = 1,
 
+        /* method point: in the middle of method: invoke/exception/... */
+        _method_point = 2,
+
         /* taken branch in a bytecode level -> for inter */
-        _taken = 2,
+        _taken = 3,
 
         /* untaken branch in a bytecode level -> for inter */
-        _not_taken = 3,
+        _not_taken = 4,
 
         /* switch case */
-        _switch_case = 4,
+        _switch_case = 5,
 
         /* switch default */
-        _switch_default = 5,
+        _switch_default = 6,
 
         /* exception handling or unwwind -> for inter, mostly a pair */
-        _bci = 6,
+        _bci = 7,
 
-        /* following jit code, with a jit entry */
-        _jit_entry = 7,
-
-        /* following jit code, with an osr entry */
-        _jit_osr_entry = 8,
-
-        /* following jit code, JIT description and pcs */
-        _jit_code = 9,
-
-        /* pc info */
-        _jit_pc_info = 10,
-
-        /* jit return */
-        _jit_return = 11,
+        /* ret or wide ret [jsr] */
+        _ret_code = 8,
 
         /* deoptimization indication */
-        _deoptimization = 12,
+        _deoptimization = 9,
 
+        /* exception */
+        _throw_exception = 10,
+
+        /* pop frame */
+        _pop_frame = 11,
+
+        /* early ret*/
+        _earlyret = 12,
+
+        /* non invoke ret*/
+        _non_invoke_ret = 13,
+
+        /* java call begin */
+        _java_call_begin = 14,
+
+        /* java call end*/
+        _java_call_end = 15,
+
+        /* following jit code, with a jit entry */
+        _jit_entry = 16,
+
+        /* following jit code, with an osr entry */
+        _jit_osr_entry = 17,
+
+        /* following jit code, JIT description and pcs */
+        _jit_code = 18,
+
+        /* pc info */
+        _jit_pc_info = 19,
+
+        /* jit return */
+        _jit_return = 20,
+
+        /* java_*/
         /* indicate a dataloss might happening */
-        _data_loss = 13,
+        _data_loss = 21,
 
         /* indicate a decode error */
-        _decode_error = 14,
+        _decode_error = 22,
     };
 
 private:
@@ -150,9 +175,11 @@ public:
 
     void switch_out(uint64_t time);
 
-    bool record_method(int method_id);
+    bool record_method_entry(int method_id);
 
     bool record_method_exit(int method_id);
+
+    bool record_method_point(int method_id);
 
     bool record_branch_taken();
 
@@ -164,6 +191,22 @@ public:
 
     bool record_bci(int bci);
 
+    bool record_ret_code();
+
+    bool record_deoptimization();
+
+    bool record_throw_exception();
+
+    bool record_pop_frame();
+
+    bool record_earlyret();
+
+    bool record_non_invoke_ret();
+
+    bool record_java_call_begin();
+
+    bool record_java_call_end();
+
     bool record_jit_entry(int section_id);
 
     bool record_jit_osr_entry(int section_id);
@@ -171,8 +214,6 @@ public:
     bool record_jit_code(int section_id, int idx);
 
     bool record_jit_return();
-
-    bool record_deoptimization();
 
     bool record_data_loss();
 
@@ -235,7 +276,9 @@ public:
     /* get current trace */
     bool current_trace(DecodeData::DecodeDataType &type);
 
-    bool get_method(uint64_t pos, int &method_id);
+    bool get_method_entry(uint64_t pos, int &method_id);
+    bool get_method_exit(uint64_t pos, int &method_id);
+    bool get_method_point(uint64_t pos, int &method_id);
 
     bool get_switch_case_index(uint64_t pos, int &index);
 

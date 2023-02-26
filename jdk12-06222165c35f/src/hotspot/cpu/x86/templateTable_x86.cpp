@@ -2497,6 +2497,39 @@ void TemplateTable::if_acmp(Condition cc, bool jportal) {
   __ profile_not_taken_branch(rax);
 }
 
+#ifdef JPORTAL_ENABLE
+void TemplateTable::jportal_ret_code() {
+  JPortalStub *stub = JPortalStubBuffer::new_jportal_jump_stub();
+
+  assert(JPortal, "jportal");
+  __ jump(ExternalAddress(stub->code_begin()));
+
+  address addr = __ pc();
+  stub->set_jump_stub(addr);
+  JPortalEnable::dump_ret_code(stub->code_begin());
+}
+
+void TemplateTable::jportal_method_and_bci(int step, Register temp1, Register temp2) {
+  // temp1 should be stored with method & bcp should be restored before
+  Register bcp_register = LP64_ONLY(r13) NOT_LP64(rsi);
+
+  assert(JPortal, "jportal");
+  assert_different_registers(temp1, temp2);
+
+  __ movptr(rscratch1, Address(temp1, Method::jportal_method_point_offset()));
+  __ call(rscratch1);
+
+  __ movptr(temp1, Address(temp1, Method::const_offset()));   // get ConstMethod*
+  __ lea(temp1, Address(temp1, ConstMethod::codes_offset()));    // get codebase
+  __ movptr(temp2, bcp_register);
+  __ addptr(temp2, step);
+  __ subptr(temp2, temp1);
+  __ lea(rscratch1, ExternalAddress(JPortalStubBuffer::bci_table()->code_begin()));
+  __ addptr(rscratch1, temp2);
+  __ call(rscratch1);
+}
+#endif
+
 void TemplateTable::ret(bool jportal) {
   transition(vtos, vtos);
   locals_index(rbx);
@@ -2507,6 +2540,12 @@ void TemplateTable::ret(bool jportal) {
   __ movptr(rbcp, Address(rax, Method::const_offset()));
   __ lea(rbcp, Address(rbcp, rbx, Address::times_1,
                       ConstMethod::codes_offset()));
+
+  if (jportal) {
+    jportal_ret_code();
+    jportal_method_and_bci(0, rax, rbx);
+  }
+
   __ dispatch_next(vtos, 0, true, jportal);
 }
 
@@ -2518,6 +2557,12 @@ void TemplateTable::wide_ret(bool jportal) {
   __ get_method(rax);
   __ movptr(rbcp, Address(rax, Method::const_offset()));
   __ lea(rbcp, Address(rbcp, rbx, Address::times_1, ConstMethod::codes_offset()));
+
+  if (jportal) {
+    jportal_ret_code();
+    jportal_method_and_bci(0, rax, rbx);
+  }
+
   __ dispatch_next(vtos, 0, true, jportal);
 }
 

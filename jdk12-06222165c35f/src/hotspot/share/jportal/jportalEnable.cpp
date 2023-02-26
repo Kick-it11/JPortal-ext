@@ -96,7 +96,7 @@ void JPortalEnable::dump_method(Method *moop) {
   char *method_signature = (char *)moop->signature()->bytes();
 
   size = sizeof(struct MethodInfo) + klass_name_length + name_length + sig_length;
-  MethodInfo mei(klass_name_length, name_length, sig_length, (u8)moop->jportal_entry(), (u8)moop->jportal_exit(), size);
+  MethodInfo mei(klass_name_length, name_length, sig_length, (u8)moop->jportal_entry(), (u8)moop->jportal_exit(), (u8)moop->jportal_method_point(), size);
 
   if (!check_data(size)) {
     warning("JPortalEnable error: ignore entry for size too big");
@@ -114,7 +114,7 @@ void JPortalEnable::dump_bci_table_stub(address addr, u4 num, u4 ssize) {
   MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
 
   if (!_initialized) {
-    warning("JPortalEnable error: dump bati table before initialize");
+    warning("JPortalEnable error: dump bci table before initialize");
     return;
   }
 
@@ -122,7 +122,7 @@ void JPortalEnable::dump_bci_table_stub(address addr, u4 num, u4 ssize) {
   BciTableStubInfo btsi((u8)addr, num, ssize, size);
 
   if (!check_data(size)) {
-    warning("JPortalEnable error: ignore bai table for size too big");
+    warning("JPortalEnable error: ignore bci table for size too big");
     return;
   }
 
@@ -147,6 +147,26 @@ void JPortalEnable::dump_switch_table_stub(address addr, u4 num, u4 ssize) {
   }
 
   dump_data((address)&stsi, sizeof(stsi));
+  return;
+}
+
+void JPortalEnable::dump_switch_default(address addr) {
+  MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
+
+  if (!_initialized) {
+    warning("JPortalEnable error: dump switch default before initialize");
+    return;
+  }
+
+  u4 size = sizeof(struct SwitchDefaultInfo);
+  SwitchDefaultInfo sdi((u8)addr, size);
+
+  if (!check_data(size)) {
+    warning("JPortalEnable error: ignore switch default for size too big");
+    return;
+  }
+
+  dump_data((address)&sdi, sizeof(sdi));
   return;
 }
 
@@ -190,23 +210,23 @@ void JPortalEnable::dump_branch_not_taken(address addr) {
   return;
 }
 
-void JPortalEnable::dump_switch_default(address addr) {
+void JPortalEnable::dump_ret_code(address addr) {
   MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
 
   if (!_initialized) {
-    warning("JPortalEnable error: dump switch default before initialize");
+    warning("JPortalEnable error: dump ret code before initialize");
     return;
   }
 
-  u4 size = sizeof(struct SwitchDefaultInfo);
-  SwitchDefaultInfo sdi((u8)addr, size);
+  u4 size = sizeof(struct RetCodeInfo);
+  RetCodeInfo rci((u8)addr, size);
 
   if (!check_data(size)) {
-    warning("JPortalEnable error: ignore switch default for size too big");
+    warning("JPortalEnable error: ignore ret code too big");
     return;
   }
 
-  dump_data((address)&sdi, sizeof(sdi));
+  dump_data((address)&rci, sizeof(rci));
   return;
 }
 
@@ -388,7 +408,7 @@ void JPortalEnable::dump_throw_exception(address addr) {
   MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
 
   if (!_initialized) {
-    warning("JPortalEnable error: dump deoptimization before initialize");
+    warning("JPortalEnable error: dump throw exception before initialize");
     return;
   }
 
@@ -396,7 +416,7 @@ void JPortalEnable::dump_throw_exception(address addr) {
   ThrowExceptionInfo tei((u8)addr, size);
 
   if (!check_data(size)) {
-    warning("JPortalEnable error: ignore deoptimization for size too big");
+    warning("JPortalEnable error: ignore throw exception for size too big");
     return;
   }
 
@@ -408,7 +428,7 @@ void JPortalEnable::dump_pop_frame(address addr) {
   MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
 
   if (!_initialized) {
-    warning("JPortalEnable error: dump deoptimization before initialize");
+    warning("JPortalEnable error: dump pop frame before initialize");
     return;
   }
 
@@ -416,7 +436,7 @@ void JPortalEnable::dump_pop_frame(address addr) {
   PopFrameInfo pfi((u8)addr, size);
 
   if (!check_data(size)) {
-    warning("JPortalEnable error: ignore deoptimization for size too big");
+    warning("JPortalEnable error: ignore pop frame for size too big");
     return;
   }
 
@@ -428,7 +448,7 @@ void JPortalEnable::dump_earlyret(address addr) {
   MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
 
   if (!_initialized) {
-    warning("JPortalEnable error: dump deoptimization before initialize");
+    warning("JPortalEnable error: dump earlyret before initialize");
     return;
   }
 
@@ -436,7 +456,7 @@ void JPortalEnable::dump_earlyret(address addr) {
   EarlyretInfo ei((u8)addr, size);
 
   if (!check_data(size)) {
-    warning("JPortalEnable error: ignore deoptimization for size too big");
+    warning("JPortalEnable error: ignore earlyret for size too big");
     return;
   }
 
@@ -448,7 +468,7 @@ void JPortalEnable::dump_non_invoke_ret(address addr) {
   MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
 
   if (!_initialized) {
-    warning("JPortalEnable error: dump deoptimization before initialize");
+    warning("JPortalEnable error: dump non invoke ret before initialize");
     return;
   }
 
@@ -456,7 +476,7 @@ void JPortalEnable::dump_non_invoke_ret(address addr) {
   NonInvokeRetInfo niri((u8)addr, size);
 
   if (!check_data(size)) {
-    warning("JPortalEnable error: ignore deoptimization for size too big");
+    warning("JPortalEnable error: ignore non invoke ret for size too big");
     return;
   }
 
@@ -468,7 +488,7 @@ void JPortalEnable::dump_java_call_begin(address addr) {
   MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
 
   if (!_initialized) {
-    warning("JPortalEnable error: dump deoptimization before initialize");
+    warning("JPortalEnable error: dump java call begin before initialize");
     return;
   }
 
@@ -476,7 +496,7 @@ void JPortalEnable::dump_java_call_begin(address addr) {
   JavaCallBeginInfo jcbi((u8)addr, size);
 
   if (!check_data(size)) {
-    warning("JPortalEnable error: ignore deoptimization for size too big");
+    warning("JPortalEnable error: ignore java call begin for size too big");
     return;
   }
 
@@ -488,7 +508,7 @@ void JPortalEnable::dump_java_call_end(address addr) {
   MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
 
   if (!_initialized) {
-    warning("JPortalEnable error: dump deoptimization before initialize");
+    warning("JPortalEnable error: dump java call end before initialize");
     return;
   }
 
@@ -496,7 +516,7 @@ void JPortalEnable::dump_java_call_end(address addr) {
   JavaCallEndInfo jcei((u8)addr, size);
 
   if (!check_data(size)) {
-    warning("JPortalEnable error: ignore deoptimization for size too big");
+    warning("JPortalEnable error: ignore java call end for size too big");
     return;
   }
 

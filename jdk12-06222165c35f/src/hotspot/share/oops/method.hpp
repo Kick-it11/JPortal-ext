@@ -122,6 +122,8 @@ class Method : public Metadata {
   JPortalStub *_jportal_entry_stub;
   address _jportal_exit;
   JPortalStub *_jportal_exit_stub;
+  address _jportal_method_point;
+  JPortalStub *_jportal_method_stub;
 #endif
 
   // Constructor
@@ -518,6 +520,7 @@ class Method : public Metadata {
 #ifdef JPORTAL_ENABLE
   address jportal_entry() const                  { return _jportal_entry; }
   address jportal_exit()  const                  { return _jportal_exit; }
+  address jportal_method_point()  const          { return _jportal_method_point; }
 #endif
   // native function (used for native methods only)
   enum {
@@ -716,6 +719,7 @@ class Method : public Metadata {
 #ifdef JPORTAL_ENABLE
   static ByteSize jportal_entry_offset()         { return byte_offset_of(Method, _jportal_entry); }
   static ByteSize jportal_exit_offset()          { return byte_offset_of(Method, _jportal_exit); }
+  static ByteSize jportal_method_point_offset()  { return byte_offset_of(Method, _jportal_method_point); }
 #endif
 
   // for code generation

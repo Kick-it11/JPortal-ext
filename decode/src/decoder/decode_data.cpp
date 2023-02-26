@@ -86,11 +86,11 @@ void DecodeDataRecord::switch_out(uint64_t time)
     }
 }
 
-bool DecodeDataRecord::record_method(int method_id)
+bool DecodeDataRecord::record_method_entry(int method_id)
 {
     if (!_cur_thread || !method_id < 0)
         return false;
-    _type = DecodeData::_method;
+    _type = DecodeData::_method_entry;
     _data->write(&_type, 1);
     _data->write(&method_id, sizeof(int));
     return true;
@@ -101,6 +101,16 @@ bool DecodeDataRecord::record_method_exit(int method_id)
     if (!_cur_thread || !method_id < 0)
         return false;
     _type = DecodeData::_method_exit;
+    _data->write(&_type, 1);
+    _data->write(&method_id, sizeof(int));
+    return true;
+}
+
+bool DecodeDataRecord::record_method_point(int method_id)
+{
+    if (!_cur_thread || !method_id < 0)
+        return false;
+    _type = DecodeData::_method_point;
     _data->write(&_type, 1);
     _data->write(&method_id, sizeof(int));
     return true;
@@ -150,6 +160,78 @@ bool DecodeDataRecord::record_bci(int bci)
     _type = DecodeData::_bci;
     _data->write(&_type, 1);
     _data->write(&bci, sizeof(int));
+    return true;
+}
+
+bool DecodeDataRecord::record_ret_code()
+{
+    if (!_cur_thread)
+        return false;
+    _type = DecodeData::_ret_code;
+    _data->write(&_type, 1);
+    return true;
+}
+
+bool DecodeDataRecord::record_deoptimization()
+{
+    if (!_cur_thread)
+        return false;
+    _type = DecodeData::_deoptimization;
+    _data->write(&_type, 1);
+    return true;
+}
+
+bool DecodeDataRecord::record_throw_exception()
+{
+    if (!_cur_thread)
+        return false;
+    _type = DecodeData::_throw_exception;
+    _data->write(&_type, 1);
+    return true;
+}
+
+bool DecodeDataRecord::record_pop_frame()
+{
+    if (!_cur_thread)
+        return false;
+    _type = DecodeData::_pop_frame;
+    _data->write(&_type, 1);
+    return true;
+}
+
+bool DecodeDataRecord::record_earlyret()
+{
+    if (!_cur_thread)
+        return false;
+    _type = DecodeData::_earlyret;
+    _data->write(&_type, 1);
+    return true;
+}
+
+bool DecodeDataRecord::record_non_invoke_ret()
+{
+    if (!_cur_thread)
+        return false;
+    _type = DecodeData::_non_invoke_ret;
+    _data->write(&_type, 1);
+    return true;
+}
+
+bool DecodeDataRecord::record_java_call_begin()
+{
+    if (!_cur_thread)
+        return false;
+    _type = DecodeData::_java_call_begin;
+    _data->write(&_type, 1);
+    return true;
+}
+
+bool DecodeDataRecord::record_java_call_end()
+{
+    if (!_cur_thread)
+        return false;
+    _type = DecodeData::_java_call_end;
+    _data->write(&_type, 1);
     return true;
 }
 
@@ -203,15 +285,6 @@ bool DecodeDataRecord::record_jit_return()
     return true;
 }
 
-bool DecodeDataRecord::record_deoptimization()
-{
-    if (!_cur_thread)
-        return false;
-    _type = DecodeData::_deoptimization;
-    _data->write(&_type, 1);
-    return true;
-}
-
 bool DecodeDataRecord::record_data_loss()
 {
     if (!_cur_thread)
@@ -250,8 +323,9 @@ bool DecodeDataAccess::next_trace(DecodeData::DecodeDataType &type, uint64_t &po
     type = (DecodeData::DecodeDataType)*_current;
     switch (type)
     {
-    case DecodeData::_method:
+    case DecodeData::_method_entry:
     case DecodeData::_method_exit:
+    case DecodeData::_method_point:
         ++_current;
         _current += sizeof(int);
         break;
@@ -270,6 +344,16 @@ bool DecodeDataAccess::next_trace(DecodeData::DecodeDataType &type, uint64_t &po
         ++_current;
         _current += sizeof(int);
         break;
+    case DecodeData::_ret_code:
+    case DecodeData::_deoptimization:
+    case DecodeData::_throw_exception:
+    case DecodeData::_pop_frame:
+    case DecodeData::_earlyret:
+    case DecodeData::_non_invoke_ret:
+    case DecodeData::_java_call_begin:
+    case DecodeData::_java_call_end:
+        ++_current;
+        break;
     case DecodeData::_jit_entry:
     case DecodeData::_jit_osr_entry:
     case DecodeData::_jit_code:
@@ -286,7 +370,6 @@ bool DecodeDataAccess::next_trace(DecodeData::DecodeDataType &type, uint64_t &po
         break;
     }
     case DecodeData::_jit_return:
-    case DecodeData::_deoptimization:
     case DecodeData::_decode_error:
     case DecodeData::_data_loss:
         ++_current;
@@ -317,18 +400,26 @@ bool DecodeDataAccess::current_trace(DecodeData::DecodeDataType &type)
     type = (DecodeData::DecodeDataType)*_current;
     switch (type)
     {
-    case DecodeData::_method:
+    case DecodeData::_method_entry:
     case DecodeData::_method_exit:
+    case DecodeData::_method_point:
     case DecodeData::_taken:
     case DecodeData::_not_taken:
     case DecodeData::_switch_case:
     case DecodeData::_switch_default:
     case DecodeData::_bci:
+    case DecodeData::_ret_code:
+    case DecodeData::_deoptimization:
+    case DecodeData::_throw_exception:
+    case DecodeData::_pop_frame:
+    case DecodeData::_earlyret:
+    case DecodeData::_non_invoke_ret:
+    case DecodeData::_java_call_begin:
+    case DecodeData::_java_call_end:
     case DecodeData::_jit_entry:
     case DecodeData::_jit_osr_entry:
     case DecodeData::_jit_code:
     case DecodeData::_jit_return:
-    case DecodeData::_deoptimization:
     case DecodeData::_decode_error:
     case DecodeData::_data_loss:
         break;
@@ -339,7 +430,7 @@ bool DecodeDataAccess::current_trace(DecodeData::DecodeDataType &type)
     return true;
 }
 
-bool DecodeDataAccess::get_method(uint64_t pos, int &method_id)
+bool DecodeDataAccess::get_method_entry(uint64_t pos, int &method_id)
 {
     if (pos > _data->_data_end - _data->_data_begin)
     {
@@ -348,7 +439,43 @@ bool DecodeDataAccess::get_method(uint64_t pos, int &method_id)
     uint8_t *buf = _data->_data_begin + pos;
     DecodeData::DecodeDataType type = (DecodeData::DecodeDataType) * (buf);
     ++buf;
-    if (type != DecodeData::_method)
+    if (type != DecodeData::_method_entry)
+    {
+        return false;
+    }
+    memcpy(&method_id, buf, sizeof(int));
+    assert(method_id >= 0);
+    return true;
+}
+
+bool DecodeDataAccess::get_method_exit(uint64_t pos, int &method_id)
+{
+    if (pos > _data->_data_end - _data->_data_begin)
+    {
+        return false;
+    }
+    uint8_t *buf = _data->_data_begin + pos;
+    DecodeData::DecodeDataType type = (DecodeData::DecodeDataType) * (buf);
+    ++buf;
+    if (type != DecodeData::_method_exit)
+    {
+        return false;
+    }
+    memcpy(&method_id, buf, sizeof(int));
+    assert(method_id >= 0);
+    return true;
+}
+
+bool DecodeDataAccess::get_method_point(uint64_t pos, int &method_id)
+{
+    if (pos > _data->_data_end - _data->_data_begin)
+    {
+        return false;
+    }
+    uint8_t *buf = _data->_data_begin + pos;
+    DecodeData::DecodeDataType type = (DecodeData::DecodeDataType) * (buf);
+    ++buf;
+    if (type != DecodeData::_method_point)
     {
         return false;
     }

@@ -429,13 +429,6 @@ class TemplateTable: AllStatic {
   static void def(Bytecodes::Code code, int flags, TosState in, TosState out, void (*gen)(Operation op), Operation op, bool jportal = false);
   static void def(Bytecodes::Code code, int flags, TosState in, TosState out, void (*gen)(Condition cc), Condition cc, bool jportal = false);
 
-#ifdef JPORTAL_ENABLE
-  static void jportal_taken_branch();
-  static void jportal_not_taken_branch();
-  static void jportal_switch_case(Register index, Register temp);
-  static void jportal_switch_default();
-#endif
-
   friend class Template;
 
   // InterpreterMacroAssembler::is_a(), etc., need TemplateTable::call_VM().

@@ -44,4 +44,13 @@
                                         Register obj, Register off, Register flags);
   static void fast_storefield_helper(Address field, Register rax);
 
+#ifdef JPORTAL_ENABLE
+  static void jportal_taken_branch();
+  static void jportal_not_taken_branch();
+  static void jportal_switch_case(Register index, Register temp);
+  static void jportal_switch_default();
+  static void jportal_ret_code();
+  static void jportal_method_and_bci(int step, Register temp1, Register temp2);
+#endif
+
 #endif // CPU_X86_VM_TEMPLATETABLE_X86_HPP

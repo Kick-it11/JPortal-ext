@@ -318,16 +318,6 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
   __ andl(flags, ConstantPoolCacheEntry::parameter_size_mask);
   __ lea(rsp, Address(rsp, flags, Interpreter::stackElementScale()));
 
-   const Register java_thread = NOT_LP64(rcx) LP64_ONLY(r15_thread);
-   if (JvmtiExport::can_pop_frame()) {
-     NOT_LP64(__ get_thread(java_thread));
-     __ check_and_handle_popframe(java_thread);
-   }
-   if (JvmtiExport::can_force_early_return()) {
-     NOT_LP64(__ get_thread(java_thread));
-     __ check_and_handle_earlyret(java_thread);
-   }
-
 #ifdef JPORTAL_ENABLE
   if (jportal && dump) {
     if (!is_invoke) {
@@ -337,6 +327,16 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
     jportal_method_and_bci(step, rcx, rbx);
   }
 #endif
+
+   const Register java_thread = NOT_LP64(rcx) LP64_ONLY(r15_thread);
+   if (JvmtiExport::can_pop_frame()) {
+     NOT_LP64(__ get_thread(java_thread));
+     __ check_and_handle_popframe(java_thread);
+   }
+   if (JvmtiExport::can_force_early_return()) {
+     NOT_LP64(__ get_thread(java_thread));
+     __ check_and_handle_earlyret(java_thread);
+   }
 
   __ dispatch_next(state, step, false, jportal);
 
@@ -1623,6 +1623,23 @@ address TemplateInterpreterGenerator::generate_normal_entry(bool synchronized, b
 // Exceptions
 
 void TemplateInterpreterGenerator::generate_throw_exception() {
+  // deoptimize rethrow entry
+  Interpreter::_deopt_rethrow_exception_entry = __ pc();
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    Label non_jportal;
+    __ get_method(rcx);
+
+    __ movl(rbx, Address(rcx, Method::access_flags_offset()));
+    __ testl(rbx, JVM_ACC_JPORTAL);
+    __ jcc(Assembler::zero, non_jportal);
+
+    jportal_deoptimization();
+    jportal_method_and_bci(0, rcx, rbx);
+
+    __ bind(non_jportal);
+  }
+#endif
   // Entry point in previous activation (i.e., if the caller was
   // interpreted)
   Interpreter::_rethrow_exception_entry = __ pc();
@@ -1709,6 +1726,23 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
   //
   // JVMTI PopFrame support
   //
+
+  Interpreter::_deopt_remove_activation_preserving_args_entry = __ pc();
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    Label non_jportal;
+    __ get_method(rcx);
+
+    __ movl(rbx, Address(rcx, Method::access_flags_offset()));
+    __ testl(rbx, JVM_ACC_JPORTAL);
+    __ jcc(Assembler::zero, non_jportal);
+
+    jportal_deoptimization();
+    jportal_method_and_bci(0, rcx, rbx);
+
+    __ bind(non_jportal);
+  }
+#endif
 
   Interpreter::_remove_activation_preserving_args_entry = __ pc();
   __ empty_expression_stack();
@@ -1916,6 +1950,25 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
 // JVMTI ForceEarlyReturn support
 //
 address TemplateInterpreterGenerator::generate_earlyret_entry_for(TosState state) {
+  address addr = __ pc();
+  Interpreter::_deopt_earlyret_entry.set_entry(state, addr);
+
+#ifdef JPORTAL_ENABLE
+  if (JPortal) {
+    Label non_jportal;
+    __ get_method(rcx);
+
+    __ movl(rbx, Address(rcx, Method::access_flags_offset()));
+    __ testl(rbx, JVM_ACC_JPORTAL);
+    __ jcc(Assembler::zero, non_jportal);
+
+    jportal_deoptimization();
+    jportal_method_and_bci(0, rcx, rbx);
+
+    __ bind(non_jportal);
+  }
+#endif
+
   address entry = __ pc();
 
   __ restore_bcp();

@@ -120,6 +120,7 @@ class AbstractInterpreter: AllStatic {
   static address    _slow_signature_handler;                              // the native method generic (slow) signature handler
 
   static address    _rethrow_exception_entry;                   // rethrows an activation in previous frame
+  static address    _deopt_rethrow_exception_entry;             // rethrows an activation in previous frame
 
 #ifdef JPORTAL_ENABLE
   static address    _jportal_entry_table[number_of_method_entries];     // entry points for a given method
@@ -189,6 +190,7 @@ class AbstractInterpreter: AllStatic {
   static address return_entry(TosState state, int length, bool jportal = false, bool dump = false) { ShouldNotReachHere(); return NULL; }
 
   static address    rethrow_exception_entry()                   { return _rethrow_exception_entry; }
+  static address    deopt_rethrow_exception_entry()             { return _deopt_rethrow_exception_entry; }
 
   // Activation size in words for a method that is just being called.
   // Parameters haven't been pushed so count them too.

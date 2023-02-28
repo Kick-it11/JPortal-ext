@@ -212,6 +212,9 @@ DispatchTable TemplateInterpreter::_normal_table;
 DispatchTable TemplateInterpreter::_safept_table;
 address    TemplateInterpreter::_wentry_point[DispatchTable::length];
 
+EntryPoint TemplateInterpreter::_deopt_earlyret_entry;
+address    TemplateInterpreter::_deopt_remove_activation_preserving_args_entry    = NULL;
+
 #ifdef JPORTAL_ENABLE
 EntryPoint TemplateInterpreter::_jportal_return_entry[TemplateInterpreter::number_of_return_entries];
 EntryPoint TemplateInterpreter::_jportal_deopt_entry [TemplateInterpreter::number_of_deopt_entries ];

@@ -91,6 +91,8 @@ StubQueue* AbstractInterpreter::_code                                       = NU
 bool       AbstractInterpreter::_notice_safepoints                          = false;
 address    AbstractInterpreter::_rethrow_exception_entry                    = NULL;
 
+address    AbstractInterpreter::_deopt_rethrow_exception_entry              = NULL;
+
 address    AbstractInterpreter::_native_entry_begin                         = NULL;
 address    AbstractInterpreter::_native_entry_end                           = NULL;
 address    AbstractInterpreter::_slow_signature_handler;
@@ -411,7 +413,7 @@ address AbstractInterpreter::deopt_reexecute_entry(Method* method, address bcp) 
   Bytecodes::Code code   = Bytecodes::java_code_at(method, bcp);
 #if defined(COMPILER1) || INCLUDE_JVMCI
   if(code == Bytecodes::_athrow ) {
-    return Interpreter::rethrow_exception_entry();
+    return Interpreter::deopt_rethrow_exception_entry();
   }
 #endif /* COMPILER1 || INCLUDE_JVMCI */
   return Interpreter::deopt_entry(vtos, 0, JPortal && method->is_jportal());

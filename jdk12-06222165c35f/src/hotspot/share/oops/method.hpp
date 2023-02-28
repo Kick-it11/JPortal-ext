@@ -123,7 +123,7 @@ class Method : public Metadata {
   address _jportal_exit;
   JPortalStub *_jportal_exit_stub;
   address _jportal_method_point;
-  JPortalStub *_jportal_method_stub;
+  JPortalStub *_jportal_method_point_stub;
 #endif
 
   // Constructor

@@ -227,7 +227,7 @@ void vframeArrayElement::unpack_on_stack(int caller_actual_parameters,
       if (thread->has_pending_popframe()) {
         // Pop top frame after deoptimization
 #ifndef CC_INTERP
-        pc = Interpreter::remove_activation_preserving_args_entry();
+        pc = Interpreter::deopt_remove_activation_preserving_args_entry();
 #else
         // Do an uncommon trap type entry. c++ interpreter will know
         // to pop frame and preserve the args
@@ -246,7 +246,7 @@ void vframeArrayElement::unpack_on_stack(int caller_actual_parameters,
     } else if (!realloc_failure_exception && JvmtiExport::can_force_early_return() && state != NULL && state->is_earlyret_pending()) {
       // Force early return from top frame after deoptimization
 #ifndef CC_INTERP
-      pc = Interpreter::remove_activation_early_entry(state->earlyret_tos());
+      pc = Interpreter::deopt_remove_activation_early_entry(state->earlyret_tos());
 #endif
     } else {
       if (realloc_failure_exception && JvmtiExport::can_force_early_return() && state != NULL && state->is_earlyret_pending()) {

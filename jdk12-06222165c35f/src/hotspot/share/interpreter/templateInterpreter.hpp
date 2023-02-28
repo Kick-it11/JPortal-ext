@@ -131,6 +131,9 @@ class TemplateInterpreter: public AbstractInterpreter {
   static DispatchTable _safept_table;                           // the safepoint dispatch table (used to set the active table for safepoints)
   static address       _wentry_point[DispatchTable::length];    // wide instructions only (vtos tosca always)
 
+  static EntryPoint _deopt_earlyret_entry;                            // entry point to return early from a call
+  static address    _deopt_remove_activation_preserving_args_entry;   // continuation address when current frame is being popped
+
 #ifdef JPORTAL_ENABLE
   static EntryPoint _jportal_return_entry[number_of_return_entries];    // entry points to return to from a call
   static EntryPoint _jportal_deopt_entry[number_of_deopt_entries];      // entry points to return to from a deoptimization
@@ -165,6 +168,9 @@ class TemplateInterpreter: public AbstractInterpreter {
 
   static address    remove_activation_early_entry(TosState state) { return _earlyret_entry.entry(state); }
   static address    remove_activation_preserving_args_entry()     { return _remove_activation_preserving_args_entry; }
+
+  static address    deopt_remove_activation_early_entry(TosState state) { return _deopt_earlyret_entry.entry(state); }
+  static address    deopt_remove_activation_preserving_args_entry()     { return _deopt_remove_activation_preserving_args_entry; }
 
   static address    remove_activation_entry()                   { return _remove_activation_entry; }
   static address    throw_exception_entry()                     { return _throw_exception_entry; }

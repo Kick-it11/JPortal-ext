@@ -114,7 +114,7 @@ Method::Method(ConstMethod* xconst, AccessFlags access_flags) {
   _jportal_entry = NULL;
   _jportal_exit_stub = NULL;
   _jportal_exit = NULL;
-  _jportal_method_stub = NULL;
+  _jportal_method_point_stub = NULL;
   _jportal_method_point = NULL;
 #endif
 
@@ -946,7 +946,7 @@ void Method::unlink_method() {
   if ((JPortal || JPortalMethod) && is_jportal()) {
     if (_jportal_entry_stub == NULL && _jportal_entry == NULL
          && _jportal_exit_stub == NULL && _jportal_exit == NULL
-         && _jportal_method_stub == NULL && _jportal_method_point == NULL) {
+         && _jportal_method_point_stub == NULL && _jportal_method_point == NULL) {
       _jportal_entry_stub = JPortalStubBuffer::new_jportal_ret_stub();
       _jportal_entry_stub->set_ret_stub();
       _jportal_entry = _jportal_entry_stub->code_begin();
@@ -956,9 +956,9 @@ void Method::unlink_method() {
         _jportal_exit = _jportal_exit_stub->code_begin();
       }
       if (JPortal) {
-        _jportal_method_stub = JPortalStubBuffer::new_jportal_ret_stub();
-        _jportal_method_stub->set_ret_stub();
-        _jportal_method_point = _jportal_method_stub->code_begin();
+        _jportal_method_point_stub = JPortalStubBuffer::new_jportal_ret_stub();
+        _jportal_method_point_stub->set_ret_stub();
+        _jportal_method_point = _jportal_method_point_stub->code_begin();
       }
       JPortalEnable::dump_method(this);
     }
@@ -1060,7 +1060,7 @@ void Method::link_method(const methodHandle& h_method, TRAPS) {
   if ((JPortal || JPortalMethod) && is_jportal()) {
     if (_jportal_entry_stub == NULL && _jportal_entry == NULL
          && _jportal_exit_stub == NULL && _jportal_exit == NULL
-         && _jportal_method_stub == NULL && _jportal_method_point == NULL) {
+         && _jportal_method_point_stub == NULL && _jportal_method_point == NULL) {
       _jportal_entry_stub = JPortalStubBuffer::new_jportal_ret_stub();
       _jportal_entry_stub->set_ret_stub();
       _jportal_entry = _jportal_entry_stub->code_begin();
@@ -1070,9 +1070,9 @@ void Method::link_method(const methodHandle& h_method, TRAPS) {
         _jportal_exit = _jportal_exit_stub->code_begin();
       }
       if (JPortal) {
-        _jportal_method_stub = JPortalStubBuffer::new_jportal_ret_stub();
-        _jportal_method_stub->set_ret_stub();
-        _jportal_method_point = _jportal_method_stub->code_begin();
+        _jportal_method_point_stub = JPortalStubBuffer::new_jportal_ret_stub();
+        _jportal_method_point_stub->set_ret_stub();
+        _jportal_method_point = _jportal_method_point_stub->code_begin();
       }
       JPortalEnable::dump_method(this);
     }

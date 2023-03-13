@@ -11,18 +11,19 @@
 class Analyser
 {
 private:
-    std::map<std::string, Klass *> _klasses;
-    std::map<std::string, Method *> _methods;
+    static std::map<std::string, Klass *> _klasses;
+    static std::map<std::string, Method *> _methods;
 
-    void parse(const std::vector<std::string> &class_paths);
+    static void parse(const std::vector<std::string> &class_paths);
 
 public:
-    Analyser(const std::vector<std::string> &class_paths);
-    ~Analyser();
-    void add_klass(Klass *klass);
-    void add_method(Method *method);
-    const Klass *get_klass(const std::string &klassName);
-    const Method *get_method(const std::string &klassName, const std::string &methodName);
+    static void initialize(const std::vector<std::string> &class_paths);
+    static void destroy();
+
+    static void add_klass(Klass *klass);
+    static void add_method(Method *method);
+    static const Klass *get_klass(const std::string &klassName);
+    static const Method *get_method(const std::string &klassName, const std::string &methodName);
 };
 
 #endif /* ANALYSER_HPP */

@@ -45,6 +45,7 @@
   static void fast_storefield_helper(Address field, Register rax);
 
 #ifdef JPORTAL_ENABLE
+  static void jportal_osr();
   static void jportal_taken_branch();
   static void jportal_not_taken_branch();
   static void jportal_switch_case(Register index, Register temp);

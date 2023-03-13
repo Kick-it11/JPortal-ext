@@ -25,11 +25,11 @@ static void decode(const std::string &file, std::vector<std::string> &paths)
 
     /** Initialize */
     std::cout << "Initializing..." << std::endl;
-    Analyser *analyser = new Analyser(paths);
+    Analyser::initialize(paths);
     auto jvmdata = parser.jvm_runtime_data();
     auto sideband_data = parser.sideband_data();
     Bytecodes::initialize();
-    JVMRuntime::initialize(jvmdata.first, jvmdata.second, analyser);
+    JVMRuntime::initialize(jvmdata.first, jvmdata.second);
     Sideband::initialize(sideband_data, parser.sample_type(), parser.time_mult(),
                          parser.time_shift(), parser.time_zero());
 
@@ -62,7 +62,7 @@ static void decode(const std::string &file, std::vector<std::string> &paths)
     /* Exit */
     JVMRuntime::destroy();
     Sideband::destroy();
-    delete analyser;
+    Analyser::destroy();
     for (auto trace : results)
         delete trace;
     results.clear();
@@ -82,10 +82,10 @@ static void show(const std::string &file, const std::string &info, std::vector<s
     else if (info == "jvm")
     {
         auto jvmdata = parser.jvm_runtime_data();
-        Analyser *analyser = new Analyser(paths);
+        Analyser::initialize(paths);
         JVMRuntime::print(jvmdata.first, jvmdata.second);
         JVMRuntime::destroy();
-        delete analyser;
+        Analyser::destroy();
     }
     else
     {

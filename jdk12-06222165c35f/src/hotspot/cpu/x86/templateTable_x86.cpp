@@ -2138,6 +2138,19 @@ void TemplateTable::float_cmp(bool is_float, int unordered_result) {
   }
 }
 
+#ifdef JPORTAL_ENABLE
+void TemplateTable::jportal_osr() {
+  JPortalStub *stub = JPortalStubBuffer::new_jportal_jump_stub();
+
+  assert(JPortal, "jportal");
+  __ jump(ExternalAddress(stub->code_begin()));
+
+  address addr = __ pc();
+  stub->set_jump_stub(addr);
+  JPortalEnable::dump_osr(stub->code_begin());
+}
+#endif
+
 void TemplateTable::branch(bool is_jsr, bool is_wide, bool jportal) {
   __ get_method(rcx); // rcx holds method
   __ profile_taken_branch(rax, rbx); // rax holds updated MDP, rbx
@@ -2338,6 +2351,16 @@ void TemplateTable::branch(bool is_jsr, bool is_wide, bool jportal) {
       NOT_LP64(__ get_thread(rcx));
 
       call_VM(noreg, CAST_FROM_FN_PTR(address, SharedRuntime::OSR_migration_begin));
+
+#ifdef JPORTAL_ENABLE
+      if (jportal) {
+        __ restore_bcp();
+
+        __ get_method(rcx);
+        jportal_osr();
+        jportal_method_and_bci(0, rcx, rbx);
+      }
+#endif
 
       // rax is OSR buffer, move it to expected parameter location
       LP64_ONLY(__ mov(j_rarg0, rax));

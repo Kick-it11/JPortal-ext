@@ -60,7 +60,7 @@ int Bytecodes::special_length_at(Code code, const u1 *buffer, const u4 offset)
         return alup + (3 + hi - lo + 1) * jintSize;
     }
     case _lookupswitch:
-    case _fast_linearswitch:
+    /*case _fast_linearswitch:
     case _fast_binaryswitch:
     {
         long jintSize = sizeof(jint);
@@ -68,7 +68,7 @@ int Bytecodes::special_length_at(Code code, const u1 *buffer, const u4 offset)
         buffer += alup;
         jlong npairs = get_u4(buffer + jintSize);
         return alup + (2 + 2 * npairs) * jintSize;
-    }
+    }*/
     default:
     {
         /* should not reach here */
@@ -305,7 +305,7 @@ void Bytecodes::initialize()
     /*  JVM bytecodes
      *  bytecode, is_jmp, bytecode_name, format, wide f., code
      */
-    def(_fast_agetfield, false, "fast_agetfield", "bJJ", nullptr, _getfield);
+    /*def(_fast_agetfield, false, "fast_agetfield", "bJJ", nullptr, _getfield);
     def(_fast_bgetfield, false, "fast_bgetfield", "bJJ", nullptr, _getfield);
     def(_fast_cgetfield, false, "fast_cgetfield", "bJJ", nullptr, _getfield);
     def(_fast_dgetfield, false, "fast_dgetfield", "bJJ", nullptr, _getfield);
@@ -331,10 +331,10 @@ void Bytecodes::initialize()
 
     def(_fast_iload, false, "fast_iload", "bi", nullptr, _iload);
     def(_fast_iload2, false, "fast_iload2", "bi_i", nullptr, _iload);
-    def(_fast_icaload, false, "fast_icaload", "bi_", nullptr, _iload);
+    def(_fast_icaload, false, "fast_icaload", "bi_", nullptr, _iload);*/
 
     /* Faster method invocation. */
-    def(_fast_invokevfinal, false, "fast_invokevfinal", "bJJ", nullptr,
+    /*def(_fast_invokevfinal, false, "fast_invokevfinal", "bJJ", nullptr,
         _invokevirtual);
 
     def(_fast_linearswitch, false, "fast_linearswitch", "", nullptr,
@@ -356,7 +356,7 @@ void Bytecodes::initialize()
     def(_nofast_aload_0, false, "nofast_aload_0", "b", nullptr, _aload_0);
     def(_nofast_iload, false, "nofast_iload", "bi", nullptr, _iload);
 
-    def(_shouldnotreachhere, false, "_shouldnotreachhere", "b", nullptr);
+    def(_shouldnotreachhere, false, "_shouldnotreachhere", "b", nullptr);*/
 
     /* initialization successful */
     _is_initialized = true;

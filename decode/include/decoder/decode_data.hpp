@@ -1,13 +1,15 @@
 #ifndef DECODE_DATA_HPP
 #define DECODE_DATA_HPP
 
-#include "java/bytecodes.hpp"
-#include "runtime/jit_section.hpp"
-#include "runtime/jvm_runtime.hpp"
-
 #include <cassert>
 #include <vector>
+#include <map>
+#include <string>
 
+#include <stdint.h>
+
+class Method;
+class JitSection;
 /* TraceDataParser will parse bianry data of JPortalTrace.data
  * and extract the PT data, sideband data, JVM runtime data.
  *     It will also split PT data into segments for parallel decoding.
@@ -49,75 +51,95 @@ public:
     {
         _illegal = -1,
 
-        /* method entry in a java method level, follows a method pointer -> for inter */
-        _method_entry = 0,
-
-        /* method exit */
-        _method_exit = 1,
-
-        /* method point: in the middle of method: invoke/exception/... */
-        _method_point = 2,
-
-        /* taken branch in a bytecode level -> for inter */
-        _taken = 3,
-
-        /* untaken branch in a bytecode level -> for inter */
-        _not_taken = 4,
-
-        /* switch case */
-        _switch_case = 5,
-
-        /* switch default */
-        _switch_default = 6,
-
-        /* exception handling or unwwind -> for inter, mostly a pair */
-        _bci = 7,
-
-        /* ret or wide ret [jsr] */
-        _ret_code = 8,
-
-        /* deoptimization indication */
-        _deoptimization = 9,
-
-        /* exception */
-        _throw_exception = 10,
-
-        /* pop frame */
-        _pop_frame = 11,
-
-        /* early ret*/
-        _earlyret = 12,
-
-        /* non invoke ret*/
-        _non_invoke_ret = 13,
-
         /* java call begin */
-        _java_call_begin = 14,
+        _java_call_begin,
 
         /* java call end*/
-        _java_call_end = 15,
+        _java_call_end,
 
-        /* following jit code, with a jit entry */
-        _jit_entry = 16,
+        /* method entry in a java method level, follows a method pointer -> for inter */
+        _method_entry,
 
-        /* following jit code, with an osr entry */
-        _jit_osr_entry = 17,
+        /* method exit */
+        _method_exit,
+
+        /* method point: in the middle of method: invoke/exception/... */
+        _method_point,
+
+        /* taken branch in a bytecode level -> for inter */
+        _taken,
+
+        /* untaken branch in a bytecode level -> for inter */
+        _not_taken,
+
+        /* switch case */
+        _switch_case,
+
+        /* switch default */
+        _switch_default,
+
+        /* exception handling or unwwind -> for inter, mostly a pair */
+        _bci,
+
+        /* osr */
+        _osr,
+
+        /* exception */
+        _throw_exception,
+
+        /* rethrow exception */
+        _rethrow_exception,
+
+        /* handle exception */
+        _handle_exception,
+
+        /* ret or wide ret [jsr] */
+        _ret_code,
+
+        /* deoptimization indication */
+        _deoptimization,
+
+        /* non invoke ret*/
+        _non_invoke_ret,
+
+        /* pop frame */
+        _pop_frame,
+
+        /* early ret*/
+        _earlyret,
 
         /* following jit code, JIT description and pcs */
-        _jit_code = 18,
+        _jit_code,
 
         /* pc info */
-        _jit_pc_info = 19,
+        _jit_pc_info,
+
+        /* following jit code, with a jit entry */
+        _jit_entry,
+
+        /* following jit code, with an osr entry */
+        _jit_osr_entry,
 
         /* jit return */
-        _jit_return = 20,
+        _jit_return,
 
-        /* java_*/
+        /* jit exception */
+        _jit_exception,
+
+        /* jit unwind */
+        _jit_unwind,
+
+        /* jit deopt */
+        _jit_deopt,
+
+        /* jit mh deopt */
+        _jit_deopt_mh,
+
         /* indicate a dataloss might happening */
-        _data_loss = 21,
+        _data_loss,
 
         /* indicate a decode error */
-        _decode_error = 22,
+        _decode_error,
     };
 
 private:
@@ -175,11 +197,11 @@ public:
 
     void switch_out(uint64_t time);
 
-    bool record_method_entry(int method_id);
+    bool record_method_entry(const Method *method);
 
-    bool record_method_exit(int method_id);
+    bool record_method_exit(const Method *method);
 
-    bool record_method_point(int method_id);
+    bool record_method_point(const Method *method);
 
     bool record_branch_taken();
 
@@ -197,23 +219,37 @@ public:
 
     bool record_throw_exception();
 
+    bool record_rethrow_exception();
+
+    bool record_handle_exception();
+
     bool record_pop_frame();
 
     bool record_earlyret();
 
     bool record_non_invoke_ret();
 
+    bool record_osr();
+
     bool record_java_call_begin();
 
     bool record_java_call_end();
 
-    bool record_jit_entry(int section_id);
+    bool record_jit_entry(const JitSection *section);
 
-    bool record_jit_osr_entry(int section_id);
+    bool record_jit_osr_entry(const JitSection *section);
 
-    bool record_jit_code(int section_id, int idx);
+    bool record_jit_pc_info(const JitSection *section, int ind);
 
-    bool record_jit_return();
+    bool record_jit_return(const JitSection *section);
+
+    bool record_jit_exception(const JitSection *section);
+
+    bool record_jit_unwind(const JitSection *section);
+
+    bool record_jit_deopt(const JitSection *section);
+
+    bool record_jit_deopt_mh(const JitSection *section);
 
     bool record_data_loss();
 
@@ -276,19 +312,114 @@ public:
     /* get current trace */
     bool current_trace(DecodeData::DecodeDataType &type);
 
-    bool get_method_entry(uint64_t pos, int &method_id);
-    bool get_method_exit(uint64_t pos, int &method_id);
-    bool get_method_point(uint64_t pos, int &method_id);
+    bool get_method(uint64_t pos, const Method *&method);
 
     bool get_switch_case_index(uint64_t pos, int &index);
 
     bool get_bci(uint64_t pos, int &bci);
 
-    bool get_jit_code(uint64_t pos, int &section_id, std::vector<int> &pcs);
+    /* Note that pcs might < 0, if so: it is not a index in pc, but entry/osrentry/....*/
+    bool get_jit_code(uint64_t pos, const JitSection *&section, std::vector<int> &pcs);
+};
 
-    uint64_t pos() const { return _current - _data->_data_begin; }
+class DecodeDataEvent {
+private:
+    DecodeDataAccess _access;
 
-    uint64_t id() const { return _data->_id; }
+    /* if pending, current_event will not continue to get next, after set_handled it will */
+    bool _pending;
+
+    DecodeData::DecodeDataType _type;
+    const Method *_method;
+    int _bci_or_ind;
+    const JitSection *_section;
+    std::vector<int> _pcs;
+
+    /* DecodeData::DecodeDataType can be used for event
+     *   _java_call_begin
+     *   _java_call_end
+     *   _method_entry
+     *   _method_exit
+     *   _method_point
+     *   _taken
+     *   _not_taken
+     *   _switch_case
+     *   _switch_default
+     *   _osr
+     *   _throw_exception
+     *   _rethrow_exception
+     *   _handle_exception
+     *   _ret_code
+     *   _deoptimization
+     *   _non_invoke_ret
+     *   _pop_frame
+     *   _earlyret
+     *   _jit_code
+     *   _data_loss
+     *   _decode_error
+     */
+
+    bool method_entry_event();
+    bool method_exit_event();
+    bool method_point_event(std::string fevent);
+    bool taken_event();
+    bool not_taken_event();
+    bool switch_case_event();
+    bool switch_default_event();
+    bool ret_code_event();
+    bool deoptimization_event();
+    bool throw_exception_event();
+    bool rethrow_exception_event();
+    bool handle_exception_event();
+    bool pop_frame_event();
+    bool earlyret_event();
+    bool non_invoke_event();
+    bool osr_event();
+    bool java_call_begin_event();
+    bool java_call_end_event();
+    bool jit_code_event();
+    bool data_loss_event();
+    bool decode_error_event();
+
+public:
+    DecodeDataEvent(DecodeData *data) :
+        _access(data), _pending(false), _type(DecodeData::_illegal),
+        _method(nullptr), _bci_or_ind(-1), _section(nullptr)
+    {
+    }
+
+    DecodeDataEvent(const DecodeData::ThreadSplit &split) :
+        _access(split), _pending(false), _type(DecodeData::_illegal),
+        _method(nullptr), _bci_or_ind(-1), _section(nullptr)
+    {
+    }
+
+    DecodeDataEvent(const std::vector<DecodeData::ThreadSplit> &splits) :
+        _access(splits), _pending(false), _type(DecodeData::_illegal),
+        _method(nullptr), _bci_or_ind(-1), _section(nullptr)
+    {
+    }
+
+    bool remaining();
+
+    bool pending() { return _pending; }
+    /* query curent event, if not pending, query next;
+     * Since bci etc event is not into event, so even if it returns false
+     *       There might still have decode data remaining to be processed
+     */
+    bool current_event();
+
+    void set_unpending() { _pending = false; }
+
+    DecodeData::DecodeDataType type() { return _pending ? _type : DecodeData::_illegal; }
+
+    const Method *method() { return _pending ? _method: nullptr; }
+
+    int bci_or_ind() { return _pending ? _bci_or_ind : -1; }
+
+    const JitSection *section() { return _pending ? _section : nullptr; }
+
+    std::vector<int> &pcs() { if (!_pending) _pcs.clear();  return _pcs; }
 };
 
 #endif /* DECODE_DATA_HPP */

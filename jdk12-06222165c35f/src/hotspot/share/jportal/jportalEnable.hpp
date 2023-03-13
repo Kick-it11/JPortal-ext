@@ -25,20 +25,23 @@ class JPortalEnable {
 
     // JVM runtime dump type
     enum DumpType {
-      _method_info,                   // method info
-      _bci_table_stub_info,           // jportal table stub,
-      _switch_table_stub_info,        // jportal table stub
-      _switch_default_info,           // switch default
-      _branch_taken_info,             // branch taken
-      _branch_not_taken_info,         // branch not taken
-      _ret_code_info,                 // indicate a ret or wide ret [jsr/ret]
-      _deoptimization_info,           // indicate a deoptimization
-      _throw_exception_info,          // indicate throwing a exception
-      _pop_frame_info,                // indicate a pop frame
-      _earlyret_info,                 // indicate an early ret
-      _non_invoke_ret_info,           // non invoke ret, such as deoptimization
       _java_call_begin_info,          // JavaCalls::call() begin
       _java_call_end_info,            // JavaCalls::call() end
+      _method_info,                   // method info
+      _branch_taken_info,             // branch taken
+      _branch_not_taken_info,         // branch not taken
+      _switch_table_stub_info,        // jportal table stub
+      _switch_default_info,           // switch default
+      _bci_table_stub_info,           // jportal table stub,
+      _osr_info,                      // online stack replacement
+      _throw_exception_info,          // indicate throwing a exception
+      _rethrow_exception_info,        // indicate rethrowing a exception
+      _handle_exception_info,         // to exception handler
+      _ret_code_info,                 // indicate a ret or wide ret [jsr/ret]
+      _deoptimization_info,           // indicate a deoptimization
+      _non_invoke_ret_info,           // non invoke ret, such as deoptimization
+      _pop_frame_info,                // indicate a pop frame
+      _earlyret_info,                 // indicate an early ret
       _compiled_method_load_info,     // after loading a compiled method: entry, codes, scopes data etc included
       _compiled_method_unload_info,   // after unloading a compiled method
       _thread_start_info,             // a thread begins, map between system tid and java tid
@@ -50,6 +53,26 @@ class JPortalEnable {
       u4 type;
       u4 size;
       u8 time;
+    };
+
+    struct JavaCallBeginInfo {
+      struct DumpInfo info;
+      u8 addr;
+      JavaCallBeginInfo(u8 _addr, u4 _size) : addr(_addr) {
+        info.type = _java_call_begin_info;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
+    };
+
+    struct JavaCallEndInfo {
+      struct DumpInfo info;
+      u8 addr;
+      JavaCallEndInfo(u8 _addr, u4 _size) : addr(_addr) {
+        info.type = _java_call_end_info;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
     };
 
     struct MethodInfo {
@@ -76,14 +99,21 @@ class JPortalEnable {
       }
     };
 
-    struct BciTableStubInfo {
+    struct BranchTakenInfo {
       struct DumpInfo info;
       u8 addr;
-      u4 num;
-      u4 ssize;
-      BciTableStubInfo(u8 _addr, u8 _num, u4 _ssize, u4 _size)
-        : addr(_addr), num(_num), ssize(_ssize) {
-        info.type = _bci_table_stub_info;
+      BranchTakenInfo(u8 _addr, u4 _size) : addr(_addr) {
+        info.type = _branch_taken_info;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
+    };
+
+    struct BranchNotTakenInfo {
+      struct DumpInfo info;
+      u8 addr;
+      BranchNotTakenInfo(u8 _addr, u4 _size) : addr(_addr) {
+        info.type = _branch_not_taken_info;
         info.size = _size;
         info.time = get_timestamp();
       }
@@ -113,21 +143,54 @@ class JPortalEnable {
       }
     };
 
-    struct BranchTakenInfo {
+    struct BciTableStubInfo {
       struct DumpInfo info;
       u8 addr;
-      BranchTakenInfo(u8 _addr, u4 _size) : addr(_addr) {
-        info.type = _branch_taken_info;
+      u4 num;
+      u4 ssize;
+      BciTableStubInfo(u8 _addr, u8 _num, u4 _ssize, u4 _size)
+        : addr(_addr), num(_num), ssize(_ssize) {
+        info.type = _bci_table_stub_info;
         info.size = _size;
         info.time = get_timestamp();
       }
     };
 
-    struct BranchNotTakenInfo {
+    struct OSRInfo {
       struct DumpInfo info;
       u8 addr;
-      BranchNotTakenInfo(u8 _addr, u4 _size) : addr(_addr) {
-        info.type = _branch_not_taken_info;
+      OSRInfo(u8 _addr, u4 _size) : addr(_addr) {
+        info.type = _osr_info;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
+    };
+
+    struct ThrowExceptionInfo {
+      struct DumpInfo info;
+      u8 addr;
+      ThrowExceptionInfo(u8 _addr, u4 _size) : addr(_addr) {
+        info.type = _throw_exception_info;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
+    };
+
+    struct RethrowExceptionInfo {
+      struct DumpInfo info;
+      u8 addr;
+      RethrowExceptionInfo(u8 _addr, u4 _size) : addr(_addr) {
+        info.type = _rethrow_exception_info;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
+    };
+
+    struct HandleExceptionInfo {
+      struct DumpInfo info;
+      u8 addr;
+      HandleExceptionInfo(u8 _addr, u4 _size) : addr(_addr) {
+        info.type = _handle_exception_info;
         info.size = _size;
         info.time = get_timestamp();
       }
@@ -143,6 +206,46 @@ class JPortalEnable {
       }
     };
 
+    struct DeoptimizationInfo {
+      struct DumpInfo info;
+      u8 addr;
+      DeoptimizationInfo(u8 _addr, u4 _size) : addr(_addr) {
+        info.type = _deoptimization_info;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
+    };
+
+    struct NonInvokeRetInfo {
+      struct DumpInfo info;
+      u8 addr;
+      NonInvokeRetInfo(u8 _addr, u4 _size) : addr(_addr) {
+        info.type = _non_invoke_ret_info;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
+    };
+
+    struct PopFrameInfo {
+      struct DumpInfo info;
+      u8 addr;
+      PopFrameInfo(u8 _addr, u4 _size) : addr(_addr) {
+        info.type = _pop_frame_info;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
+    };
+
+    struct EarlyretInfo {
+      struct DumpInfo info;
+      u8 addr;
+      EarlyretInfo(u8 _addr, u4 _size) : addr(_addr) {
+        info.type = _earlyret_info;
+        info.size = _size;
+        info.time = get_timestamp();
+      }
+    };
+
     struct CompiledMethodLoadInfo {
       struct DumpInfo info;
       u8 code_begin;
@@ -150,6 +253,10 @@ class JPortalEnable {
       u8 entry_point;
       u8 verified_entry_point;
       u8 osr_entry_point;
+      u8 exception_begin;
+      u8 unwind_begin;
+      u8 deopt_begin;
+      u8 deopt_mh_begin;
       u4 inline_method_cnt;
       u4 code_size;
       u4 scopes_pc_size;
@@ -157,6 +264,8 @@ class JPortalEnable {
 
       CompiledMethodLoadInfo(u8 _code_begin, u8 _stub_begin, u8 _entry_point,
                              u8 _verified_entry_point, u8 _osr_entry_point,
+                             u8 _exception_begin, u8 _unwind_begin,
+                             u8 _deopt_begin, u8 _deopt_mh_begin,
                              u4 _inline_method_cnt, u4 _code_size,
                              u4 _scopes_pc_size, u4 _scopes_data_size, u4 _size)
                      : code_begin(_code_begin),
@@ -164,6 +273,10 @@ class JPortalEnable {
                        entry_point(_entry_point),
                        verified_entry_point(_verified_entry_point),
                        osr_entry_point(_osr_entry_point),
+                       exception_begin(_exception_begin),
+                       unwind_begin(_unwind_begin),
+                       deopt_begin(_deopt_begin),
+                       deopt_mh_begin(_deopt_mh_begin),
                        inline_method_cnt(_inline_method_cnt),
                        code_size(_code_size),
                        scopes_pc_size(_scopes_pc_size),
@@ -236,76 +349,6 @@ class JPortalEnable {
       }
     };
 
-    struct DeoptimizationInfo {
-      struct DumpInfo info;
-      u8 addr;
-      DeoptimizationInfo(u8 _addr, u4 _size) : addr(_addr) {
-        info.type = _deoptimization_info;
-        info.size = _size;
-        info.time = get_timestamp();
-      }
-    };
-
-    struct ThrowExceptionInfo {
-      struct DumpInfo info;
-      u8 addr;
-      ThrowExceptionInfo(u8 _addr, u4 _size) : addr(_addr) {
-        info.type = _throw_exception_info;
-        info.size = _size;
-        info.time = get_timestamp();
-      }
-    };
-
-    struct PopFrameInfo {
-      struct DumpInfo info;
-      u8 addr;
-      PopFrameInfo(u8 _addr, u4 _size) : addr(_addr) {
-        info.type = _pop_frame_info;
-        info.size = _size;
-        info.time = get_timestamp();
-      }
-    };
-
-    struct EarlyretInfo {
-      struct DumpInfo info;
-      u8 addr;
-      EarlyretInfo(u8 _addr, u4 _size) : addr(_addr) {
-        info.type = _earlyret_info;
-        info.size = _size;
-        info.time = get_timestamp();
-      }
-    };
-
-    struct NonInvokeRetInfo {
-      struct DumpInfo info;
-      u8 addr;
-      NonInvokeRetInfo(u8 _addr, u4 _size) : addr(_addr) {
-        info.type = _non_invoke_ret_info;
-        info.size = _size;
-        info.time = get_timestamp();
-      }
-    };
-
-    struct JavaCallBeginInfo {
-      struct DumpInfo info;
-      u8 addr;
-      JavaCallBeginInfo(u8 _addr, u4 _size) : addr(_addr) {
-        info.type = _java_call_begin_info;
-        info.size = _size;
-        info.time = get_timestamp();
-      }
-    };
-
-    struct JavaCallEndInfo {
-      struct DumpInfo info;
-      u8 addr;
-      JavaCallEndInfo(u8 _addr, u4 _size) : addr(_addr) {
-        info.type = _java_call_end_info;
-        info.size = _size;
-        info.time = get_timestamp();
-      }
-    };
-
     inline static u8 get_timestamp() {
       unsigned int low, high;
       asm volatile("rdtsc" : "=a" (low), "=d" (high));
@@ -328,19 +371,39 @@ class JPortalEnable {
 
     static void trace();
 
+    static void dump_java_call_begin(address src);
+
+    static void dump_java_call_end(address src);
+
     static void dump_method(Method *moop);
-
-    static void dump_bci_table_stub(address addr, u4 num, u4 ssize);
-
-    static void dump_switch_table_stub(address addr, u4 num, u4 ssize);
-
-    static void dump_switch_default(address addr);
 
     static void dump_branch_taken(address addr);
 
     static void dump_branch_not_taken(address addr);
 
+    static void dump_switch_table_stub(address addr, u4 num, u4 ssize);
+
+    static void dump_switch_default(address addr);
+
+    static void dump_bci_table_stub(address addr, u4 num, u4 ssize);
+
+    static void dump_osr(address);
+
+    static void dump_throw_exception(address src);
+
+    static void dump_rethrow_exception(address src);
+
+    static void dump_handle_exception(address src);
+
     static void dump_ret_code(address addr);
+
+    static void dump_deoptimization(address src);
+
+    static void dump_non_invoke_ret(address src);
+
+    static void dump_pop_frame(address src);
+
+    static void dump_earlyret(address src);
 
     static void dump_compiled_method_load(Method *moop, nmethod *nm);
 
@@ -351,20 +414,6 @@ class JPortalEnable {
     static void dump_inline_cache_add(address src, address dest);
 
     static void dump_inline_cache_clear(address src);
-
-    static void dump_deoptimization(address src);
-
-    static void dump_throw_exception(address src);
-
-    static void dump_pop_frame(address src);
-
-    static void dump_earlyret(address src);
-
-    static void dump_non_invoke_ret(address src);
-
-    static void dump_java_call_begin(address src);
-
-    static void dump_java_call_end(address src);
 };
 #endif
 

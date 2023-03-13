@@ -3,6 +3,8 @@
 #include "insn/pt_retstack.hpp"
 #include "java/method.hpp"
 #include "runtime/jit_image.hpp"
+#include "runtime/jit_section.hpp"
+#include "runtime/jvm_runtime.hpp"
 #include "sideband/sideband.hpp"
 
 #include <iostream>
@@ -1615,25 +1617,45 @@ int PTJVMDecoder::decoder_record_jitcode(JitSection *section, struct pt_insn *in
 
     if (insn->ip == section->osr_entry_point())
     {
-        if (!_record.record_jit_osr_entry(section->id()))
+        if (!_record.record_jit_osr_entry(section))
             return -pte_bad_context;
     }
     else if (insn->ip == section->verified_entry_point())
     {
-        if (!_record.record_jit_entry(section->id()))
+        if (!_record.record_jit_entry(section))
+            return -pte_bad_context;
+    }
+    else if (insn->ip == section->exception_begin())
+    {
+        if (!_record.record_jit_exception(section))
+            return -pte_bad_context;
+    }
+    else if (insn->ip == section->unwind_begin())
+    {
+        if (!_record.record_jit_unwind(section))
+            return -pte_bad_context;
+    }
+    else if (insn->ip == section->deopt_begin())
+    {
+        if (!_record.record_jit_deopt(section))
+            return -pte_bad_context;
+    }
+    else if (insn->ip == section->deopt_mh_begin())
+    {
+        if (!_record.record_jit_deopt_mh(section))
             return -pte_bad_context;
     }
 
     int idx = section->find_pc(insn->ip + insn->size);
     if (idx >= 0)
     {
-        if (!_record.record_jit_code(section->id(), idx))
+        if (!_record.record_jit_pc_info(section, idx))
             return -pte_bad_context;
     }
 
     if (insn->iclass == ptic_return || insn->iclass == ptic_far_return)
     {
-        if (!_record.record_jit_return())
+        if (!_record.record_jit_return(section))
             return -pte_bad_context;
     }
 
@@ -1796,29 +1818,33 @@ int PTJVMDecoder::decoder_process_jitcode(JitSection *section)
 int PTJVMDecoder::decoder_record_intercode(uint64_t ip)
 {
     bool recorded = true;
-    if (const Method *method = JVMRuntime::method_entry(ip))
+    if (JVMRuntime::java_call_begin(ip))
     {
-        recorded = _record.record_method_entry(method->id());
+        recorded = _record.record_java_call_begin();
+    }
+    else if (JVMRuntime::java_call_end(ip))
+    {
+        recorded = _record.record_java_call_end();
+    }
+    else if (const Method *method = JVMRuntime::method_entry(ip))
+    {
+        recorded = _record.record_method_entry(method);
     }
     else if (const Method *method = JVMRuntime::method_exit(ip))
     {
-        recorded = _record.record_method_exit(method->id());
+        recorded = _record.record_method_exit(method);
     }
     else if (const Method *method = JVMRuntime::method_point(ip))
     {
-        recorded = _record.record_method_point(method->id());
-    }
-    else if (JVMRuntime::not_taken_branch(_ip))
-    {
-        recorded = _record.record_branch_not_taken();
+        recorded = _record.record_method_point(method);
     }
     else if (JVMRuntime::taken_branch(_ip))
     {
         recorded = _record.record_branch_taken();
     }
-    else if (JVMRuntime::in_bci_table(_ip))
+    else if (JVMRuntime::not_taken_branch(_ip))
     {
-        recorded = _record.record_bci(JVMRuntime::bci(ip));
+        recorded = _record.record_branch_not_taken();
     }
     else if (JVMRuntime::in_switch_table(_ip))
     {
@@ -1828,6 +1854,26 @@ int PTJVMDecoder::decoder_record_intercode(uint64_t ip)
     {
         recorded = _record.record_switch_default();
     }
+    else if (JVMRuntime::in_bci_table(_ip))
+    {
+        recorded = _record.record_bci(JVMRuntime::bci(ip));
+    }
+    else if (JVMRuntime::osr(ip))
+    {
+        recorded = _record.record_osr();
+    }
+    else if (JVMRuntime::rethrow_exception(ip))
+    {
+        recorded = _record.record_rethrow_exception();
+    }
+    else if (JVMRuntime::throw_exception(ip))
+    {
+        recorded = _record.record_throw_exception();
+    }
+    else if (JVMRuntime::handle_exception(ip))
+    {
+        recorded = _record.record_handle_exception();
+    }
     else if (JVMRuntime::ret_code(ip))
     {
         recorded = _record.record_ret_code();
@@ -1836,9 +1882,9 @@ int PTJVMDecoder::decoder_record_intercode(uint64_t ip)
     {
         recorded = _record.record_deoptimization();
     }
-    else if (JVMRuntime::throw_exception(ip))
+    else if (JVMRuntime::non_invoke_ret(ip))
     {
-        recorded = _record.record_throw_exception();
+        recorded = _record.record_non_invoke_ret();
     }
     else if (JVMRuntime::pop_frame(ip))
     {
@@ -1847,18 +1893,6 @@ int PTJVMDecoder::decoder_record_intercode(uint64_t ip)
     else if (JVMRuntime::earlyret(ip))
     {
         recorded = _record.record_earlyret();
-    }
-    else if (JVMRuntime::non_invoke_ret(ip))
-    {
-        recorded = _record.record_non_invoke_ret();
-    }
-    else if (JVMRuntime::java_call_begin(ip))
-    {
-        recorded = _record.record_java_call_begin();
-    }
-    else if (JVMRuntime::java_call_end(ip))
-    {
-        recorded = _record.record_java_call_end();
     }
     else
     {

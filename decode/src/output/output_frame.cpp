@@ -1,5 +1,7 @@
+#include "java/analyser.hpp"
 #include "java/block.hpp"
 #include "java/bytecodes.hpp"
+#include "java/klass.hpp"
 #include "java/method.hpp"
 #include "output/output_frame.hpp"
 #include "runtime/jit_section.hpp"
@@ -10,273 +12,200 @@
 #include <queue>
 #include <set>
 
-InterFrame::InterFrame(const Method *method, int bci, bool use_next_bci)
+InterFrame::InterFrame(const Method *method, int bci)
 {
-    assert(method != nullptr);
     _method = method;
-    _use_next_bct = use_next_bci;
-
-    BlockGraph *bg = method->get_bg();
-    _block = bg->block(bci);
-    _bct = bg->bct_offset(bci);
+    assert(method != nullptr);
+    _bci = bci;
+    _block = _method->get_bg()->offset2block(bci);
     assert(_block != nullptr);
+    _pending = false;
 }
 
-/* go forward until encoutering a branch/call site */
-void InterFrame::forward(std::vector<uint8_t> &codes)
+Bytecodes::Code InterFrame::code()
 {
-    BlockGraph *bg = _method->get_bg();
-    const uint8_t *bctcode = bg->bctcode();
-    while (_block)
-    {
-        if (_use_next_bct)
-            ++_bct;
-        int bct_end = _block->get_bct_codeend();
-        for (int i = _bct; i < bct_end; ++i)
-        {
-            codes.push_back(bctcode[i]);
-        }
-        if (_bct < bct_end)
-        {
-            Bytecodes::Code b = Bytecodes::cast(bctcode[bct_end-1]);
-            if (Bytecodes::is_invoke(b)
-                || Bytecodes::is_branch(b)
-                || b == Bytecodes::_tableswitch
-                || b == Bytecodes::_lookupswitch)
-            {
-                _bct = bct_end-1;
-                _use_next_bct = true;
-                return;
-            }
-        }
-        if (_block->get_succs_size() > 1)
-        {
-            return;
-        }
-        else if (_block->get_succs_size() == 1)
-        {
-            _block = *_block->get_succs_begin();            
-            _bct = _block->get_bct_codebegin();
-            _use_next_bct = false;
-        }
-        else
-        {
-            _block = nullptr;
-            _bct = -1;
-            _use_next_bct = false;
-        }
-    }
-    return;
+    return _method->get_bg()->code(_bci);
 }
 
-/* go forward until bct */
-void InterFrame::forward(std::vector<uint8_t> &codes, int bct)
+const Method *InterFrame::callee()
 {
-    BlockGraph *bg = _method->get_bg();
-    const uint8_t *bctcode = bg->bctcode();
-    while (_block)
-    {
-        if (_use_next_bct)
-            ++_bct;
-        int bct_begin = _block->get_bct_codebegin();
-        int bct_end = _block->get_bct_codeend();
-        if (bct >= bct_begin && bct < bct_end)
-        {
-            for (int i = _bct; i <= bct; ++i)
-            {
-                codes.push_back(bctcode[i]);
-            }
-            _bct = bct;
-            _use_next_bct = false;
-            return;
-        }
-        for (int i = _bct; i <= bct_end; ++i)
-        {
-            codes.push_back(bctcode[i]);
-        }
-        if (_bct < bct_end)
-        {
-            Bytecodes::Code b = Bytecodes::cast(bctcode[bct_end-1]);
-            if (Bytecodes::is_invoke(b)
-                || Bytecodes::is_branch(b)
-                || b == Bytecodes::_tableswitch
-                || b == Bytecodes::_lookupswitch)
-            {
-                _bct = bct_end-1;
-                _use_next_bct = true;
-                return;
-            }
-        }
-        if (_block->get_succs_size() > 1)
-        {
-            return;
-        }
-        else if (_block->get_succs_size() == 1)
-        {
-            _block = *_block->get_succs_begin();            
-            _bct = _block->get_bct_codebegin();
-            _use_next_bct = false;
-        }
-        else
-        {
-            _block = nullptr;
-            _bct = -1;
-            _use_next_bct = false;
-        }
-    }
-    return;
+    const Klass *klass = _method->get_klass();
+    return Analyser::get_method(klass->get_name(), klass->index2method(_bci));
 }
 
-/* if normal exit/exception, return true;
- * else early return return false 
- */
-bool InterFrame::method_exit(std::vector<uint8_t> &codes)
+bool InterFrame::taken()
 {
-    if (!_block)
-    {
-        return true;
-    }
-
-    forward(codes);
-    return _block == nullptr;
-}
-
-bool InterFrame::branch_taken(std::vector<uint8_t> &codes)
-{
-    if (!_block)
-    {
+    if (!Bytecodes::is_branch(code()) || !_block)
         return false;
-    }
-
-    forward(codes);
-
-    if (codes.empty() || !Bytecodes::is_branch(Bytecodes::cast(codes.back())))
-    {
-        return false;
-    }
-
     _block = _block->get_succes_block(0);
     if (!_block)
         return false;
-    _bct = _block->get_bct_codebegin();
-    _use_next_bct = false;
+    _bci = _block->get_begin_bci();
+    _pending = false;
     return true;
 }
 
-bool InterFrame::branch_not_taken(std::vector<uint8_t> &codes)
+bool InterFrame::not_taken()
 {
-    if (!_block)
-    {
+    if (!Bytecodes::is_branch(code()) || !_block)
         return false;
-    }
-
-    forward(codes);
-
-    if (codes.empty() || !Bytecodes::is_branch(Bytecodes::cast(codes.back())))
-    {
-        return false;
-    }
-
     _block = _block->get_succes_block(1);
     if (!_block)
         return false;
-    _bct = _block->get_bct_codebegin();
-    _use_next_bct = false;
+    _bci = _block->get_begin_bci();
+    _pending = false;
     return true;
 }
 
-bool InterFrame::switch_case(std::vector<uint8_t> &codes, int index)
+bool InterFrame::switch_case(int idx)
+{
+    if ((Bytecodes::_tableswitch != code() && Bytecodes::_lookupswitch != code()) || !_block)
+        return false;
+    _block = _block->get_succes_block(idx);
+    if (!_block)
+        return false;
+    _bci = _block->get_begin_bci();
+    _pending = false;
+    return true;
+}
+
+bool InterFrame::switch_default()
+{
+    if ((Bytecodes::_tableswitch != code() && Bytecodes::_lookupswitch != code()) || !_block)
+        return false;
+    _block = _block->get_succes_block(_block->get_succs_size() - 1);
+    _bci = _block->get_begin_bci();
+    if (!_block)
+        return false;
+    _pending = false;
+    return true;
+}
+
+bool InterFrame::invoke()
+{
+    if (!Bytecodes::is_invoke(code()) || !_block || !_block->get_succs_size() == 1)
+        return false;
+    _block = (*_block->get_succs_begin());
+    _bci = _block->get_begin_bci();
+    return true;
+}
+
+/* go forward until encoutering a branch/call site */
+bool InterFrame::forward(std::vector<std::pair<int, int>> &ans)
 {
     if (!_block)
+        return false;
+
+    for (;;)
     {
-        return false;
+        ans.push_back({_bci, _block->get_end_bci()});
+        _bci = _block->get_end_bci();
+        Bytecodes::Code cur = code();
+        if (Bytecodes::is_branch(cur) || Bytecodes::is_invoke(cur) ||
+            Bytecodes::_ret == cur ||
+            Bytecodes::_tableswitch == cur || Bytecodes::_lookupswitch == cur)
+        {
+            _pending = true;
+            return true;
+        }
+        /* for return or athrow */
+        if (0 == _block->get_succs_size())
+            return true;
+        if (_block->get_succs_size() > 1)
+            return false;
+        _block = *(_block->get_succs_begin());
+        _bci = _block->get_begin_bci();
     }
-
-    forward(codes);
-
-    if (codes.empty() || (Bytecodes::cast(codes.back()) != Bytecodes::_lookupswitch
-                    && Bytecodes::cast(codes.back()) != Bytecodes::_tableswitch))
-    {
-        return false;
-    }
-
-    _block = _block->get_succes_block(index+1);
-    if (!_block)
-        return false;
-    _bct = _block->get_bct_codebegin();
-    _use_next_bct = false;
-    return true;
 }
 
-bool InterFrame::switch_default(std::vector<uint8_t> &codes)
+/* go forward to bci, exception throw/popframe/earlyret/ */
+bool InterFrame::forward(int idx, std::vector<std::pair<int, int>> &ans)
 {
     if (!_block)
+        return false;
+
+    if (_pending)
+        return true;
+
+    for (;;)
     {
-        return false;
+        if (_block->get_begin_bci() >= idx || _block->get_end_bci() < idx)
+        {
+            ans.push_back({_bci, idx});
+            _bci = idx;
+            return true;
+        }
+        ans.push_back({_bci, _block->get_end_bci()});
+        _bci = _block->get_end_bci();
+        Bytecodes::Code cur = code();
+        if (Bytecodes::is_invoke(cur) || Bytecodes::is_branch(cur) ||
+            Bytecodes::_tableswitch == cur || Bytecodes::_lookupswitch == cur)
+        {
+            return false;
+        }
+        if (0 == _block->get_succs_size())
+            return false;
+        if (_block->get_succs_size() > 1)
+            return false;
+        _block = *(_block->get_succs_begin());
+        _bci = _block->get_begin_bci();
     }
-
-    forward(codes);
-
-    if (codes.empty() || (Bytecodes::cast(codes.back()) != Bytecodes::_lookupswitch
-                    && Bytecodes::cast(codes.back()) != Bytecodes::_tableswitch))
-    {
-        return false;
-    }
-
-    _block = _block->get_succes_block(0);
-    if (!_block)
-        return false;
-    _bct = _block->get_bct_codebegin();
-    _use_next_bct = false;
-    return true;
 }
 
-bool InterFrame::invoke_site(std::vector<uint8_t> &codes)
+/* exception handling/ret */
+bool InterFrame::straight(int idx)
 {
-    if (!_block)
-    {
-        return false;
-    }
-
-    forward(codes);
-
-    if (codes.empty() || !Bytecodes::is_invoke(Bytecodes::cast(codes.back())))
-    {
-        return false;
-    }
-
-    return true;
+    _bci = idx;
+    _block = _method->get_bg()->offset2block(idx);
+    return _block != nullptr;
 }
 
-bool InterFrame::exception_handling(std::vector<uint8_t> &codes, int bci1, int bci2)
-{
-    BlockGraph *bg = _method->get_bg();
-    int bct = bg->bct_offset(bci1);
-    forward(codes, bct);
-    if (bct != _bct)
-        return false;
-
-    if (bci2 == bci1) {
-        _block = nullptr;
-        _bct = -1;
-        _use_next_bct = false;
-    } else {
-        _block = bg->block(bci2);
-        _bct = bg->bct_offset(bci1);
-        _use_next_bct = false;
-    }
-    return true;
-}
-
-class JitMatchTree
+/* Sim Jit execution based on debug info
+ * Error Might happen, but
+ * we do not let influence inter
+ */
+class SimNode
 {
 private:
-    const Method *method;
-    std::map<Block *, int> seqs;
-    JitMatchTree *father;
-    std::map<Block *, JitMatchTree *> children;
+    const Method *_method;
+    std::map<Block *, int> _marks;
+    std::map<Block *, SimNode *> _children;
 
-    bool match_next(Block *cur, std::vector<std::pair<const Method *, Block *>> &ans)
+    void traverse_empty(std::vector<std::pair<const Method *, Block *>> &iframes, int idx,
+                        std::set<std::pair<const Method *, Block *>> totals,
+                        std::vector<std::pair<int, std::pair<int, int>>> &ans)
+    {
+        Block *cur = nullptr;
+        if (idx >= iframes.size())
+            iframes.push_back({_method, cur});
+        else
+        {
+            cur = iframes[idx].second;
+            totals.erase({_method, cur});
+            if (idx != iframes.size() - 1 && !_children.count(cur))
+                return_iframes(iframes, iframes.size()-idx-1, ans);
+        }
+
+        while (!_marks.empty())
+        {
+            auto iter = min_element(_marks.begin(), _marks.end(),
+                                    [](std::pair<Block *, int> &&l,
+                                       std::pair<Block *, int> &&r) -> bool
+                                    { return l.second < r.second; });
+            cur = iter->first;
+            totals.erase({_method, cur});
+            _marks.erase(iter);
+            if (_children.count(cur))
+                _children[cur]->traverse(iframes, idx+1, totals, ans);
+        }
+
+        if (idx == iframes.size() - 1)
+            iframes.pop_back();
+        
+        return;
+    }
+
+    Block *next_block(Block *cur, std::vector<std::pair<int, std::pair<int, int>>> &ans)
     {
         std::vector<std::pair<int, Block *>> vv;
         std::unordered_set<Block *> ss;
@@ -302,9 +231,9 @@ private:
                 if (ss.count(*iter))
                     continue;
                 ss.insert(*iter);
-                if (seqs.count(*iter))
+                if (_marks.count(*iter))
                 {
-                    find_next.push_back({seqs[*iter], vv.size()});
+                    find_next.push_back({_marks[*iter], vv.size()});
                     vv.push_back({idx, *iter});
                 }
                 else
@@ -313,141 +242,112 @@ private:
                 }
             }
         }
-        std::list<std::pair<const Method *, Block *>> blocks;
+        std::list<Block *> blocks;
         int idx = find_end;
         if (!find_next.empty())
         {
             idx = min_element(find_next.begin(), find_next.end())->second;
-            seqs.erase(vv[idx].second);
+            _marks.erase(vv[idx].second);
         }
         while (idx > 0)
         {
-            blocks.push_front({method, vv[idx].second});
+            blocks.push_front(vv[idx].second);
             idx = vv[idx].first;
         }
-        ans.insert(ans.end(), blocks.begin(), blocks.end());
-        return !blocks.empty();
-    }
-
-    void skip_match(std::vector<std::pair<const Method *, Block *>> &frame, int idx,
-                    std::set<std::pair<const Method *, Block *>> &notVisited,
-                    std::vector<std::pair<const Method *, Block *>> &ans)
-    {
-        Block *cur = nullptr;
-        if (idx >= frame.size())
-        {
-            frame.push_back({method, cur});
-            notVisited.erase({method, cur});
-        }
-        else
-        {
-            cur = frame[idx].second;
-            notVisited.erase({method, cur});
-            if (idx != frame.size() - 1 && !children.count(cur))
-            {
-                for (int i = 0; i < frame.size() - idx - 1; ++i)
-                    frame.pop_back();
-            }
-        }
-
-        while (!seqs.empty())
-        {
-            auto iter = min_element(seqs.begin(), seqs.end(), [](std::pair<Block *, int> &&l, std::pair<Block *, int> &&r) -> bool
-                                    { return l.second < r.second; });
-            cur = iter->first;
-            notVisited.erase({method, cur});
-            seqs.erase(iter);
-            if (children.count(cur))
-                children[cur]->match(frame, idx + 1, notVisited, ans);
-        }
-
-        if (idx == frame.size() - 1)
-            frame.pop_back();
+        /* Add to ans */
+        for (auto block : blocks)
+            ans.push_back({_method->id(), {block->get_begin_bci(), block->get_end_bci()}});
+        return blocks.empty() ? nullptr : blocks.back();
     }
 
 public:
-    JitMatchTree(const Method *m, JitMatchTree *f) : method(m), father(f) {}
-    ~JitMatchTree()
-    {
-        for (auto &&child : children)
-            delete child.second;
-    }
+    SimNode(const Method *m) : _method(m) {}
+    ~SimNode() { for (auto child : _children) delete  child.second; }
 
-    bool insert(std::vector<std::pair<const Method *, Block *>> &execs, int seq, int idx)
+    void mark(std::vector<std::pair<const Method *, Block *>> &info, int time, int idx)
     {
-        if (idx >= execs.size())
-            return true;
-        const Method *m = execs[idx].first;
-        Block *b = execs[idx].second;
-        if (m != method)
-            return false;
-        if (idx < execs.size() - 1)
+        if (idx >= info.size())
+            return;
+        const Method *m = info[idx].first;
+        Block *cur = info[idx].second;
+        assert(m = _method);
+        if (idx < info.size() - 1)
         {
-            if (!children.count(b))
-                children[b] = new JitMatchTree(execs[idx + 1].first, this);
-            if (!children[b]->insert(execs, seq, idx + 1))
-                return false;
+            if (!_children.count(cur))
+                _children[cur] = new SimNode(info[idx + 1].first);
+            _children[cur]->mark(info, time, idx + 1);
         }
-        if (!seqs.count(b))
-            seqs[b] = seq;
-        return true;
+        if (!_marks.count(cur))
+            _marks[cur] = time;
+        return;
     }
 
-    void match(std::vector<std::pair<const Method *, Block *>> &frame, int idx,
-               std::set<std::pair<const Method *, Block *>> &notVisited,
-               std::vector<std::pair<const Method *, Block *>> &ans)
+    void traverse(std::vector<std::pair<const Method *, Block *>> &iframes,  int idx,
+                  std::set<std::pair<const Method *, Block *>> totals,
+                  std::vector<std::pair<int, std::pair<int, int>>> &ans)
     {
-        notVisited.erase({method, nullptr});
-        if (!method || !method->is_jportal())
-            return skip_match(frame, idx, notVisited, ans);
+        /* Sometimes bci = -1 */
+        totals.erase({_method, nullptr});
 
-        BlockGraph *bg = method->get_bg();
+        /* Should return iframes (>= idx)*/
+        if (idx < iframes.size() && iframes[idx].first != _method)
+            return_iframes(iframes, iframes.size()-idx, ans);
+
+        if (!_method || !_method->is_jportal())
+            return traverse_empty(iframes, idx, totals, ans);
+
+        BlockGraph *bg = _method->get_bg();
         Block *cur = nullptr;
-        if (idx < frame.size() && frame[idx].first != method)
-            return_frame(frame, frame.size() - idx, ans);
-        if (idx >= frame.size())
+        if (idx >= iframes.size())
         {
-            cur = bg->block(0);
-            frame.push_back({method, cur});
-            ans.push_back({method, cur});
-            notVisited.erase({method, cur});
+            cur = bg->offset2block(0);
+            iframes.push_back({_method, cur});
+            /* add cur to ans */
+            ans.push_back({_method->id(), {cur->get_begin_bci(), cur->get_end_bci()}});
+            totals.erase({_method, cur});
         }
         else
         {
-            cur = frame[idx].second;
+            cur = iframes[idx].second;
             if (!cur)
-                cur = bg->block(0);
-            notVisited.erase({method, cur});
-            if (idx < frame.size() - 1 && !children.count(cur))
-                return_frame(frame, frame.size() - idx - 1, ans);
+                cur = bg->offset2block(0);
+            totals.erase({_method, cur});
+            /* Should erase latter(> idx) frames */
+            if (idx < iframes.size() - 1 && !_children.count(cur))
+                return_iframes(iframes, iframes.size()-idx-1, ans);
         }
 
-        while (notVisited.size())
+        while (totals.size())
         {
-            if (children.count(cur))
-                children[cur]->match(frame, idx + 1, notVisited, ans);
-            if (!notVisited.size())
+            if (_children.count(cur))
+                _children[cur]->traverse(iframes, idx + 1, totals, ans);
+            if (!totals.size())
                 break;
-            if (!match_next(cur, ans))
+            cur = next_block(cur, ans);
+            if (!cur)
             {
-                frame.pop_back();
+                iframes.pop_back();
                 return;
             }
             else
             {
-                cur = ans.back().second;
-                frame[idx] = ans.back();
-                notVisited.erase({method, cur});
+                iframes[idx] = {_method, cur};
+                totals.erase({_method, cur});
             }
         }
     }
 
-    static void return_method(const Method *method, Block *cur,
-                              std::vector<std::pair<const Method *, Block *>> &ans)
+    static void return_iframe(const Method *method, Block *cur,
+                              std::vector<std::pair<int, std::pair<int, int>>> &ans)
     {
-        if (!method || !method->is_jportal() || !cur)
+        if (!method || !method->is_jportal())
             return;
 
+        if (!cur)
+        {
+            cur = method->get_bg()->offset2block(0);
+            ans.push_back({method->id(), {cur->get_begin_bci(), cur->get_end_bci()}});
+        }
         std::vector<std::pair<int, Block *>> vv;
         std::unordered_set<Block *> ss;
         std::queue<std::pair<int, Block *>> q;
@@ -471,110 +371,86 @@ public:
                 q.push({idx, *iter});
             }
         }
-        std::list<std::pair<const Method *, Block *>> blocks;
+        std::list<Block *> blocks;
         int idx = vv.size() - 1;
         while (idx > 0)
         {
-            blocks.push_front({method, vv[idx].second});
+            blocks.push_front(vv[idx].second);
             idx = vv[idx].first;
         }
-        ans.insert(ans.end(), blocks.begin(), blocks.end());
+        /* add to ans */
+        for (auto block : blocks)
+            ans.push_back({method->id(), {block->get_begin_bci(), block->get_end_bci()}});
         return;
     }
 
-    static void return_frame(std::vector<std::pair<const Method *, Block *>> &frame, int count,
-                             std::vector<std::pair<const Method *, Block *>> &blocks)
+    static void return_iframes(std::vector<std::pair<const Method *, Block *>> &iframes, int count,
+                               std::vector<std::pair<int, std::pair<int, int>>> &ans)
     {
-        assert(count <= frame.size());
+        assert(count <= iframes.size());
         for (int i = 0; i < count; ++i)
         {
-            return_method(frame.back().first, frame.back().second, blocks);
-            frame.pop_back();
+            return_iframe(iframes.back().first, iframes.back().second, ans);
+            iframes.pop_back();
         }
     }
 };
 
-bool JitFrame::jit_code(std::vector<uint8_t> &codes, const JitSection *section,
-                        const PCStackInfo **pcs, uint64_t size, bool entry)
+void JitFrame::entry(std::vector<std::pair<int, std::pair<int, int>>> &ans)
 {
-    std::set<const PCStackInfo *> pc_execs;
-    std::set<std::pair<const Method *, Block *>> block_execs;
-    bool notRetry = true;
-    JitMatchTree *tree = new JitMatchTree(section->mainm(), nullptr);
-    std::vector<std::pair<const Method *, Block *>> ans;
-    if (entry)
-    {
-        assert(_iframes.empty());
-        _iframes.push_back({section->mainm(), section->mainm()->get_bg()->block(0)});
-        ans.push_back(_iframes.back());
-    }
-    auto &cur_frames = _iframes;
-    auto call_match = [&cur_frames, &tree, &block_execs, &pc_execs, &ans, section](bool newtree) -> void
-    {
-        tree->match(cur_frames, 0, block_execs, ans);
-        delete tree;
-        tree = newtree ? new JitMatchTree(section->mainm(), nullptr) : nullptr;
-        block_execs.clear();
-        pc_execs.clear();
-    };
-    for (int i = 0; i < size; ++i)
-    {
-        const PCStackInfo *pc = pcs[i];
-        if (pc_execs.count(pc))
-            call_match(true);
-        std::vector<std::pair<const Method *, Block *>> frame;
-        for (int j = pc->numstackframes - 1; j >= 0; --j)
-        {
-            int mi = pc->methods[j];
-            int bci = pc->bcis[j];
-            const Method *method = section->method(mi);
-            Block *block = (method && method->is_jportal()) ?
-                            method->get_bg()->block(bci) :
-                            (Block *)(uint64_t)bci;
-            frame.push_back({method, block});
-            block_execs.insert({method, block});
-        }
-        if (_iframes.empty())
-        {
-            for (auto blc : frame)
-                if (blc.first && blc.first->is_jportal() && blc.second)
-                    ans.push_back(blc);
-            _iframes = frame;
-            block_execs.clear();
-            notRetry = false;
-        }
-        else if (!tree->insert(frame, i, 0))
-        {
-            call_match(true);
-            tree->insert(frame, i, 0);
-        }
-        pc_execs.insert(pc);
-    }
-    call_match(false);
-
-    for (auto &&block: ans)
-    {
-        const uint8_t *bctcode = block.first->get_bg()->bctcode();
-        int bct_begin = block.second->get_bct_codebegin();
-        int bct_end = block.second->get_bct_codeend();
-        for (int i = bct_begin; i < bct_end; ++i)
-            codes.push_back(bctcode[i]);
-    }
-    return notRetry;
+    const Method *mainm = _section->mainm();
+    Block *block = mainm->get_bg()->offset2block(0);
+    assert(block != nullptr);
+    _iframes.push_back({mainm, block});
+    ans.push_back({mainm->id(), {block->get_begin_bci(), block->get_end_bci()}});
 }
 
-bool JitFrame::jit_return(std::vector<u1> &codes)
+void JitFrame::clear()
 {
-    std::vector<std::pair<const Method *, Block *>> ans;
-    JitMatchTree::return_frame(_iframes, _iframes.size(), ans);
+    _iframes.clear();
+}
 
-    for (auto &&block: ans)
+void JitFrame::jit_code(std::vector<const PCStackInfo *> pcs,
+                        std::vector<std::pair<int, std::pair<int, int>>> &ans)
+{
+    /* Use SimNode to simulate execution of Jit */
+    /* mark and then traverse */
+    SimNode *node = new SimNode(_section->mainm());
+    std::set<std::pair<const Method *, Block *>> totals;
+    for (int i = 0; i < pcs.size(); ++i)
     {
-        const uint8_t *bctcode = block.first->get_bg()->bctcode();
-        int bct_begin = block.second->get_bct_codebegin();
-        int bct_end = block.second->get_bct_codeend();
-        for (int i = bct_begin; i < bct_end; ++i)
-            codes.push_back(bctcode[i]);
+        const PCStackInfo *pc = pcs[i];
+        assert(pc);
+        std::vector<std::pair<const Method *, Block *>> infos;
+
+        for (int j = 0; j < pc->numstackframes; ++j)
+        {
+            const Method *m = _section->method(pc->methods[i]);
+            /* m could be a non target method, use pc->bcis[j] to distinguish*/
+            Block *block = m ? m->get_bg()->offset2block(pc->bcis[j])
+                             : (Block *)(uint64_t)pc->bcis[j];
+            infos.push_back({m, block});
+            totals.insert({m, block});
+        }
+
+        node->mark(infos, i, 0);
+
+        /* iframe empty, set it to first bc */
+        if (_iframes.empty())
+        {
+            _iframes = infos;
+            for (auto iframe : _iframes)
+                ans.push_back({iframe.first->id(), {iframe.second->get_begin_bci(),
+                                iframe.second->get_end_bci()}});
+        }
     }
-    return true;
+
+    node->traverse(_iframes, 0, totals, ans);
+    delete node;
+}
+
+void JitFrame::jit_return(std::vector<std::pair<int, std::pair<int, int>>> &ans)
+{
+    /* return */
+    SimNode::return_iframes(_iframes, _iframes.size(), ans);
 }

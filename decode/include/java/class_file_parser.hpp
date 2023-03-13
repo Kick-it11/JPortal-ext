@@ -9,12 +9,10 @@ class ClassFileStream;
 class Klass;
 class Method;
 class ConstantPool;
-class Analyser;
 
 class ClassFileParser
 {
 private:
-    Analyser *_analyser = nullptr;
     Klass *_klass = nullptr;
     ClassFileStream *_stream = nullptr;
 
@@ -41,7 +39,7 @@ private:
     void parse_class(const ClassFileStream *const stream);
 
 public:
-    ClassFileParser(std::string &file_path, Analyser *analyser, Klass *klass);
+    ClassFileParser(std::string &file_path, Klass *klass);
     ~ClassFileParser();
 };
 

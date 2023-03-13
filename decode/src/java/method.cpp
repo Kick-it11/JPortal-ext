@@ -25,7 +25,7 @@ Method::~Method()
 
 BlockGraph *Method::get_bg() const
 {
-    _bg->build_bctlist();
+    _bg->build_graph();
     return _bg;
 }
 
@@ -33,10 +33,4 @@ void Method::print_graph() const
 {
     std::cout << _name_signature << " graph:" << std::endl;
     _bg->print_graph();
-}
-
-void Method::print_bctlist() const
-{
-    std::cout << _name_signature << " bctlist:" << std::endl;
-    _bg->print_bctlist();
 }

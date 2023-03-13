@@ -217,8 +217,8 @@ public:
 
         number_of_java_codes,
 
-        /* JVM bytecodes */
-        _fast_agetfield = number_of_java_codes,
+        /* JVM bytecodes should not be used in class files */
+        /* _fast_agetfield = number_of_java_codes,
         _fast_bgetfield,
         _fast_cgetfield,
         _fast_dgetfield,
@@ -248,16 +248,16 @@ public:
 
         _fast_invokevfinal,
         _fast_linearswitch,
-        _fast_binaryswitch,
+        _fast_binaryswitch,*/
 
         /* special handling of oop constants: */
-        _fast_aldc,
+        /* _fast_aldc,
         _fast_aldc_w,
 
-        _return_register_finalizer,
+        _return_register_finalizer,*/
 
         /* special handling of signature-polymorphic methods: */
-        _invokehandle,
+        /* _invokehandle, */
 
         /* These bytecodes are rewritten at CDS dump time, so that we can
          * prevent them from being rewritten at run time. This way, the
@@ -270,14 +270,15 @@ public:
          * UseSharedSpaces turned on.
          * ------------------------------+------------------
          */
-        _nofast_getfield, /*  <- _getfield */
-        _nofast_putfield, /*  <- _putfield */
-        _nofast_aload_0,  /*  <- _aload_0 */
-        _nofast_iload,    /*  <- _iload */
+        /*_nofast_getfield,*/ /*  <- _getfield */
+        /*_nofast_putfield,*/ /*  <- _putfield */
+        /*_nofast_aload_0,*/  /*  <- _aload_0 */
+        /*_nofast_iload,*/    /*  <- _iload */
 
-        _shouldnotreachhere, /* For debugging */
+        /*_shouldnotreachhere,*/ /* For debugging */
 
         number_of_codes,
+
     };
 
     enum class JmpType

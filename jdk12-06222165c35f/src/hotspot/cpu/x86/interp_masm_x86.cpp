@@ -795,7 +795,7 @@ void InterpreterMacroAssembler::push_return_address(Register flags, Bytecodes::C
 //                   determined -> no;
 //                   not determined -> entry only;
 //               not jportal(callee) -> ret site only;
-//           compiled code maybe: 
+//           compiled code maybe:
 //               not jportal(callee) || not inter code(callee) -> ret site only;
 //               jportal(callee) && inter(callee):
 //                   determined -> no;
@@ -804,7 +804,7 @@ void InterpreterMacroAssembler::push_return_address(Register flags, Bytecodes::C
 //           inter only:
 //               jportal(callee) -> entry only
 //               not jportal(callee) -> no;
-//           compiled code maybe: 
+//           compiled code maybe:
 //               not jportal(callee) || not inter code(callee) -> no;
 //               jportal(callee) && inter(callee) -> entry only;
 void InterpreterMacroAssembler::do_jump_from_interpreted(Register method, Register tmp1, Register tmp2, Bytecodes::Code code, bool jportal, bool determined, bool inter_only) {
@@ -821,7 +821,7 @@ void InterpreterMacroAssembler::do_jump_from_interpreted(Register method, Regist
 
     if (!inter_only) {
       cmpptr(tmp2, Address(method, Method::interpreter_entry_offset()));
-      jcc(Assembler::notZero, non_jportal);      
+      jcc(Assembler::notZero, non_jportal);
     }
   }
 #endif
@@ -2084,6 +2084,21 @@ void InterpreterMacroAssembler::notify_method_entry() {
       rthread, rarg);
   }
 
+#ifdef JPORTAL_ENABLE
+  if (JPortalMethod) {
+    get_method(rarg);
+    Label non_jportal;
+
+    movl(rdx, Address(rarg, Method::access_flags_offset()));
+    testl(rdx, JVM_ACC_JPORTAL);
+    jcc(Assembler::zero, non_jportal);
+
+    movptr(rscratch1, Address(rarg, Method::jportal_entry_offset()));
+    call(rscratch1);
+
+    bind(non_jportal);
+  }
+#endif
 }
 
 

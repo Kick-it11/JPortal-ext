@@ -1,6 +1,8 @@
 #ifndef OUTPUT_FRAME_HPP
 #define OUTPUT_FRAME_HPP
 
+#include <java/bytecodes.hpp>
+
 #include <vector>
 
 class Block;
@@ -8,46 +10,47 @@ class JitSection;
 class Method;
 struct PCStackInfo;
 
-/* Java Execution frame */
-class OutputFrame {
-private:
-
-public:
-    virtual bool is_jit_frame() = 0;
-    virtual bool is_inter_frame() = 0;
-};
-
-class InterFrame : public OutputFrame
+class InterFrame
 {
 private:
     const Method *_method;
+    int _bci;
     Block *_block;
-    int _bct;
-    bool _use_next_bct;
-
-    void forward(std::vector<uint8_t> &codes);
-
-    void forward(std::vector<uint8_t> &codes, int bct);
+    bool _pending; /* indicate an event needed to help forward */
 
 public:
-    InterFrame(const Method * _method, int bci, bool use_next_bci);
-    ~InterFrame();
+    InterFrame(const Method * method, int bci);
 
-    virtual bool is_jit_frame() { return false; }
-    virtual bool is_inter_frame() { return true; }
+    ~InterFrame() {};
 
     const Method *method() { return _method; }
 
-    bool method_exit(std::vector<uint8_t> &codes);
-    bool branch_taken(std::vector<uint8_t> &codes);
-    bool branch_not_taken(std::vector<uint8_t> &codes);
-    bool switch_case(std::vector<uint8_t> &codes, int index);
-    bool switch_default(std::vector<uint8_t> &codes);
-    bool invoke_site(std::vector<uint8_t> &codes);
-    bool exception_handling(std::vector<uint8_t> &codes, int bci1, int bci2);
+    Bytecodes::Code code();
+
+    int bci() { return _bci; }
+
+    int next_bci() { return _bci + Bytecodes::length_for(code()); }
+
+    const Method *callee();
+
+    bool taken();
+
+    bool not_taken();
+
+    bool switch_case(int idx);
+
+    bool switch_default();
+
+    bool invoke();
+
+    bool straight(int idx);
+
+    bool forward(std::vector<std::pair<int, int>> &ans);
+
+    bool forward(int idx, std::vector<std::pair<int, int>> &ans);
 };
 
-class JitFrame : public OutputFrame
+class JitFrame
 {
 private:
     const JitSection *_section;
@@ -57,13 +60,16 @@ public:
     JitFrame(const JitSection *section) : _section(section) {}
     ~JitFrame() {};
 
-    virtual bool is_jit_frame() { return true; }
-    virtual bool is_inter_frame() { return false; }
     const JitSection *section() { return _section; }
 
-    bool jit_code(std::vector<uint8_t> &codes, const JitSection *section,
-                  const PCStackInfo **pcs, uint64_t size, bool entry);
-    bool jit_return(std::vector<uint8_t> &codes);
+    void entry(std::vector<std::pair<int, std::pair<int, int>>> &ans);
+
+    void clear();
+
+    void jit_code(std::vector<const PCStackInfo *> pcs,
+                  std::vector<std::pair<int, std::pair<int, int>>> &ans);
+
+    void jit_return(std::vector<std::pair<int, std::pair<int, int>>> &ans);
 };
 
 #endif /* OUTPUT_FRAME_HPP */

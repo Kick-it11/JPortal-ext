@@ -95,23 +95,6 @@ void TemplateInterpreterGenerator::jportal_method_and_bci(int step, Register tem
   __ call(rscratch1);
 }
 
-void TemplateInterpreterGenerator::jportal_bci(int step, Register temp1, Register temp2) {
-  // temp1 should be stored with method & bcp should be restored before
-  Register bcp_register = LP64_ONLY(r13) NOT_LP64(rsi);
-
-  assert(JPortal, "jportal");
-  assert_different_registers(temp1, temp2);
-
-  __ movptr(temp1, Address(temp1, Method::const_offset()));   // get ConstMethod*
-  __ lea(temp1, Address(temp1, ConstMethod::codes_offset()));    // get codebase
-  __ movptr(temp2, bcp_register);
-  __ addptr(temp2, step);
-  __ subptr(temp2, temp1);
-  __ lea(rscratch1, ExternalAddress(JPortalStubBuffer::bci_table()->code_begin()));
-  __ addptr(rscratch1, temp2);
-  __ call(rscratch1);
-}
-
 void TemplateInterpreterGenerator::jportal_deoptimization() {
   JPortalStub *stub = JPortalStubBuffer::new_jportal_jump_stub();
 
@@ -132,6 +115,28 @@ void TemplateInterpreterGenerator::jportal_throw_exception() {
   address addr = __ pc();
   stub->set_jump_stub(addr);
   JPortalEnable::dump_throw_exception(stub->code_begin());
+}
+
+void TemplateInterpreterGenerator::jportal_rethrow_exception() {
+  JPortalStub *stub = JPortalStubBuffer::new_jportal_jump_stub();
+
+  assert(JPortal, "jportal");
+  __ jump(ExternalAddress(stub->code_begin()));
+
+  address addr = __ pc();
+  stub->set_jump_stub(addr);
+  JPortalEnable::dump_rethrow_exception(stub->code_begin());
+}
+
+void TemplateInterpreterGenerator::jportal_handle_exception() {
+  JPortalStub *stub = JPortalStubBuffer::new_jportal_jump_stub();
+
+  assert(JPortal, "jportal");
+  __ jump(ExternalAddress(stub->code_begin()));
+
+  address addr = __ pc();
+  stub->set_jump_stub(addr);
+  JPortalEnable::dump_handle_exception(stub->code_begin());
 }
 
 void TemplateInterpreterGenerator::jportal_pop_frame() {
@@ -1623,6 +1628,39 @@ address TemplateInterpreterGenerator::generate_normal_entry(bool synchronized, b
 // Exceptions
 
 void TemplateInterpreterGenerator::generate_throw_exception() {
+  Interpreter::_remove_activation_entry = __ pc();
+  const Register thread = NOT_LP64(rcx) LP64_ONLY(r15_thread);
+
+  // preserve exception over this code sequence
+  __ pop_ptr(rax);
+  NOT_LP64(__ get_thread(thread));
+  __ movptr(Address(thread, JavaThread::vm_result_offset()), rax);
+  // remove the activation (without doing throws on illegalMonitorExceptions)
+  __ remove_activation(vtos, rdx, false, true, false);
+  // restore exception
+  NOT_LP64(__ get_thread(thread));
+  __ get_vm_result(rax, thread);
+
+  // In between activations - previous activation type unknown yet
+  // compute continuation point - the continuation point expects the
+  // following registers set up:
+  //
+  // rax: exception
+  // rdx: return address/pc that threw exception
+  // rsp: expression stack of caller
+  // rbp: ebp of caller
+  __ push(rax);                                  // save exception
+  __ push(rdx);                                  // save return address
+  __ super_call_VM_leaf(CAST_FROM_FN_PTR(address,
+                          SharedRuntime::exception_handler_for_return_address),
+                        thread, rdx);
+  __ mov(rbx, rax);                              // save exception handler
+  __ pop(rdx);                                   // restore return address
+  __ pop(rax);                                   // restore exception
+  // Note that an "issuing PC" is actually the next PC after the call
+  __ jmp(rbx);                                   // jump to exception
+                                                 // handler of caller
+
   // deoptimize rethrow entry
   Interpreter::_deopt_rethrow_exception_entry = __ pc();
 #ifdef JPORTAL_ENABLE
@@ -1691,13 +1729,24 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
 #ifdef JPORTAL_ENABLE
   if (JPortal) {
     __ get_method(rcx);
-    Label non_jportal;
+    Label non_jportal, remove_activation;
 
     __ movl(rbx, Address(rcx, Method::access_flags_offset()));
     __ testl(rbx, JVM_ACC_JPORTAL);
     __ jcc(Assembler::zero, non_jportal);
 
-    jportal_bci(0, rcx, rbx);
+    __ movptr(rbx, ExternalAddress(Interpreter::_remove_activation_entry));
+    __ cmpptr(rbx, rax);
+    __ jcc(Assembler::equal, non_jportal);
+
+    jportal_handle_exception();
+    jportal_method_and_bci(0, rcx, rbx);
+
+    __ jmp(non_jportal);
+
+    __ bind(remove_activation);
+
+    jportal_rethrow_exception();
 
     __ bind(non_jportal);
   }
@@ -1750,7 +1799,6 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
   // indicating that we are currently handling popframe, so that
   // call_VMs that may happen later do not trigger new popframe
   // handling cycles.
-  const Register thread = NOT_LP64(rcx) LP64_ONLY(r15_thread);
   NOT_LP64(__ get_thread(thread));
   __ movl(rdx, Address(thread, JavaThread::popframe_condition_offset()));
   __ orl(rdx, JavaThread::popframe_processing_bit);
@@ -1911,38 +1959,6 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
 #endif
   __ dispatch_next(vtos, 0, false, false);
   // end of PopFrame support
-
-  Interpreter::_remove_activation_entry = __ pc();
-
-  // preserve exception over this code sequence
-  __ pop_ptr(rax);
-  NOT_LP64(__ get_thread(thread));
-  __ movptr(Address(thread, JavaThread::vm_result_offset()), rax);
-  // remove the activation (without doing throws on illegalMonitorExceptions)
-  __ remove_activation(vtos, rdx, false, true, false);
-  // restore exception
-  NOT_LP64(__ get_thread(thread));
-  __ get_vm_result(rax, thread);
-
-  // In between activations - previous activation type unknown yet
-  // compute continuation point - the continuation point expects the
-  // following registers set up:
-  //
-  // rax: exception
-  // rdx: return address/pc that threw exception
-  // rsp: expression stack of caller
-  // rbp: ebp of caller
-  __ push(rax);                                  // save exception
-  __ push(rdx);                                  // save return address
-  __ super_call_VM_leaf(CAST_FROM_FN_PTR(address,
-                          SharedRuntime::exception_handler_for_return_address),
-                        thread, rdx);
-  __ mov(rbx, rax);                              // save exception handler
-  __ pop(rdx);                                   // restore return address
-  __ pop(rax);                                   // restore exception
-  // Note that an "issuing PC" is actually the next PC after the call
-  __ jmp(rbx);                                   // jump to exception
-                                                 // handler of caller
 }
 
 

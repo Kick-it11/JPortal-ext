@@ -219,6 +219,7 @@ void BlockGraph::build_graph()
             }
         }
         bci = bs.get_offset();
+        _offset2block[bci] = current;
         Bytecodes::Code bc = Bytecodes::cast(bs.get_u1());
         if (Bytecodes::is_block_end(bc))
         {
@@ -253,8 +254,8 @@ void BlockGraph::build_graph()
             case Bytecodes::_ifnonnull:
             {
                 int jmp_offset = (short)bs.get_u2();
-                make_block_at(bci + jmp_offset, current);
                 make_block_at(bs.get_offset(), current);
+                make_block_at(bci + jmp_offset, current);
                 current->set_end_bci(bci);
                 current = nullptr;
                 break;
@@ -279,7 +280,6 @@ void BlockGraph::build_graph()
             {
                 bs.skip_u1(alignup(bci+1));
                 int default_offset = bs.get_u4();
-                make_block_at(bci + default_offset, current);
                 jlong lo = bs.get_u4();
                 jlong hi = bs.get_u4();
                 int case_count = hi - lo + 1;
@@ -288,6 +288,7 @@ void BlockGraph::build_graph()
                     int case_offset = bs.get_u4();
                     make_block_at(bci + case_offset, current);
                 }
+                make_block_at(bci + default_offset, current);
                 current->set_end_bci(bci);
                 current = nullptr;
                 break;
@@ -297,7 +298,6 @@ void BlockGraph::build_graph()
             {
                 bs.skip_u1(alignup(bci+1));
                 int default_offset = bs.get_u4();
-                make_block_at(bci + default_offset, current);
                 jlong npairs = bs.get_u4();
                 for (int i = 0; i < npairs; i++)
                 {
@@ -305,6 +305,7 @@ void BlockGraph::build_graph()
                     int case_offset = bs.get_u4();
                     make_block_at(bci + case_offset, current);
                 }
+                make_block_at(bci + default_offset, current);
                 current->set_end_bci(bci);
                 current = nullptr;
                 break;

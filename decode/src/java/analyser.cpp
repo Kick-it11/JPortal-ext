@@ -7,12 +7,15 @@
 #include <iostream>
 #include <list>
 
-Analyser::Analyser(const std::vector<std::string> &class_paths)
+std::map<std::string, Klass *> Analyser::_klasses;
+std::map<std::string, Method *> Analyser::_methods;
+
+void Analyser::initialize(const std::vector<std::string> &class_paths)
 {
     parse(class_paths);
 }
 
-Analyser::~Analyser()
+void Analyser::destroy()
 {
     for (auto k : _klasses)
     {
@@ -90,7 +93,7 @@ void Analyser::parse(const std::vector<std::string> &class_paths)
                         assert(!_klasses.count(klass_name));
                         Klass *klass = new Klass(klass_name);
                         _klasses[klass_name] = klass;
-                        ClassFileParser cfp(file_path, this, klass);
+                        ClassFileParser cfp(file_path, klass);
                     }
                 }
             }

@@ -25,9 +25,12 @@ std::map<int, JitSection *> JVMRuntime::_id_to_sections;
 std::set<uint64_t> JVMRuntime::_deopts;
 std::set<uint64_t> JVMRuntime::_ret_codes;
 std::set<uint64_t> JVMRuntime::_throw_exceptions;
+std::set<uint64_t> JVMRuntime::_rethrow_exceptions;
+std::set<uint64_t> JVMRuntime::_handle_exceptions;
 std::set<uint64_t> JVMRuntime::_pop_frames;
 std::set<uint64_t> JVMRuntime::_earlyrets;
 std::set<uint64_t> JVMRuntime::_non_invoke_rets;
+std::set<uint64_t> JVMRuntime::_osrs;
 std::set<uint64_t> JVMRuntime::_java_call_begins;
 std::set<uint64_t> JVMRuntime::_java_call_ends;
 bool JVMRuntime::_initialized = false;
@@ -86,7 +89,17 @@ bool JVMRuntime::check_duplicated_entry(uint64_t ip, std::string str)
     }
     if (_throw_exceptions.count(ip))
     {
-        std::cerr << "JVMRuntime error: " << ip << "both in exceptions & " << str << std::endl;
+        std::cerr << "JVMRuntime error: " << ip << "both in throw exceptions & " << str << std::endl;
+        return true;
+    }
+    if (_rethrow_exceptions.count(ip))
+    {
+        std::cerr << "JVMRuntime error: " << ip << "both in rethrow exceptions & " << str << std::endl;
+        return true;
+    }
+    if (_handle_exceptions.count(ip))
+    {
+        std::cerr << "JVMRuntime error: " << ip << "both in handle exceptions & " << str << std::endl;
         return true;
     }
     if (_pop_frames.count(ip))
@@ -102,6 +115,11 @@ bool JVMRuntime::check_duplicated_entry(uint64_t ip, std::string str)
     if (_non_invoke_rets.count(ip))
     {
         std::cerr << "JVMRuntime error: " << ip << "both in non invoke rets & " << str << std::endl;
+        return true;
+    }
+    if (_osrs.count(ip))
+    {
+        std::cerr << "JVMRuntime error: " << ip << "both in osrs & " << str << std::endl;
         return true;
     }
     if (_java_call_begins.count(ip))
@@ -158,7 +176,7 @@ int JVMRuntime::event(uint64_t time, const uint8_t **data)
     return pts_event_pending;
 }
 
-void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
+void JVMRuntime::initialize(uint8_t *buffer, uint64_t size)
 {
     _begin = buffer;
     _end = buffer + size;
@@ -175,6 +193,30 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
         buffer += sizeof(DumpInfo);
         switch (info->type)
         {
+        case _java_call_begin_info:
+        {
+            const JavaCallBeginInfo *jcbi;
+            jcbi = (const JavaCallBeginInfo *)buffer;
+            buffer += sizeof(JavaCallBeginInfo);
+            if (check_duplicated_entry(jcbi->addr, "java call begins"))
+            {
+                break;
+            }
+            _java_call_begins.insert(jcbi->addr);
+            break;
+        }
+        case _java_call_end_info:
+        {
+            const JavaCallEndInfo *jcei;
+            jcei = (const JavaCallEndInfo *)buffer;
+            buffer += sizeof(JavaCallEndInfo);
+            if (check_duplicated_entry(jcei->addr, "java call ends"))
+            {
+                break;
+            }
+            _java_call_ends.insert(jcei->addr);
+            break;
+        }
         case _method_info:
         {
             const MethodInfo *mei;
@@ -186,7 +228,7 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
             buffer += mei->method_name_length;
             std::string sig((const char *)buffer, mei->method_signature_length);
             buffer += mei->method_signature_length;
-            const Method *method = analyser->get_method(klass_name, name + sig);
+            const Method *method = Analyser::get_method(klass_name, name + sig);
             if (!method || !method->is_jportal())
             {
                 std::cerr << "JvmRuntime error: Unknown or un-jportal method" << std::endl;
@@ -218,17 +260,28 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
             }
             break;
         }
-        case _bci_table_stub_info:
+        case _branch_taken_info:
         {
-            const BciTableStubInfo *btsi;
-            btsi = (const BciTableStubInfo *)buffer;
-            buffer += sizeof(BciTableStubInfo);
-            if (_bci_tables.second.first != 0 || _bci_tables.second.second != 0)
+            const BranchTakenInfo *bti;
+            bti = (const BranchTakenInfo *)buffer;
+            buffer += sizeof(BranchTakenInfo);
+            if (check_duplicated_entry(bti->addr, "takens"))
             {
-                std::cerr << "JVMRuntime error: bci table re inited " << std::endl;
                 break;
             }
-            _bci_tables = {btsi->addr, {btsi->num, btsi->ssize}};
+            _takens.insert(bti->addr);
+            break;
+        }
+        case _branch_not_taken_info:
+        {
+            const BranchNotTakenInfo *bnti;
+            bnti = (const BranchNotTakenInfo *)buffer;
+            buffer += sizeof(BranchNotTakenInfo);
+            if (check_duplicated_entry(bnti->addr, "not takens"))
+            {
+                break;
+            }
+            _not_takens.insert(bnti->addr);
             break;
         }
         case _switch_table_stub_info:
@@ -256,28 +309,65 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
             _switch_defaults.insert({sdi->addr});
             break;
         }
-        case _branch_taken_info:
+        case _bci_table_stub_info:
         {
-            const BranchTakenInfo *bti;
-            bti = (const BranchTakenInfo *)buffer;
-            buffer += sizeof(BranchTakenInfo);
-            if (check_duplicated_entry(bti->addr, "takens"))
+            const BciTableStubInfo *btsi;
+            btsi = (const BciTableStubInfo *)buffer;
+            buffer += sizeof(BciTableStubInfo);
+            if (_bci_tables.second.first != 0 || _bci_tables.second.second != 0)
             {
+                std::cerr << "JVMRuntime error: bci table re inited " << std::endl;
                 break;
             }
-            _takens.insert(bti->addr);
+            _bci_tables = {btsi->addr, {btsi->num, btsi->ssize}};
             break;
         }
-        case _branch_not_taken_info:
+        case _osr_info:
         {
-            const BranchNotTakenInfo *bnti;
-            bnti = (const BranchNotTakenInfo *)buffer;
-            buffer += sizeof(BranchNotTakenInfo);
-            if (check_duplicated_entry(bnti->addr, "not takens"))
+            const OSRInfo *osri;
+            osri = (const OSRInfo *)buffer;
+            buffer += sizeof(OSRInfo);
+            if (check_duplicated_entry(osri->addr, "osrs"))
             {
                 break;
             }
-            _not_takens.insert(bnti->addr);
+            _osrs.insert(osri->addr);
+            break;
+        }
+        case _throw_exception_info:
+        {
+            const ThrowExceptionInfo *tei;
+            tei = (const ThrowExceptionInfo *)buffer;
+            buffer += sizeof(ThrowExceptionInfo);
+            if (check_duplicated_entry(tei->addr, "throw exceptions"))
+            {
+                break;
+            }
+            _throw_exceptions.insert(tei->addr);
+            break;
+        }
+        case _rethrow_exception_info:
+        {
+            const RethrowExceptionInfo *rei;
+            rei = (const RethrowExceptionInfo *)buffer;
+            buffer += sizeof(RethrowExceptionInfo);
+            if (check_duplicated_entry(rei->addr, "rethrow exceptions"))
+            {
+                break;
+            }
+            _rethrow_exceptions.insert(rei->addr);
+            break;
+        }
+        case _handle_exception_info:
+        {
+            const HandleExceptionInfo *hei;
+            hei = (const HandleExceptionInfo *)buffer;
+            buffer += sizeof(HandleExceptionInfo);
+            if (check_duplicated_entry(hei->addr, "handle exceptions"))
+            {
+                break;
+            }
+            _handle_exceptions.insert(hei->addr);
             break;
         }
         case _ret_code_info:
@@ -304,16 +394,16 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
             _deopts.insert(di->addr);
             break;
         }
-        case _throw_exception_info:
+        case _non_invoke_ret_info:
         {
-            const ThrowExceptionInfo *tei;
-            tei = (const ThrowExceptionInfo *)buffer;
-            buffer += sizeof(ThrowExceptionInfo);
-            if (check_duplicated_entry(tei->addr, "throw exceptions"))
+            const NonInvokeRetInfo *niri;
+            niri = (const NonInvokeRetInfo *)buffer;
+            buffer += sizeof(NonInvokeRetInfo);
+            if (check_duplicated_entry(niri->addr, "non invoke rets"))
             {
                 break;
             }
-            _throw_exceptions.insert(tei->addr);
+            _earlyrets.insert(niri->addr);
             break;
         }
         case _pop_frame_info:
@@ -340,42 +430,6 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
             _earlyrets.insert(ei->addr);
             break;
         }
-        case _non_invoke_ret_info:
-        {
-            const NonInvokeRetInfo *niri;
-            niri = (const NonInvokeRetInfo *)buffer;
-            buffer += sizeof(NonInvokeRetInfo);
-            if (check_duplicated_entry(niri->addr, "non invoke rets"))
-            {
-                break;
-            }
-            _earlyrets.insert(niri->addr);
-            break;
-        }
-        case _java_call_begin_info:
-        {
-            const JavaCallBeginInfo *jcbi;
-            jcbi = (const JavaCallBeginInfo *)buffer;
-            buffer += sizeof(JavaCallBeginInfo);
-            if (check_duplicated_entry(jcbi->addr, "java call begins"))
-            {
-                break;
-            }
-            _java_call_begins.insert(jcbi->addr);
-            break;
-        }
-        case _java_call_end_info:
-        {
-            const JavaCallEndInfo *jcei;
-            jcei = (const JavaCallEndInfo *)buffer;
-            buffer += sizeof(JavaCallEndInfo);
-            if (check_duplicated_entry(jcei->addr, "java call ends"))
-            {
-                break;
-            }
-            _java_call_ends.insert(jcei->addr);
-            break;
-        }
         case _compiled_method_load_info:
         {
             const CompiledMethodLoadInfo *cmi;
@@ -396,7 +450,7 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
                 buffer += imi->method_signature_length;
                 std::string klassName = std::string(klass_name, imi->klass_name_length);
                 std::string methodName = std::string(name, imi->method_name_length) + std::string(sig, imi->method_signature_length);
-                const Method *method = analyser->get_method(klassName, methodName);
+                const Method *method = Analyser::get_method(klassName, methodName);
                 if (i == 0)
                     mainm = method;
                 methods[imi->method_index] = method;
@@ -416,10 +470,10 @@ void JVMRuntime::initialize(uint8_t *buffer, uint64_t size, Analyser *analyser)
             JitSection *section = new JitSection(insts, cmi->code_begin, cmi->stub_begin,
                                                  cmi->code_size, scopes_pc, cmi->scopes_pc_size,
                                                  scopes_data, cmi->scopes_data_size,
-                                                 cmi->entry_point,
-                                                 cmi->verified_entry_point,
-                                                 cmi->osr_entry_point,
-                                                 cmi->inline_method_cnt,
+                                                 cmi->entry_point, cmi->verified_entry_point,
+                                                 cmi->osr_entry_point, cmi->exception_begin,
+                                                 cmi->unwind_begin, cmi->deopt_begin,
+                                                 cmi->deopt_mh_begin, cmi->inline_method_cnt,
                                                  methods, mainm, mainm->get_name());
             if (_id_to_sections.count(section->id()) && _id_to_sections[section->id()] != section)
             {
@@ -495,8 +549,12 @@ void JVMRuntime::destroy()
     _deopts.clear();
     _ret_codes.clear();
     _throw_exceptions.clear();
+    _rethrow_exceptions.clear();
+    _handle_exceptions.clear();
     _pop_frames.clear();
     _earlyrets.clear();
+    _non_invoke_rets.clear();
+    _osrs.clear();
     _java_call_begins.clear();
     _java_call_ends.clear();
 
@@ -524,6 +582,22 @@ void JVMRuntime::print(uint8_t *buffer, uint64_t size)
         buffer += sizeof(DumpInfo);
         switch (info->type)
         {
+        case _java_call_begin_info:
+        {
+            const JavaCallBeginInfo *jcbi;
+            jcbi = (const JavaCallBeginInfo *)buffer;
+            buffer += sizeof(JavaCallBeginInfo);
+            std::cout << "JavaCallBeginInfo: " << jcbi->addr << std::endl;
+            break;
+        }
+        case _java_call_end_info:
+        {
+            const JavaCallEndInfo *jcei;
+            jcei = (const JavaCallEndInfo *)buffer;
+            buffer += sizeof(JavaCallEndInfo);
+            std::cout << "JavaCallEndInfo: " << jcei->addr << std::endl;
+            break;
+        }
         case _method_info:
         {
             const MethodInfo *mei;
@@ -539,13 +613,20 @@ void JVMRuntime::print(uint8_t *buffer, uint64_t size)
                       << " " << name << " " << sig << " " << info->time << std::endl;
             break;
         }
-        case _bci_table_stub_info:
+        case _branch_taken_info:
         {
-            const BciTableStubInfo *btsi;
-            btsi = (const BciTableStubInfo *)buffer;
-            buffer += sizeof(BciTableStubInfo);
-            std::cout << "BciTableStubInfo: " << btsi->addr << " " << btsi->num
-                      << " " << btsi->ssize << " " << info->time << std::endl;
+            const BranchTakenInfo *bti;
+            bti = (const BranchTakenInfo *)buffer;
+            buffer += sizeof(BranchTakenInfo);
+            std::cout << "BranchTakenInfo: " << bti->addr << " " << info->time << std::endl;
+            break;
+        }
+        case _branch_not_taken_info:
+        {
+            const BranchNotTakenInfo *bnti;
+            bnti = (const BranchNotTakenInfo *)buffer;
+            buffer += sizeof(BranchNotTakenInfo);
+            std::cout << "BranchNotTakenInfo: " << bnti->addr << " " << info->time << std::endl;
             break;
         }
         case _switch_table_stub_info:
@@ -565,20 +646,45 @@ void JVMRuntime::print(uint8_t *buffer, uint64_t size)
             std::cout << "SwitchDefaultInfo: " << sdi->addr << " " << info->time << std::endl;
             break;
         }
-        case _branch_taken_info:
+        case _bci_table_stub_info:
         {
-            const BranchTakenInfo *bti;
-            bti = (const BranchTakenInfo *)buffer;
-            buffer += sizeof(BranchTakenInfo);
-            std::cout << "BranchTakenInfo: " << bti->addr << " " << info->time << std::endl;
+            const BciTableStubInfo *btsi;
+            btsi = (const BciTableStubInfo *)buffer;
+            buffer += sizeof(BciTableStubInfo);
+            std::cout << "BciTableStubInfo: " << btsi->addr << " " << btsi->num
+                      << " " << btsi->ssize << " " << info->time << std::endl;
             break;
         }
-        case _branch_not_taken_info:
+        case _osr_info:
         {
-            const BranchNotTakenInfo *bnti;
-            bnti = (const BranchNotTakenInfo *)buffer;
-            buffer += sizeof(BranchNotTakenInfo);
-            std::cout << "BranchNotTakenInfo: " << bnti->addr << " " << info->time << std::endl;
+            const OSRInfo *osri;
+            osri = (const OSRInfo *)buffer;
+            buffer += sizeof(OSRInfo);
+            std::cout << "OSRInfo: " << osri->addr << std::endl;
+            break;
+        }
+        case _throw_exception_info:
+        {
+            const ThrowExceptionInfo *tei;
+            tei = (const ThrowExceptionInfo *)buffer;
+            buffer += sizeof(ThrowExceptionInfo);
+            std::cout << "ThrowExceptionInfo: " << tei->addr << std::endl;
+            break;
+        }
+        case _rethrow_exception_info:
+        {
+            const RethrowExceptionInfo *rei;
+            rei = (const RethrowExceptionInfo *)buffer;
+            buffer += sizeof(RethrowExceptionInfo);
+            std::cout << "RethrowExceptionInfo: " << rei->addr << std::endl;
+            break;
+        }
+        case _handle_exception_info:
+        {
+            const HandleExceptionInfo *hei;
+            hei = (const HandleExceptionInfo *)buffer;
+            buffer += sizeof(HandleExceptionInfo);
+            std::cout << "HandleExceptionInfo: " << hei->addr << std::endl;
             break;
         }
         case _ret_code_info:
@@ -597,12 +703,12 @@ void JVMRuntime::print(uint8_t *buffer, uint64_t size)
             std::cout << "DeoptimizationInfo: " << di->addr << " " << info->time << std::endl;
             break;
         }
-        case _throw_exception_info:
+        case _non_invoke_ret_info:
         {
-            const ThrowExceptionInfo *tei;
-            tei = (const ThrowExceptionInfo *)buffer;
-            buffer += sizeof(ThrowExceptionInfo);
-            std::cout << "ThrowExceptionInfo: " << tei->addr << std::endl;
+            const NonInvokeRetInfo *niri;
+            niri = (const NonInvokeRetInfo *)buffer;
+            buffer += sizeof(NonInvokeRetInfo);
+            std::cout << "NonInvokeRetInfo: " << niri->addr << std::endl;
             break;
         }
         case _pop_frame_info:
@@ -619,30 +725,6 @@ void JVMRuntime::print(uint8_t *buffer, uint64_t size)
             ei = (const EarlyretInfo *)buffer;
             buffer += sizeof(EarlyretInfo);
             std::cout << "EarlyretInfo: " << ei->addr << std::endl;
-            break;
-        }
-        case _non_invoke_ret_info:
-        {
-            const NonInvokeRetInfo *ei;
-            ei = (const NonInvokeRetInfo *)buffer;
-            buffer += sizeof(NonInvokeRetInfo);
-            std::cout << "NonInvokeRetInfo: " << ei->addr << std::endl;
-            break;
-        }
-        case _java_call_begin_info:
-        {
-            const JavaCallBeginInfo *jcbi;
-            jcbi = (const JavaCallBeginInfo *)buffer;
-            buffer += sizeof(JavaCallBeginInfo);
-            std::cout << "JavaCallBeginInfo: " << jcbi->addr << std::endl;
-            break;
-        }
-        case _java_call_end_info:
-        {
-            const JavaCallEndInfo *jcei;
-            jcei = (const JavaCallEndInfo *)buffer;
-            buffer += sizeof(JavaCallEndInfo);
-            std::cout << "JavaCallEndInfo: " << jcei->addr << std::endl;
             break;
         }
         case _compiled_method_load_info:

@@ -1,8 +1,8 @@
 #ifndef BLOCK_HPP
 #define BLOCK_HPP
 
+#include "java/bytecodes.hpp"
 #include "java/definitions.hpp"
-
 #include <cstring>
 #include <unordered_map>
 #include <unordered_set>
@@ -109,6 +109,11 @@ public:
 
         delete[] _code;
         _code = nullptr;
+    }
+    Bytecodes::Code code(int bci) {
+        if (bci < 0 || bci >= _code_length)
+            return Bytecodes::_illegal;
+        return Bytecodes::cast(*(_code + bci));
     }
     void set_exceps(std::vector<Excep> exceps) {}
     std::vector<Excep> *get_exceps() { return &_exceps; }

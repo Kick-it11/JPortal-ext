@@ -58,6 +58,14 @@ private:
 
     uint64_t _osr_entry_point;
 
+    uint64_t _exception_begin;
+
+    uint64_t _unwind_begin;
+
+    uint64_t _deopt_begin;
+
+    uint64_t _deopt_mh_begin;
+
     uint32_t _code_size;
 
     uint32_t _inline_method_cnt;
@@ -75,10 +83,10 @@ public:
                uint64_t stub_begin, uint32_t code_size,
                const uint8_t *scopes_pc, uint32_t scopes_pc_size,
                const uint8_t *scopes_data, uint32_t scopes_data_size,
-               uint64_t entry_point,
-               uint64_t verified_entry_point,
-               uint64_t osr_entry_point,
-               uint32_t inline_method_cnt,
+               uint64_t entry_point, uint64_t verified_entry_point,
+               uint64_t osr_entry_point, uint64_t exception_begin,
+               uint64_t unwind_begin, uint64_t deopt_begin,
+               uint64_t deopt_mh_begin, uint32_t inline_method_cnt,
                std::map<int, const Method *> &methods,
                const Method *mainm, const std::string &name);
 
@@ -99,7 +107,7 @@ public:
 
     /* find index of PCStackInfo, vaddr should be next instruction's addr */
     int find_pc(uint64_t vaddr);
-    const PCStackInfo *get_pc(int idx);
+    const PCStackInfo *get_pc(int idx) const;
 
     uint32_t code_size() const { return _code_size; }
     uint64_t code_begin() const { return _code_begin; }
@@ -107,6 +115,10 @@ public:
     uint64_t verified_entry_point() const { return _verified_entry_point; }
     uint64_t osr_entry_point() const { return _osr_entry_point; }
     uint64_t stub_begin() const { return _stub_begin; }
+    uint64_t exception_begin() const { return _exception_begin; }
+    uint64_t unwind_begin() const { return _unwind_begin; }
+    uint64_t deopt_begin() const { return _deopt_begin; }
+    uint64_t deopt_mh_begin() const { return _deopt_mh_begin; }
     uint32_t inline_method_cnt() const { return _inline_method_cnt; }
     const Method *method(int idx) const
     {

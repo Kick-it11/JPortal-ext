@@ -43,10 +43,9 @@
 /* Class file format tags */
 #define TAG_CODE "Code"
 
-ClassFileParser::ClassFileParser(std::string &file_path, Analyser *analyser, Klass *klass)
-    : _analyser(analyser), _klass(klass)
+ClassFileParser::ClassFileParser(std::string &file_path, Klass *klass)
+    : _klass(klass)
 {
-    assert(analyser != nullptr);
     assert(klass != nullptr);
     /* check if file exists */
     struct stat st;
@@ -306,7 +305,7 @@ void ClassFileParser::parse_constant_pool(const ClassFileStream *const stream,
                 ((Constant_Utf8_info
                       *)(cp->_constants[name_and_type->get_type_index()]))
                     ->str();
-            _klass->insert_method_ref(index, class_name + '.' + name + type);
+            _klass->insert_method_ref(index, class_name + ' ' + name + type);
         }
         else if (CONSTANT_Dynamic_info == tag || CONSTANT_InvokeDynamic_info == tag)
         {
@@ -365,8 +364,15 @@ void ClassFileParser::parse_methods(const ClassFileStream *const stream,
     for (int index = 0; index < length; index++)
     {
         Method *method = parse_method(stream, cp);
-        _analyser->add_method(method);
-        _klass->insert_method_map(method);
+        if (method->is_jportal())
+        {
+            Analyser::add_method(method);
+            _klass->insert_method_map(method);
+        }
+        else
+        {
+            delete method;
+        }
     } /* End of for */
 }
 

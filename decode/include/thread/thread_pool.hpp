@@ -4,6 +4,8 @@
 #include "thread/block_queue.hpp"
 
 #include <future>
+#include <functional>
+
 /** Thread Pool class
  *  while committing a task, if the task queue is full
  *  this commit will block until it can do this comit

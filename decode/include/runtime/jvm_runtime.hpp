@@ -10,7 +10,6 @@
 class Method;
 class JitSection;
 class JitImage;
-class Analyser;
 
 /* This class records JVM runtime information.
  * It is initialized by analysing dump file: usually named JPortalDump
@@ -39,27 +38,29 @@ class JVMRuntime
 {
 public:
     /* JVMRuntime dump type from JPortalTrace.data file */
-    enum DumpType
-    {
-        _method_info,                   /* method info */
-        _bci_table_stub_info,           /* portal table stub */
-        _switch_table_stub_info,        /* jportal table stub */
-        _switch_default_info,           /* switch default */
-        _branch_taken_info,             /* branch taken */
-        _branch_not_taken_info,         /* branch not taken */
-        _ret_code_info,                 /* indicate a ret or wide ret [jsr/ret] */
-        _deoptimization_info,           /* indicate a deoptimization */
-        _throw_exception_info,          /* indicate throwing a exception */
-        _pop_frame_info,                /* indicate a pop frame */
-        _earlyret_info,                 /* indicate an early ret */
-        _non_invoke_ret_info,           /* non invoke ret, such as deoptimization */
-        _java_call_begin_info,          /* JavaCalls::call() begin */
-        _java_call_end_info,            /* JavaCalls::call() end */
-        _compiled_method_load_info,     /* after loading a compiled method: entry, codes, scopes data etc included */
-        _compiled_method_unload_info,   /* after unloading a compiled method */
-        _thread_start_info,             /* a thread begins, map between system tid and java tid */
-        _inline_cache_add_info,         /* inline cache: a map between a source ip to a destination ip */
-        _inline_cache_clear_info,       /* inline cache clear: delete the map */
+    enum DumpType {
+      _java_call_begin_info,          /*JavaCalls::call() begin*/
+      _java_call_end_info,            /*JavaCalls::call() end*/
+      _method_info,                   /*method info*/
+      _branch_taken_info,             /*branch taken*/
+      _branch_not_taken_info,         /*branch not taken*/
+      _switch_table_stub_info,        /*jportal table stub*/
+      _switch_default_info,           /*switch default*/
+      _bci_table_stub_info,           /*jportal table stub,*/
+      _osr_info,                      /*online stack replacement*/
+      _throw_exception_info,          /*indicate throwing a exception*/
+      _rethrow_exception_info,        /* rethrow exception */
+      _handle_exception_info,         /*to exception handler*/
+      _ret_code_info,                 /*indicate a ret or wide ret [jsr/ret]*/
+      _deoptimization_info,           /*indicate a deoptimization*/
+      _non_invoke_ret_info,           /*non invoke ret, such as deoptimization*/
+      _pop_frame_info,                /*indicate a pop frame*/
+      _earlyret_info,                 /*indicate an early ret*/
+      _compiled_method_load_info,     /*after loading a compiled method: entry, codes, scopes data etc included*/
+      _compiled_method_unload_info,   /*after unloading a compiled method*/
+      _thread_start_info,             /*a thread begins, map between system tid and java tid*/
+      _inline_cache_add_info,         /*inline cache: a map between a source ip to a destination ip*/
+      _inline_cache_clear_info,       /*inline cache clear: delete the map*/
     };
 
     struct DumpInfo
@@ -67,6 +68,16 @@ public:
         uint32_t type;
         uint32_t size;
         uint64_t time;
+    };
+
+    struct JavaCallBeginInfo
+    {
+        uint64_t addr;
+    };
+
+    struct JavaCallEndInfo
+    {
+        uint64_t addr;
     };
 
     struct MethodInfo
@@ -80,10 +91,14 @@ public:
         uint64_t addr3; /* JPortal Only */
     };
 
-    struct BciTableStubInfo {
-        u8 addr;
-        u4 num;
-        u4 ssize;
+    struct BranchTakenInfo
+    {
+        uint64_t addr;
+    };
+
+    struct BranchNotTakenInfo
+    {
+        uint64_t addr;
     };
 
     struct SwitchTableStubInfo {
@@ -96,17 +111,53 @@ public:
         u8 addr;
     };
 
-    struct BranchTakenInfo
+    struct BciTableStubInfo {
+        u8 addr;
+        u4 num;
+        u4 ssize;
+    };
+
+    struct OSRInfo
     {
         uint64_t addr;
     };
 
-    struct BranchNotTakenInfo
+    struct ThrowExceptionInfo
+    {
+        uint64_t addr;
+    };
+
+    struct RethrowExceptionInfo
+    {
+        uint64_t addr;
+    };
+
+    struct HandleExceptionInfo
     {
         uint64_t addr;
     };
 
     struct RetCodeInfo
+    {
+        uint64_t addr;
+    };
+
+    struct DeoptimizationInfo
+    {
+        uint64_t addr;
+    };
+
+    struct NonInvokeRetInfo
+    {
+        uint64_t addr;
+    };
+
+    struct PopFrameInfo
+    {
+        uint64_t addr;
+    };
+
+    struct EarlyretInfo
     {
         uint64_t addr;
     };
@@ -118,6 +169,10 @@ public:
         uint64_t entry_point;
         uint64_t verified_entry_point;
         uint64_t osr_entry_point;
+        uint64_t exception_begin;
+        uint64_t unwind_begin;
+        uint64_t deopt_begin;
+        uint64_t deopt_mh_begin;
         uint32_t inline_method_cnt;
         uint32_t code_size;
         uint32_t scopes_pc_size;
@@ -154,41 +209,6 @@ public:
         uint64_t src;
     };
 
-    struct DeoptimizationInfo
-    {
-        uint64_t addr;
-    };
-
-    struct ThrowExceptionInfo
-    {
-        uint64_t addr;
-    };
-
-    struct PopFrameInfo
-    {
-        uint64_t addr;
-    };
-
-    struct EarlyretInfo
-    {
-        uint64_t addr;
-    };
-
-    struct NonInvokeRetInfo
-    {
-        uint64_t addr;
-    };
-
-    struct JavaCallBeginInfo
-    {
-        uint64_t addr;
-    };
-
-    struct JavaCallEndInfo
-    {
-        uint64_t addr;
-    };
-
     JVMRuntime();
     ~JVMRuntime();
 
@@ -200,7 +220,7 @@ public:
     /* static functions */
 
     /* initialize, process all section in advance */
-    static void initialize(uint8_t *buffer, uint64_t size, Analyser *analyser);
+    static void initialize(uint8_t *buffer, uint64_t size);
 
     /* destroy: deconstruct section */
     static void destroy();
@@ -296,6 +316,16 @@ public:
         return _throw_exceptions.count(ip);
     }
 
+    static bool rethrow_exception(uint64_t ip)
+    {
+        return _rethrow_exceptions.count(ip);
+    }
+
+    static bool handle_exception(uint64_t ip)
+    {
+        return _handle_exceptions.count(ip);
+    }
+
     static bool pop_frame(uint64_t ip)
     {
         return _pop_frames.count(ip);
@@ -309,6 +339,11 @@ public:
     static bool non_invoke_ret(uint64_t ip)
     {
         return _non_invoke_rets.count(ip);
+    }
+
+    static bool osr(uint64_t ip)
+    {
+        return _osrs.count(ip);
     }
 
     static bool java_call_begin(uint64_t ip)
@@ -376,6 +411,12 @@ private:
     /* indication to throw exception */
     static std::set<uint64_t> _throw_exceptions;
 
+    /* indication to rethrow exception */
+    static std::set<uint64_t> _rethrow_exceptions;
+
+    /* indication to handle exception */
+    static std::set<uint64_t> _handle_exceptions;
+
     /* indication to pop frame */
     static std::set<uint64_t> _pop_frames;
 
@@ -384,6 +425,9 @@ private:
 
     /* indicate non invoke ret */
     static std::set<uint64_t> _non_invoke_rets;
+
+    /* online stack replacement */
+    static std::set<uint64_t> _osrs;
 
     /* indication to java call begin*/
     static std::set<uint64_t> _java_call_begins;

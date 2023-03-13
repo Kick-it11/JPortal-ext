@@ -255,6 +255,10 @@ void JPortalEnable::dump_compiled_method_load(Method *moop, nmethod *nm) {
   address entry_point = nm->entry_point();
   address verified_entry_point = nm->verified_entry_point();
   address osr_entry_point = nm->is_osr_method()?nm->osr_entry():NULL;
+  address exception_begin = nm->exception_begin();
+  address unwind_begin = nm->unwind_handler_begin();
+  address deopt_begin = nm->deopt_handler_begin();
+  address deopt_mh_begin = nm->deopt_mh_handler_begin();
 
   u4 size = sizeof(CompiledMethodLoadInfo) + code_size + scopes_pc_size + scopes_data_size;
   int inline_method_cnt = 0;
@@ -269,7 +273,8 @@ void JPortalEnable::dump_compiled_method_load(Method *moop, nmethod *nm) {
   }
 
   CompiledMethodLoadInfo cmi((u8)code_begin, (u8)stub_begin, (u8)entry_point, (u8)verified_entry_point,
-                             (u8)osr_entry_point, inline_method_cnt, code_size,
+                             (u8)osr_entry_point, (u8)exception_begin, (u8)unwind_begin,
+                             (u8)deopt_begin, (u8)deopt_mh_begin, inline_method_cnt, code_size,
                              scopes_pc_size, scopes_data_size, size);
 
   if (!check_data(size)) {
@@ -424,6 +429,46 @@ void JPortalEnable::dump_throw_exception(address addr) {
   return;
 }
 
+void JPortalEnable::dump_rethrow_exception(address addr) {
+  MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
+
+  if (!_initialized) {
+    warning("JPortalEnable error: dump rethrow exception before initialize");
+    return;
+  }
+
+  u4 size = sizeof(struct RethrowExceptionInfo);
+  RethrowExceptionInfo rei((u8)addr, size);
+
+  if (!check_data(size)) {
+    warning("JPortalEnable error: ignore rethrow exception for size too big");
+    return;
+  }
+
+  dump_data((address)&rei, sizeof(rei));
+  return;
+}
+
+void JPortalEnable::dump_handle_exception(address addr) {
+  MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
+
+  if (!_initialized) {
+    warning("JPortalEnable error: dump handle exception before initialize");
+    return;
+  }
+
+  u4 size = sizeof(struct HandleExceptionInfo);
+  HandleExceptionInfo hei((u8)addr, size);
+
+  if (!check_data(size)) {
+    warning("JPortalEnable error: ignore handle exception for size too big");
+    return;
+  }
+
+  dump_data((address)&hei, sizeof(hei));
+  return;
+}
+
 void JPortalEnable::dump_pop_frame(address addr) {
   MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
 
@@ -481,6 +526,26 @@ void JPortalEnable::dump_non_invoke_ret(address addr) {
   }
 
   dump_data((address)&niri, sizeof(niri));
+  return;
+}
+
+void JPortalEnable::dump_osr(address addr) {
+  MutexLockerEx mu(JPortalEnable_lock, Mutex::_no_safepoint_check_flag);
+
+  if (!_initialized) {
+    warning("JPortalEnable error: dump osr before initialize");
+    return;
+  }
+
+  u4 size = sizeof(struct OSRInfo);
+  OSRInfo osri((u8)addr, size);
+
+  if (!check_data(size)) {
+    warning("JPortalEnable error: ignore osr for size too big");
+    return;
+  }
+
+  dump_data((address)&osri, sizeof(osri));
   return;
 }
 

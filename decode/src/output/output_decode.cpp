@@ -139,7 +139,7 @@ public:
             notVisited.erase({method, cur});
         } else {
             cur = frame[idx].second;
-            if (!cur) cur = bg->block(0);
+            assert(cur != nullptr);
             notVisited.erase({method, cur});
             if (idx < frame.size()-1 && !children.count(cur))
                 return_frame(frame, frame.size()-idx-1, ans);
@@ -163,6 +163,7 @@ public:
     }
 
     static void return_method(const Method* method, Block* cur, vector<pair<const Method*, Block*>>& ans) {
+        assert(cur != nullptr);
         vector<pair<int, Block*>> vv;
         unordered_set<Block*> ss;
         queue<pair<int, Block*>> q;
@@ -196,7 +197,8 @@ public:
     static void return_frame(vector<pair<const Method*, Block*>>& frame, int count, vector<pair<const Method*, Block*>>& blocks) {
         assert(count <= frame.size());
         for (int i = 0; i < count; ++i) {
-            return_method(frame.back().first, frame.back().second, blocks);
+            if (frame.back().first && frame.back().first->is_jportal())
+                return_method(frame.back().first, frame.back().second, blocks);
             frame.pop_back();
         }
     }
@@ -273,7 +275,7 @@ static bool handle_jitcode(ExecInfo* exec, const PCStackInfo **pcs, int size,
 static void return_exec(stack<ExecInfo*> &exec_st, const jit_section* section,
                         vector<pair<const Method*, Block*>>& ans) {
     while (!exec_st.empty() && exec_st.top()->section != section) {
-        JitMatchTree::return_frame(exec_st.top()->prev_frame, exec_st.top()->prev_frame.size(), ans);
+        // JitMatchTree::return_frame(exec_st.top()->prev_frame, exec_st.top()->prev_frame.size(), ans);
         delete exec_st.top();
         exec_st.pop();
     }
@@ -374,7 +376,7 @@ static void output_trace(TraceData* trace, size_t start, size_t end, FILE* fp) {
         }
     }
     while (!exec_st.empty()) {
-        JitMatchTree::return_frame(exec_st.top()->prev_frame, exec_st.top()->prev_frame.size(), ans);
+        // JitMatchTree::return_frame(exec_st.top()->prev_frame, exec_st.top()->prev_frame.size(), ans);
         delete exec_st.top();
         exec_st.pop();
     }

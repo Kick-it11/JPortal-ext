@@ -1127,8 +1127,8 @@ static int pt_insn_process_enabled(struct ptjvm_decoder *decoder) {
   ev = &decoder->event;
 
   /* This event can't be a status update. */
-  if (ev->status_update)
-    return -pte_bad_context;
+  // if (ev->status_update)
+  //   return -pte_bad_context;
 
   /* We must have an IP in order to start decoding. */
   if (ev->ip_suppressed)
@@ -1153,8 +1153,8 @@ static int pt_insn_process_disabled(struct ptjvm_decoder *decoder) {
   ev = &decoder->event;
 
   /* This event can't be a status update. */
-  if (ev->status_update)
-    return -pte_bad_context;
+  // if (ev->status_update)
+  //   return -pte_bad_context;
 
   // /* We must currently be enabled. */
   // if (!decoder->enabled)
@@ -1178,8 +1178,8 @@ static int pt_insn_process_async_branch(struct ptjvm_decoder *decoder) {
   ev = &decoder->event;
 
   /* This event can't be a status update. */
-  if (ev->status_update)
-    return -pte_bad_context;
+  // if (ev->status_update)
+  //   return -pte_bad_context;
 
   // /* Tracing must be enabled in order to make sense of the event. */
   // if (!decoder->enabled)
@@ -1214,8 +1214,8 @@ static int pt_insn_process_overflow(struct ptjvm_decoder *decoder) {
   ev = &decoder->event;
 
   /* This event can't be a status update. */
-  if (ev->status_update)
-    return -pte_bad_context;
+  // if (ev->status_update)
+  //   return -pte_bad_context;
 
   /* If the IP is suppressed, the overflow resolved while tracing was
    * disabled.  Otherwise it resolved while tracing was enabled.
@@ -1287,8 +1287,8 @@ static int pt_insn_process_stop(struct ptjvm_decoder *decoder) {
   ev = &decoder->event;
 
   /* This event can't be a status update. */
-  if (ev->status_update)
-    return -pte_bad_context;
+  // if (ev->status_update)
+  //   return -pte_bad_context;
 
   // /* Tracing is always disabled before it is stopped. */
   // if (decoder->enabled)

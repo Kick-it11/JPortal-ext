@@ -43,7 +43,7 @@ void decode(const char *trace_data, Analyser* analyser, list<TraceData*> &traces
     if (errcode < 0)
         return;
 
-    const int MaxThreadCount = 8;
+    const int MaxThreadCount = 6;
     bool ThreadState[MaxThreadCount]{false};
     ///* Create TaskManager *///
     TaskManager* tm = new TaskManager();

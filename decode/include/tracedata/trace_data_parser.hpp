@@ -68,6 +68,9 @@ private:
 
         /** Sideband configurations: sample type */
         uint64_t sample_type;
+
+        /** trace type: JPortal:1, JPortalMethod:2, JPortalMethodNoinline:3**/
+        uint64_t trace_type;
     };
 
     const static int _default_sync_split_number = 500;
@@ -98,8 +101,6 @@ private:
 
     /** JVM runtime data list */
     std::list<std::pair<uint64_t, uint64_t>> _jvm_runtime_offsets;
-
-    void sample_size(uint64_t sample_type);
 
     /** parse pt_offsets & sideband_data & jvm runtime offsets */
     bool parse();
@@ -133,6 +134,10 @@ public:
     uint64_t sample_type() { return _trace_header.sample_type; }
 
     void init_pt_config_from_trace(struct pt_config &config);
+
+    bool jportal_trace() { return _trace_header.trace_type == 1; }
+    bool jportal_method_trace() { return _trace_header.trace_type == 2; }
+    bool jportal_method_noinline_trace() { return _trace_header.trace_type == 3; }
 };
 
 #endif /* TRACE_DATA_PARSER_HPP */

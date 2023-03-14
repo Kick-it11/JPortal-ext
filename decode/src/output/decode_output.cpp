@@ -238,7 +238,7 @@ bool DecodeOutput::check_pre_event(DecodeDataEvent &event, std::ofstream &file,
     {
         if (inters.empty())
         {
-            if (!output_jit(event, file, jits))
+            if (!output_jit_cfg(event, file, jits))
             {
                 event.set_unpending();
                 return false;
@@ -273,7 +273,7 @@ bool DecodeOutput::check_post_event(DecodeDataEvent &event, std::ofstream &file,
     DecodeData::DecodeDataType type = event.type();
     if (type == DecodeData::_jit_code)
     {
-        if (!output_jit(event, file, jits))
+        if (!output_jit_cfg(event, file, jits))
         {
             event.set_unpending();
             return false;
@@ -398,8 +398,8 @@ bool DecodeOutput::check_post_event(DecodeDataEvent &event, std::ofstream &file,
     return false;
 }
 
-bool DecodeOutput::output_jit(DecodeDataEvent &event, std::ofstream &file,
-                              std::vector<JitFrame *> &jits)
+bool DecodeOutput::output_jit_cfg(DecodeDataEvent &event, std::ofstream &file,
+                                  std::vector<JitFrame *> &jits)
 {
     if (!event.pending() || event.type() != DecodeData::_jit_code)
         return false;
@@ -407,7 +407,8 @@ bool DecodeOutput::output_jit(DecodeDataEvent &event, std::ofstream &file,
     std::set<int> execs;
     std::vector<const PCStackInfo *> pcs;
     const JitSection *section = event.section();
-    std::vector<std::pair<int, std::pair<int, int>>> ans;
+    std::vector<std::pair<int, std::pair<int, int>>> cfgs;
+    std::vector<std::pair<std::string, int>> methods;
     for (auto i : event.pcs())
     {
         const PCStackInfo *pc = section->get_pc(i);
@@ -415,7 +416,7 @@ bool DecodeOutput::output_jit(DecodeDataEvent &event, std::ofstream &file,
         {
             /* indicate a loop */
             find_jit_frame(jits, section);
-            jits.back()->jit_code(pcs, ans);
+            jits.back()->jit_code(pcs, true, false, cfgs, methods);
             execs.clear();
             pcs.clear();
             continue;
@@ -430,14 +431,14 @@ bool DecodeOutput::output_jit(DecodeDataEvent &event, std::ofstream &file,
         {
         case DecodeData::_jit_entry:
             jits.push_back(new JitFrame(section));
-            jits.back()->entry(ans);
+            jits.back()->entry(true, false, cfgs, methods);
             break;
         case DecodeData::_jit_osr_entry:
             jits.push_back(new JitFrame(section));
             break;
         case DecodeData::_jit_return:
             find_jit_frame(jits, section);
-            jits.back()->jit_return(ans);
+            jits.back()->jit_return(true, false, cfgs, methods);
             delete jits.back();
             jits.pop_back();
             break;
@@ -459,9 +460,9 @@ bool DecodeOutput::output_jit(DecodeDataEvent &event, std::ofstream &file,
     if (!execs.empty())
     {
         find_jit_frame(jits, section);
-        jits.back()->jit_code(pcs, ans);
+        jits.back()->jit_code(pcs, true, false, cfgs, methods);
     }
-    for (auto single : ans)
+    for (auto single : cfgs)
     {
         if (single.first != _method_id)
         {
@@ -496,7 +497,7 @@ bool DecodeOutput::output_jit(DecodeDataEvent &event, std::ofstream &file,
  *   _decode_error
  */
 
-bool DecodeOutput::output(DecodeDataEvent &event, std::ofstream &file)
+bool DecodeOutput::output_cfg(DecodeDataEvent &event, std::ofstream &file)
 {
     std::vector<InterFrame *> inters;
     std::vector<JitFrame *> jits;
@@ -508,7 +509,7 @@ bool DecodeOutput::output(DecodeDataEvent &event, std::ofstream &file)
         if (type == DecodeData::_java_call_begin)
         {
             event.set_unpending();
-            if (!output(event, file))
+            if (!output_cfg(event, file))
             {
                 clear_frames(inters, jits);
                 return false;
@@ -564,7 +565,7 @@ bool DecodeOutput::output(DecodeDataEvent &event, std::ofstream &file)
     return return_frames(file, inters, jits);
 }
 
-void DecodeOutput::output(const std::string prefix)
+void DecodeOutput::output_cfg(const std::string prefix)
 {
     for (auto &&thread : _splits)
     {
@@ -574,8 +575,137 @@ void DecodeOutput::output(const std::string prefix)
         /* decode data not processed completely */
         while (event.remaining())
         {
-            if (!output(event, file))
+            if (!output_cfg(event, file))
                 file << "e" << std::endl;
+        }
+    }
+}
+
+bool DecodeOutput::output_jit_method(DecodeDataEvent &event, std::ofstream &file,
+                                     std::vector<JitFrame *> &jits)
+{
+    if (!event.pending() || event.type() != DecodeData::_jit_code)
+        return false;
+
+    std::set<int> execs;
+    std::vector<const PCStackInfo *> pcs;
+    const JitSection *section = event.section();
+    std::vector<std::pair<int, std::pair<int, int>>> cfgs;
+    std::vector<std::pair<std::string, int>> methods;
+    for (auto i : event.pcs())
+    {
+        const PCStackInfo *pc = section->get_pc(i);
+        if ((!pc || execs.count(i)) && !execs.empty())
+        {
+            /* indicate a loop */
+            find_jit_frame(jits, section);
+            jits.back()->jit_code(pcs, false, true, cfgs, methods);
+            execs.clear();
+            pcs.clear();
+            continue;
+        }
+        else if (pc)
+        {
+            execs.insert(i);
+            pcs.push_back(pc);
+            continue;
+        }
+        switch (-i)
+        {
+        case DecodeData::_jit_entry:
+            jits.push_back(new JitFrame(section));
+            jits.back()->entry(false, true, cfgs, methods);
+            break;
+        case DecodeData::_jit_osr_entry:
+            jits.push_back(new JitFrame(section));
+            break;
+        case DecodeData::_jit_return:
+            find_jit_frame(jits, section);
+            jits.back()->jit_return(false, true, cfgs, methods);
+            delete jits.back();
+            jits.pop_back();
+            break;
+        case DecodeData::_jit_exception:
+            find_jit_frame(jits, section);
+            jits.clear();
+            break;
+        case DecodeData::_jit_unwind:
+        case DecodeData::_jit_deopt:
+        case DecodeData::_jit_deopt_mh:
+            find_jit_frame(jits, section);
+            jits.pop_back();
+            break;
+        default:
+            std::cerr << "DecodeOutput error: Unknown jit type" << std::endl;
+            exit(1);
+        }
+    }
+    if (!execs.empty())
+    {
+        find_jit_frame(jits, section);
+        jits.back()->jit_code(pcs, false, true, cfgs, methods);
+    }
+    for (auto single : methods)
+    {
+        file << single.first << ":" << single.second << std::endl;
+    }
+    return true;
+}
+
+void DecodeOutput::output_method(const std::string prefix)
+{
+    for (auto &&thread : _splits)
+    {
+        std::ofstream file(prefix + "-" + "thrd" + std::to_string(thread.first));
+        DecodeDataEvent event(thread.second);
+
+        std::vector<JitFrame *> jits;
+        while (event.current_event())
+        {
+            switch (event.type())
+            {
+                case DecodeData::_method_entry:
+                    file << "i:" << event.method()->id() << std::endl;
+                    break;
+                case DecodeData::_method_exit:
+                    file << "o:" << event.method()->id() << std::endl;
+                    break;
+                case DecodeData::_jit_code:
+                    if (!output_jit_method(event, file, jits))
+                        file << "e" << std::endl;
+                    break;
+                default:
+                    std::cerr << "DecodeOutput error: unknown type for Method Trace" << std::endl;
+                    exit(1);
+            }
+            event.set_unpending();
+        }
+    }
+}
+
+void DecodeOutput::output_method_noinline(const std::string prefix)
+{
+    for (auto &&thread : _splits)
+    {
+        std::ofstream file(prefix + "-" + "thrd" + std::to_string(thread.first));
+        DecodeDataEvent event(thread.second);
+
+        std::vector<JitFrame *> jits;
+        while (event.current_event())
+        {
+            switch (event.type())
+            {
+                case DecodeData::_method_entry:
+                    file << "e:" << event.method()->id() << std::endl;
+                    break;
+                case DecodeData::_method_exit:
+                    file << "x:" << event.method()->id() << std::endl;
+                    break;
+                default:
+                    std::cerr << "DecodeOutput error: unknown type for Method Trace" << std::endl;
+                    exit(1);
+            }
+            event.set_unpending();
         }
     }
 }

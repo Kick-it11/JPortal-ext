@@ -1790,7 +1790,7 @@ void JavaThread::run() {
 
 #ifdef JPORTAL_ENABLE
   // JPortal
-  if (JPortal || JPortalMethod) {
+  if (JPortal || JPortalMethod || JPortalMethodNoinline) {
     JPortalEnable::dump_thread_start(this);
   }
 #endif

@@ -451,7 +451,7 @@ void NMethodSweeper::possibly_sweep() {
   // allocations go to the non-profiled heap and we must be make sure that there is
   // enough space.
   double free_percent = 1 / CodeCache::reverse_free_ratio(CodeBlobType::MethodNonProfiled, false) * 100;
-  if (JPortal) {
+  if (JPortal || JPortalMethod) {
     double jportal_free_percent = 1 / CodeCache::reverse_free_ratio(CodeBlobType::MethodNonProfiled, true) * 100;
     free_percent = MIN2(free_percent, jportal_free_percent);
   }
@@ -766,7 +766,7 @@ void NMethodSweeper::possibly_flush(nmethod* nm) {
       int reset_val = hotness_counter_reset_val();
       int time_since_reset = reset_val - nm->hotness_counter();
       int code_blob_type = CodeCache::get_code_blob_type(nm);
-      double threshold = -reset_val + (CodeCache::reverse_free_ratio(code_blob_type, JPortal && CodeCache::is_jportal((address)nm)) * NmethodSweepActivity);
+      double threshold = -reset_val + (CodeCache::reverse_free_ratio(code_blob_type, (JPortal || JPortalMethod) && CodeCache::is_jportal((address)nm)) * NmethodSweepActivity);
       // The less free space in the code cache we have - the bigger reverse_free_ratio() is.
       // I.e., 'threshold' increases with lower available space in the code cache and a higher
       // NmethodSweepActivity. If the current hotness counter - which decreases from its initial

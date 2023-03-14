@@ -1931,7 +1931,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
                                        in_ByteSize(-1),
                                        in_ByteSize(-1),
                                        (OopMapSet*)NULL,
-                                       JPortal && method->is_jportal());
+                                       (JPortal || JPortalMethod) && method->is_jportal());
   }
   bool is_critical_native = true;
   address native_func = method->critical_native_function();
@@ -2442,7 +2442,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   }
 
 #ifdef JPORTAL_ENABLE
-  if (JPortalMethod && method()->is_jportal()) {
+  if ((JPortalMethod || JPortalMethodNoinline) && method()->is_jportal()) {
     __ lea(rscratch1, ExternalAddress(method()->jportal_entry()));
     __ call(rscratch1);
   }
@@ -2698,7 +2698,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   }
 
 #ifdef JPORTAL_ENABLE
-  if (JPortalMethod && method()->is_jportal()) {
+  if ((JPortalMethod || JPortalMethodNoinline) && method()->is_jportal()) {
     __ lea(rscratch1, ExternalAddress(method()->jportal_exit()));
     __ call(rscratch1);
   }
@@ -2855,7 +2855,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
                                             stack_slots / VMRegImpl::slots_per_word,
                                             (is_static ? in_ByteSize(klass_offset) : in_ByteSize(receiver_offset)),
                                             in_ByteSize(lock_slot_offset*VMRegImpl::stack_slot_size),
-                                            oop_maps, JPortal && method->is_jportal());
+                                            oop_maps, (JPortal || JPortalMethod) && method->is_jportal());
 
   if (is_critical_native) {
     nm->set_lazy_critical_native(true);

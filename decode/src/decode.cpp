@@ -55,9 +55,15 @@ static void decode(const std::string &file, std::vector<std::string> &paths)
     /** Output */
     std::cout << "Output..." << std::endl;
     JVMRuntime::output("decode");
+
     DecodeOutput to_file(results);
-    // to_file.output_func("decode");
-    // to_file.print();
+
+    if (parser.jportal_trace())
+        to_file.output_cfg("cfg");
+    else if (parser.jportal_method_trace())
+        to_file.output_method("method");
+    else if (parser.jportal_method_noinline_trace())
+        to_file.output_method_noinline("methodnoinline");
 
     /* Exit */
     JVMRuntime::destroy();

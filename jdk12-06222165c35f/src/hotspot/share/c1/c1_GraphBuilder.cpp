@@ -1537,11 +1537,11 @@ void GraphBuilder::method_return(Value x, bool ignore_return) {
       append(new RuntimeCall(voidType, "dtrace_method_exit", CAST_FROM_FN_PTR(address, SharedRuntime::dtrace_method_exit), args));
     }
 
-#ifdef JPORTAL_ENABLE
-    if (JPortalMethod && method()->is_jportal()) {
-      append(new JPortalCall(((Method *)(method()->constant_encoding()))->jportal_exit()));
-    }
-#endif
+// #ifdef JPORTAL_ENABLE // continuation = null -> inlined method
+//     if (JPortalMethodNoinline && method()->is_jportal()) {
+//       // append(new JPortalCall(((Method *)(method()->constant_encoding()))->jportal_exit()));
+//     }
+// #endif
 
     // If the inlined method is synchronized, the monitor must be
     // released before we jump to the continuation block.
@@ -3207,7 +3207,7 @@ GraphBuilder::GraphBuilder(Compilation* compilation, IRScope* scope)
   , _instruction_count(0)
   , _osr_entry(NULL)
   , _non_jportal_inline(0)
-  , _max_non_jportal_inline(15)
+  , _max_non_jportal_inline(5)
 {
   int osr_bci = compilation->osr_bci();
 
@@ -3468,9 +3468,12 @@ const char* GraphBuilder::check_can_parse(ciMethod* callee) const {
 
 // negative filter: should callee NOT be inlined?  returns NULL, ok to inline, or rejection msg
 const char* GraphBuilder::should_not_inline(ciMethod* callee) const {
-  if ( JPortal && (!compilation()->method()->is_jportal() && callee->is_jportal())) return "don't inline JPORTAL method in NON-JPORTAL compilation";
-  if ( JPortal && (compilation()->method()->is_jportal() && !callee->is_jportal()) && _non_jportal_inline >= _max_non_jportal_inline) return "don't inline NON-JPORTAL method in JPORTAL compilation";
-  else ++_non_jportal_inline;
+  if ( (JPortal || JPortalMethod) && (!compilation()->method()->is_jportal() && callee->is_jportal())) return "don't inline JPORTAL method in NON-JPORTAL compilation";
+  // if ( (JPortal || JPortalMethod) && (compilation()->method()->is_jportal() && !callee->is_jportal()))
+  // {
+  //   if (_non_jportal_inline >= _max_non_jportal_inline) return "don't inline NON-JPORTAL method in JPORTAL compilation";
+  //   else ++_non_jportal_inline;
+  // }
   if ( compilation()->directive()->should_not_inline(callee)) return "disallowed by CompileCommand";
   if ( callee->dont_inline())          return "don't inline by annotation";
   return NULL;
@@ -3727,11 +3730,11 @@ void GraphBuilder::fill_sync_handler(Value lock, BlockBegin* sync_handler, bool 
     append_with_bci(new RuntimeCall(voidType, "dtrace_method_exit", CAST_FROM_FN_PTR(address, SharedRuntime::dtrace_method_exit), args), bci);
   }
 
-#ifdef JPORTAL_ENABLE
-  if (JPortalMethod && method()->is_jportal()) {
-    append_with_bci(new JPortalCall(((Method *)(method()->constant_encoding()))->jportal_exit()), bci);
-  }
-#endif
+// #ifdef JPORTAL_ENABLE // inlined sync method
+//   if (JPortalMethodNoinline && method()->is_jportal()) {
+//     // append_with_bci(new JPortalCall(((Method *)(method()->constant_encoding()))->jportal_exit()), bci);
+//   }
+// #endif
 
   if (lock) {
     assert(state()->locks_size() > 0 && state()->lock_at(state()->locks_size() - 1) == lock, "lock is missing");
@@ -3940,11 +3943,12 @@ bool GraphBuilder::try_inline_full(ciMethod* callee, bool holder_known, bool ign
     append(new RuntimeCall(voidType, "dtrace_method_entry", CAST_FROM_FN_PTR(address, SharedRuntime::dtrace_method_entry), args));
   }
 
-#ifdef JPORTAL_ENABLE
-  if (JPortalMethod && method()->is_jportal()) {
-    append(new JPortalCall(((Method *)(method()->constant_encoding()))->jportal_entry()));
-  }
-#endif
+// Do not trace inlined method
+// #ifdef JPORTAL_ENABLE
+//   if (JPortalMethodNoInline && method()->is_jportal()) {
+//     // append(new JPortalCall(((Method *)(method()->constant_encoding()))->jportal_entry()));
+//   }
+// #endif
   if (profile_inlined_calls()) {
     profile_invocation(callee, copy_state_before_with_bci(SynchronizationEntryBCI));
   }

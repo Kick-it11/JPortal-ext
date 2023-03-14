@@ -1066,7 +1066,7 @@ void Parse::do_exits() {
   bool do_synch = method()->is_synchronized() && GenerateSynchronizationCode;
 
   // record exit from a method if compiled while Dtrace is turned on.
-  if (do_synch || C->env()->dtrace_method_probes() || _replaced_nodes_for_exceptions || JPortalMethod) {
+  if (do_synch || C->env()->dtrace_method_probes() || _replaced_nodes_for_exceptions || (JPortalMethodNoinline && !_caller->has_method())) {
     // First move the exception list out of _exits:
     GraphKit kit(_exits.transfer_exceptions_into_jvms());
     SafePointNode* normal_map = kit.map();  // keep this guy safe
@@ -1092,7 +1092,7 @@ void Parse::do_exits() {
         kit.make_dtrace_method_exit(method());
       }
 #ifdef JPORTAL_ENABLE
-      if (JPortalMethod && method()->is_jportal()) {
+      if (JPortalMethodNoinline && !_caller->has_method() && method()->is_jportal()) {
         kit.make_jportal_call(((Method*)(method()->constant_encoding()))->jportal_exit());
       }
 #endif
@@ -1206,7 +1206,7 @@ void Parse::do_method_entry() {
   }
 
 #ifdef JPORTAL_ENABLE
-  if (JPortalMethod && method()->is_jportal()) {
+  if (JPortalMethodNoinline && !_caller->has_method() && method()->is_jportal()) {
     make_jportal_call(((Method*)(method()->constant_encoding()))->jportal_entry());
   }
 #endif
@@ -2192,7 +2192,7 @@ void Parse::return_current(Node* value) {
   }
 
 #ifdef JPORTAL_ENABLE
-  if (JPortalMethod && method()->is_jportal()) {
+  if (JPortalMethodNoinline && !_caller->has_method() && method()->is_jportal()) {
     make_jportal_call(((Method*)(method()->constant_encoding()))->jportal_exit()); 
   }
 #endif

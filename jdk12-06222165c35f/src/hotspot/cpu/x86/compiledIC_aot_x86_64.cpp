@@ -59,7 +59,7 @@ void CompiledDirectStaticCall::set_to_far(const methodHandle& callee, address en
 
 #ifdef JPORTAL_ENABLE
   // JPortal
-  if (JPortal && CodeCache::is_jportal(instruction_address())) {
+  if ((JPortal || JPortalMethod) && CodeCache::is_jportal(instruction_address())) {
     JPortalEnable::dump_inline_cache_add(instruction_address(), stub);
   }
 #endif
@@ -95,7 +95,7 @@ void CompiledPltStaticCall::set_to_interpreted(const methodHandle& callee, addre
 
 #ifdef JPORTAL_ENABLE
   // JPortal
-  if (JPortal && CodeCache::is_jportal(instruction_address())) {
+  if ((JPortal || JPortalMethod) && CodeCache::is_jportal(instruction_address())) {
     JPortalEnable::dump_inline_cache_add(instruction_address(), entry);
   }
 #endif

@@ -163,17 +163,20 @@ bool InterFrame::straight(int idx)
 /* Sim Jit execution based on debug info
  * Error Might happen, but
  * we do not let influence inter
+ * In a control flow level
  */
 class SimNode
 {
 private:
-    const Method *_method;
+    const Method *const _method;
     std::map<Block *, int> _marks;
     std::map<Block *, SimNode *> _children;
 
     void traverse_empty(std::vector<std::pair<const Method *, Block *>> &iframes, int idx,
                         std::set<std::pair<const Method *, Block *>> totals,
-                        std::vector<std::pair<int, std::pair<int, int>>> &ans)
+                        bool cfgt, bool mt,
+                        std::vector<std::pair<int, std::pair<int, int>>> &cfgs,
+                        std::vector<std::pair<std::string, int>> &methods)
     {
         Block *cur = nullptr;
         if (idx >= iframes.size())
@@ -183,7 +186,7 @@ private:
             cur = iframes[idx].second;
             totals.erase({_method, cur});
             if (idx != iframes.size() - 1 && !_children.count(cur))
-                return_iframes(iframes, iframes.size()-idx-1, ans);
+                return_iframes(iframes, iframes.size()-idx-1, cfgt, mt, cfgs, methods);
         }
 
         while (!_marks.empty())
@@ -196,7 +199,7 @@ private:
             totals.erase({_method, cur});
             _marks.erase(iter);
             if (_children.count(cur))
-                _children[cur]->traverse(iframes, idx+1, totals, ans);
+                _children[cur]->traverse(iframes, idx+1, totals, cfgt, mt, cfgs, methods);
         }
 
         if (idx == iframes.size() - 1)
@@ -205,7 +208,7 @@ private:
         return;
     }
 
-    Block *next_block(Block *cur, std::vector<std::pair<int, std::pair<int, int>>> &ans)
+    Block *next_block(Block *cur, bool cfgt, std::vector<std::pair<int, std::pair<int, int>>> &cfgs)
     {
         std::vector<std::pair<int, Block *>> vv;
         std::unordered_set<Block *> ss;
@@ -256,7 +259,8 @@ private:
         }
         /* Add to ans */
         for (auto block : blocks)
-            ans.push_back({_method->id(), {block->get_begin_bci(), block->get_end_bci()}});
+            if (cfgt)
+                cfgs.push_back({_method->id(), {block->get_begin_bci(), block->get_end_bci()}});
         return blocks.empty() ? nullptr : blocks.back();
     }
 
@@ -284,17 +288,19 @@ public:
 
     void traverse(std::vector<std::pair<const Method *, Block *>> &iframes,  int idx,
                   std::set<std::pair<const Method *, Block *>> totals,
-                  std::vector<std::pair<int, std::pair<int, int>>> &ans)
+                  bool cfgt, bool mt,
+                  std::vector<std::pair<int, std::pair<int, int>>> &cfgs,
+                  std::vector<std::pair<std::string, int>> &methods)
     {
         /* Sometimes bci = -1 */
         totals.erase({_method, nullptr});
 
         /* Should return iframes (>= idx)*/
         if (idx < iframes.size() && iframes[idx].first != _method)
-            return_iframes(iframes, iframes.size()-idx, ans);
+            return_iframes(iframes, iframes.size()-idx, cfgt, mt, cfgs, methods);
 
         if (!_method || !_method->is_jportal())
-            return traverse_empty(iframes, idx, totals, ans);
+            return traverse_empty(iframes, idx, totals, cfgt, mt, cfgs, methods);
 
         BlockGraph *bg = _method->get_bg();
         Block *cur = nullptr;
@@ -303,29 +309,30 @@ public:
             cur = bg->offset2block(0);
             iframes.push_back({_method, cur});
             /* add cur to ans */
-            ans.push_back({_method->id(), {cur->get_begin_bci(), cur->get_end_bci()}});
+            if (cfgt) cfgs.push_back({_method->id(), {cur->get_begin_bci(), cur->get_end_bci()}});
+            if (mt) methods.push_back({"i", _method->id()});
             totals.erase({_method, cur});
         }
         else
         {
             cur = iframes[idx].second;
-            if (!cur)
-                cur = bg->offset2block(0);
+            assert(cur != nullptr);
             totals.erase({_method, cur});
             /* Should erase latter(> idx) frames */
             if (idx < iframes.size() - 1 && !_children.count(cur))
-                return_iframes(iframes, iframes.size()-idx-1, ans);
+                return_iframes(iframes, iframes.size()-idx-1, cfgt, mt, cfgs, methods);
         }
 
         while (totals.size())
         {
             if (_children.count(cur))
-                _children[cur]->traverse(iframes, idx + 1, totals, ans);
+                _children[cur]->traverse(iframes, idx + 1, totals, cfgt, mt, cfgs, methods);
             if (!totals.size())
                 break;
-            cur = next_block(cur, ans);
+            cur = next_block(cur, cfgt, cfgs);
             if (!cur)
             {
+                methods.push_back({"o", _method->id()});
                 iframes.pop_back();
                 return;
             }
@@ -338,16 +345,14 @@ public:
     }
 
     static void return_iframe(const Method *method, Block *cur,
-                              std::vector<std::pair<int, std::pair<int, int>>> &ans)
+                              bool cfgt, bool mt,
+                              std::vector<std::pair<int, std::pair<int, int>>> &cfgs,
+                              std::vector<std::pair<std::string, int>> &methods)
     {
         if (!method || !method->is_jportal())
             return;
 
-        if (!cur)
-        {
-            cur = method->get_bg()->offset2block(0);
-            ans.push_back({method->id(), {cur->get_begin_bci(), cur->get_end_bci()}});
-        }
+        assert(cur != nullptr);
         std::vector<std::pair<int, Block *>> vv;
         std::unordered_set<Block *> ss;
         std::queue<std::pair<int, Block *>> q;
@@ -380,29 +385,36 @@ public:
         }
         /* add to ans */
         for (auto block : blocks)
-            ans.push_back({method->id(), {block->get_begin_bci(), block->get_end_bci()}});
+            if (cfgt)
+                cfgs.push_back({method->id(), {block->get_begin_bci(), block->get_end_bci()}});
+        if (mt) methods.push_back({"o", method->id()});
         return;
     }
 
     static void return_iframes(std::vector<std::pair<const Method *, Block *>> &iframes, int count,
-                               std::vector<std::pair<int, std::pair<int, int>>> &ans)
+                               bool cfgt, bool mt,
+                               std::vector<std::pair<int, std::pair<int, int>>> &cfgs,
+                               std::vector<std::pair<std::string, int>> &methods)
     {
         assert(count <= iframes.size());
         for (int i = 0; i < count; ++i)
         {
-            return_iframe(iframes.back().first, iframes.back().second, ans);
+            return_iframe(iframes.back().first, iframes.back().second, cfgt, mt, cfgs, methods);
             iframes.pop_back();
         }
     }
 };
 
-void JitFrame::entry(std::vector<std::pair<int, std::pair<int, int>>> &ans)
+void JitFrame::entry(bool cfgt, bool mt,
+                     std::vector<std::pair<int, std::pair<int, int>>> &cfgs,
+                     std::vector<std::pair<std::string, int>> &methods)
 {
     const Method *mainm = _section->mainm();
     Block *block = mainm->get_bg()->offset2block(0);
     assert(block != nullptr);
     _iframes.push_back({mainm, block});
-    ans.push_back({mainm->id(), {block->get_begin_bci(), block->get_end_bci()}});
+    if (cfgt) cfgs.push_back({mainm->id(), {block->get_begin_bci(), block->get_end_bci()}});
+    if (mt) methods.push_back({"i", mainm->id()});
 }
 
 void JitFrame::clear()
@@ -411,7 +423,9 @@ void JitFrame::clear()
 }
 
 void JitFrame::jit_code(std::vector<const PCStackInfo *> pcs,
-                        std::vector<std::pair<int, std::pair<int, int>>> &ans)
+                        bool cfgt, bool mt,
+                        std::vector<std::pair<int, std::pair<int, int>>> &cfgs,
+                        std::vector<std::pair<std::string, int>> &methods)
 {
     /* Use SimNode to simulate execution of Jit */
     /* mark and then traverse */
@@ -440,17 +454,27 @@ void JitFrame::jit_code(std::vector<const PCStackInfo *> pcs,
         {
             _iframes = infos;
             for (auto iframe : _iframes)
-                ans.push_back({iframe.first->id(), {iframe.second->get_begin_bci(),
-                                iframe.second->get_end_bci()}});
+            {
+                if (iframe.first && iframe.first->is_jportal())
+                {
+                    if (cfgt)
+                        cfgs.push_back({iframe.first->id(), {iframe.second->get_begin_bci(),
+                                       iframe.second->get_end_bci()}});
+                    if (mt)
+                        methods.push_back({"i", iframe.first->id()});
+                }
+            }
         }
     }
 
-    node->traverse(_iframes, 0, totals, ans);
+    node->traverse(_iframes, 0, totals, cfgt, mt, cfgs, methods);
     delete node;
 }
 
-void JitFrame::jit_return(std::vector<std::pair<int, std::pair<int, int>>> &ans)
+void JitFrame::jit_return(bool cfgt, bool mt,
+                          std::vector<std::pair<int, std::pair<int, int>>> &cfgs,
+                          std::vector<std::pair<std::string, int>> &methods)
 {
     /* return */
-    SimNode::return_iframes(_iframes, _iframes.size(), ans);
+    SimNode::return_iframes(_iframes, _iframes.size(), cfgt, mt, cfgs, methods);
 }

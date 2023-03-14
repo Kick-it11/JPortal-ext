@@ -295,7 +295,7 @@ bool CompiledIC::set_to_megamorphic(CallInfo* call_info, Bytecodes::Code bytecod
 
 #ifdef JPORTAL_ENABLE
   // JPortal
-  if (JPortal && CodeCache::is_jportal(instruction_address())) {
+  if ((JPortal || JPortalMethod) && CodeCache::is_jportal(instruction_address())) {
     JPortalEnable::dump_inline_cache_add(instruction_address(), entry);
   }
 #endif
@@ -400,7 +400,7 @@ bool CompiledIC::set_to_clean(bool in_use) {
 
 #ifdef JPORTAL_ENABLE
   // JPortal
-  if (JPortal && CodeCache::is_jportal(instruction_address())) {
+  if ((JPortal || JPortalMethod) && CodeCache::is_jportal(instruction_address())) {
     JPortalEnable::dump_inline_cache_clear(instruction_address());
   }
 #endif
@@ -471,7 +471,7 @@ bool CompiledIC::set_to_monomorphic(CompiledICInfo& info) {
 
 #ifdef JPORTAL_ENABLE
       // JPortal
-      if (JPortal && CodeCache::is_jportal(instruction_address())) {
+      if ((JPortal || JPortalMethod) && CodeCache::is_jportal(instruction_address())) {
         JPortalEnable::dump_inline_cache_add(instruction_address(), info.entry());
       }
 #endif
@@ -512,7 +512,7 @@ bool CompiledIC::set_to_monomorphic(CompiledICInfo& info) {
 
 #ifdef JPORTAL_ENABLE
     // JPortal
-    if (JPortal && CodeCache::is_jportal(instruction_address())) {
+    if ((JPortal || JPortalMethod) && CodeCache::is_jportal(instruction_address())) {
       JPortalEnable::dump_inline_cache_add(instruction_address(), info.entry());
     }
 #endif
@@ -626,7 +626,7 @@ bool CompiledStaticCall::set_to_clean(bool in_use) {
 
 #ifdef JPORTAL_ENABLE
   // JPortal
-  if (JPortal && CodeCache::is_jportal(instruction_address())) {
+  if ((JPortal || JPortalMethod) && CodeCache::is_jportal(instruction_address())) {
     JPortalEnable::dump_inline_cache_clear(instruction_address());
   }
 #endif
@@ -669,7 +669,7 @@ void CompiledStaticCall::set_to_compiled(address entry) {
 
 #ifdef JPORTAL_ENABLE
   // JPortal
-  if (JPortal && CodeCache::is_jportal(instruction_address())) {
+  if ((JPortal || JPortalMethod) && CodeCache::is_jportal(instruction_address())) {
     JPortalEnable::dump_inline_cache_add(instruction_address(), entry);
   }
 #endif

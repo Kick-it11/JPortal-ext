@@ -1982,7 +1982,7 @@ IRT_LEAF(void, SharedRuntime::fixup_callers_callsite(Method* method, address cal
 
 #ifdef JPORTAL_ENABLE
         // JPortal
-        if (JPortal && CodeCache::is_jportal(call->instruction_address())) {
+        if ((JPortal || JPortalMethod) && CodeCache::is_jportal(call->instruction_address())) {
           JPortalEnable::dump_inline_cache_add(call->instruction_address(), entry_point);
         }
 #endif

@@ -899,7 +899,7 @@ void CompileBroker::possibly_add_compiler_threads() {
   // If SegmentedCodeCache is off, both values refer to the single heap (with type CodeBlobType::All).
   size_t available_cc_np  = CodeCache::unallocated_capacity(CodeBlobType::MethodNonProfiled, false),
          available_cc_p   = CodeCache::unallocated_capacity(CodeBlobType::MethodProfiled, false);
-  if (JPortal) {
+  if ((JPortal || JPortalMethod)) {
     available_cc_np  = MIN2(available_cc_np, CodeCache::unallocated_capacity(CodeBlobType::MethodNonProfiled, true));     
     available_cc_p   = MIN2(available_cc_p, CodeCache::unallocated_capacity(CodeBlobType::MethodProfiled, true));
   }

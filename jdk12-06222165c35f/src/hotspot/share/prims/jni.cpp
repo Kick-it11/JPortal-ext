@@ -3970,7 +3970,7 @@ static jint JNI_CreateJavaVM_inner(JavaVM **vm, void **penv, void *args) {
 
 #ifdef JPORTAL_ENABLE
     // JPortal
-    if (JPortal || JPortalMethod) {
+    if (JPortal || JPortalMethod || JPortalMethodNoinline) {
       JPortalEnable::dump_thread_start(thread);
     }
 #endif
@@ -4054,7 +4054,7 @@ _JNI_IMPORT_OR_EXPORT_ jint JNICALL JNI_GetCreatedJavaVMs(JavaVM **vm_buf, jsize
 // JPortal
 _JNI_IMPORT_OR_EXPORT_ void JNICALL JNI_JPortalEnableTrace() {
 #ifdef JPORTAL_ENABLE
-  if (JPortal || JPortalMethod) {
+  if (JPortal || JPortalMethod || JPortalMethodNoinline) {
     JPortalEnable::trace();
   }
 #endif

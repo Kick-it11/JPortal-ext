@@ -470,7 +470,7 @@ int LIR_Assembler::emit_unwind_handler() {
   }
 
 #ifdef JPORTAL_ENABLE
-  if (JPortalMethod && method()->is_jportal()) {
+  if (JPortalMethodNoinline && method()->is_jportal()) {
     __ lea(rscratch1, ExternalAddress(((Method *)method()->constant_encoding())->jportal_exit()));
     __ call(rscratch1);
   }

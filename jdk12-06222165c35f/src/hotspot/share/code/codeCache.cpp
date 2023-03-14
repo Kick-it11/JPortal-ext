@@ -365,6 +365,39 @@ void CodeCache::initialize_heaps() {
     _jportal_high_bound = (address)jportal_non_profiled_space.end();
 
     return;
+  } else if (JPortalMethodNoinline) {
+    bool non_nmethod_set      = FLAG_IS_CMDLINE(JPortalNonNMethodCodeHeapSize);
+    size_t min_size           = os::vm_page_size();
+
+    size_t jportal_non_nmethod_size   = JPortalNonNMethodCodeHeapSize;
+    size_t jportal_cache_size = jportal_non_nmethod_size;
+
+    // If large page support is enabled, align code heaps according to large
+    // page size to make sure that code cache is covered by large pages.
+    const size_t alignment = MAX2(page_size(false, 8), (size_t) os::vm_allocation_granularity());
+    jportal_non_nmethod_size = align_down(jportal_non_nmethod_size, alignment);
+
+    ReservedCodeSpace rs = reserve_heap_memory(normal_cache_size + jportal_cache_size);
+    ReservedSpace normal_non_method_space    = rs.first_part(normal_non_nmethod_size);
+    ReservedSpace rest1                      = rs.last_part(normal_non_nmethod_size);
+    ReservedSpace normal_profiled_space      = rest1.first_part(normal_profiled_size);
+    ReservedSpace rest2                      = rest1.last_part(normal_profiled_size);
+    ReservedSpace normal_non_profiled_space  = rest2.first_part(normal_non_profiled_size);
+    ReservedSpace jportal_non_method_space   = rest2.last_part(normal_non_profiled_size);
+
+    // Non-nmethods (stubs, adapters, ...)
+    add_heap(normal_non_method_space, "CodeHeap 'non-nmethods'", CodeBlobType::NonNMethod, false);
+    // Tier 2 and tier 3 (profiled) methods
+    add_heap(normal_profiled_space, "CodeHeap 'profiled nmethods'", CodeBlobType::MethodProfiled, false);
+    // Tier 1 and tier 4 (non-profiled) methods and native methods
+    add_heap(normal_non_profiled_space, "CodeHeap 'non-profiled nmethods'", CodeBlobType::MethodNonProfiled, false);
+    // Non-nmethods (stubs, adapters, ...)
+    add_heap(jportal_non_method_space, "JPortal CodeHeap 'non-nmethods'", CodeBlobType::NonNMethod, true);
+
+    _normal_low_bound = (address)normal_non_method_space.base();
+    _normal_high_bound = (address)normal_non_profiled_space.end();
+    _jportal_low_bound = (address)jportal_non_method_space.base();
+    _jportal_high_bound = (address)jportal_non_method_space.end();
   }
 
   FLAG_SET_ERGO(uintx, JPortalReservedCodeCacheSize, 0);
@@ -421,7 +454,7 @@ ReservedCodeSpace CodeCache::reserve_heap_memory(size_t size) {
 
 // Heaps available for allocation
 bool CodeCache::heap_available(int code_blob_type, bool jportal) {
-  if (!JPortal && !JPortalMethod && jportal)
+  if (!JPortal && !JPortalMethod && !JPortalMethodNoinline && jportal)
     return false;
 
   if (!SegmentedCodeCache) {
@@ -430,8 +463,8 @@ bool CodeCache::heap_available(int code_blob_type, bool jportal) {
   } else if (Arguments::is_interpreter_only()) {
     // Interpreter only: we don't need any method code heaps
     return (code_blob_type == CodeBlobType::NonNMethod);
-  } else if (JPortalMethod && jportal) {
-    // JPortalMethod set only accepts nonnmethod jportal heap
+  } else if (JPortalMethodNoinline && jportal) {
+    // JPortalMethodNoinline set only accepts nonnmethod jportal heap
     return (code_blob_type == CodeBlobType::NonNMethod);
   } else if (TieredCompilation && (TieredStopAtLevel > CompLevel_simple)) {
     // Tiered compilation: use all code heaps
@@ -1190,11 +1223,17 @@ void CodeCache::initialize() {
     warning("JPortalEnable error: JPortalMethod not supported");
     FLAG_SET_ERGO(bool, JPortalMethod, false);
   }
+  if (JPortalMethodNoinline) {
+    warning("JPortalEnable error: JPortalMethodNoinline not supported");
+    FLAG_SET_ERGO(bool, JPortalMethod, false);
+  }
 #endif
 
-  if (JPortal && JPortalMethod) {
-    warning("JPortalEnable error: JPortalMethod and JPortal cannot be set at the same time");
+  if (JPortal && JPortalMethod || JPortal && JPortalMethodNoinline || JPortalMethod && JPortalMethodNoinline) {
+    warning("JPortalEnable error: JPortalMethod and JPortal and JPortalMethodNoinline cannot be set at the same time");
+    FLAG_SET_ERGO(bool, JPortal, false);
     FLAG_SET_ERGO(bool, JPortalMethod, false);
+    FLAG_SET_ERGO(bool, JPortalMethodNoinline, false);
   }
 
   // This was originally just a check of the alignment, causing failure, instead, round
@@ -1213,7 +1252,7 @@ void CodeCache::initialize() {
     FLAG_SET_ERGO(uintx, JPortalNonNMethodCodeHeapSize, 0);
     FLAG_SET_ERGO(uintx, JPortalProfiledCodeHeapSize, 0);
     FLAG_SET_ERGO(uintx, JPortalNonProfiledCodeHeapSize, 0);
-    if (JPortal || JPortalMethod) {
+    if (JPortal || JPortalMethod || JPortalMethodNoinline) {
       ReservedCodeSpace rs = reserve_heap_memory(ReservedCodeCacheSize+JPortalReservedCodeCacheSize);
       ReservedSpace normal_code = rs.first_part(ReservedCodeCacheSize);
       ReservedSpace jportal_code = rs.last_part(ReservedCodeCacheSize);

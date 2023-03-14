@@ -76,11 +76,12 @@ CallGenerator* Compile::call_generator(ciMethod* callee, int vtable_index, bool 
     allow_inline = false;
   }
 
-#ifdef JPORTAL_ENABLE
-  if (JPortalMethod && callee->is_jportal()) {
-    allow_inline = false;
-  }
-#endif
+// JPortalMethodNotinline
+// #ifdef JPORTAL_ENABLE // allow inline
+//   if (JPortalMethodNotinline && callee->is_jportal()) {
+//     allow_inline = false;
+//   }
+// #endif
 
   // Note: When we get profiling during stage-1 compiles, we want to pull
   // from more specific profile data which pertains to this inlining.

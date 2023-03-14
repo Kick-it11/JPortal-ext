@@ -943,14 +943,14 @@ void Method::unlink_method() {
   _from_interpreted_entry = _i2i_entry;
 
 #ifdef JPORTAL_ENABLE
-  if ((JPortal || JPortalMethod) && is_jportal()) {
+  if ((JPortal || JPortalMethod || JPortalMethodNoinline) && is_jportal()) {
     if (_jportal_entry_stub == NULL && _jportal_entry == NULL
          && _jportal_exit_stub == NULL && _jportal_exit == NULL
          && _jportal_method_point_stub == NULL && _jportal_method_point == NULL) {
       _jportal_entry_stub = JPortalStubBuffer::new_jportal_ret_stub();
       _jportal_entry_stub->set_ret_stub();
       _jportal_entry = _jportal_entry_stub->code_begin();
-      if (JPortalMethod) {
+      if (JPortalMethod || JPortalMethodNoinline) {
         _jportal_exit_stub = JPortalStubBuffer::new_jportal_ret_stub();
         _jportal_exit_stub->set_ret_stub();
         _jportal_exit = _jportal_exit_stub->code_begin();
@@ -1057,14 +1057,14 @@ void Method::unlink_method() {
 void Method::link_method(const methodHandle& h_method, TRAPS) {
 
 #ifdef JPORTAL_ENABLE
-  if ((JPortal || JPortalMethod) && is_jportal()) {
+  if ((JPortal || JPortalMethod || JPortalMethodNoinline) && is_jportal()) {
     if (_jportal_entry_stub == NULL && _jportal_entry == NULL
          && _jportal_exit_stub == NULL && _jportal_exit == NULL
          && _jportal_method_point_stub == NULL && _jportal_method_point == NULL) {
       _jportal_entry_stub = JPortalStubBuffer::new_jportal_ret_stub();
       _jportal_entry_stub->set_ret_stub();
       _jportal_entry = _jportal_entry_stub->code_begin();
-      if (JPortalMethod) {
+      if (JPortalMethod || JPortalMethodNoinline) {
         _jportal_exit_stub = JPortalStubBuffer::new_jportal_ret_stub();
         _jportal_exit_stub->set_ret_stub();
         _jportal_exit = _jportal_exit_stub->code_begin();

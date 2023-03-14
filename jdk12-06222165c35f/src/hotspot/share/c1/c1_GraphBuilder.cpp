@@ -3206,6 +3206,8 @@ GraphBuilder::GraphBuilder(Compilation* compilation, IRScope* scope)
   , _inline_bailout_msg(NULL)
   , _instruction_count(0)
   , _osr_entry(NULL)
+  , _non_jportal_inline(0)
+  , _max_non_jportal_inline(15)
 {
   int osr_bci = compilation->osr_bci();
 
@@ -3467,6 +3469,8 @@ const char* GraphBuilder::check_can_parse(ciMethod* callee) const {
 // negative filter: should callee NOT be inlined?  returns NULL, ok to inline, or rejection msg
 const char* GraphBuilder::should_not_inline(ciMethod* callee) const {
   if ( JPortal && (!compilation()->method()->is_jportal() && callee->is_jportal())) return "don't inline JPORTAL method in NON-JPORTAL compilation";
+  if ( JPortal && (compilation()->method()->is_jportal() && !callee->is_jportal()) && _non_jportal_inline >= _max_non_jportal_inline) return "don't inline NON-JPORTAL method in JPORTAL compilation";
+  else ++_non_jportal_inline;
   if ( compilation()->directive()->should_not_inline(callee)) return "disallowed by CompileCommand";
   if ( callee->dont_inline())          return "don't inline by annotation";
   return NULL;

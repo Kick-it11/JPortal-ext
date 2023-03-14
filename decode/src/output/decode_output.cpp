@@ -298,6 +298,12 @@ bool DecodeOutput::check_post_event(DecodeDataEvent &event, std::ofstream &file,
             event.set_unpending();
             return true;
         }
+        else if (type == DecodeData::_osr)
+        {
+            delete inters.back();
+            inters.pop_back();
+            return true;
+        }
         else
         {
             return false;
@@ -378,7 +384,17 @@ bool DecodeOutput::check_post_event(DecodeDataEvent &event, std::ofstream &file,
         inters.pop_back();
         return true;
     }
-
+    else if (Bytecodes::_athrow == code)
+    {
+        if (DecodeData::_throw_exception != type || event.bci_or_ind() != inters.back()->bci())
+        {
+            delete inters.back();
+            inters.pop_back();
+            event.set_unpending();
+        }
+        else
+            return false;
+    }
     return false;
 }
 

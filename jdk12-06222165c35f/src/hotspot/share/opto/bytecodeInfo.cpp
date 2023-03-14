@@ -50,7 +50,9 @@ InlineTree::InlineTree(Compile* c,
   _site_invoke_ratio(site_invoke_ratio),
   _max_inline_level(max_inline_level),
   _subtrees(c->comp_arena(), 2, 0, NULL),
-  _msg(NULL)
+  _msg(NULL),
+  _non_jportal_inline(0),
+  _max_non_jportal_inline(15)
 {
 #ifndef PRODUCT
   _count_inlines = 0;
@@ -210,8 +212,13 @@ bool InlineTree::should_not_inline(ciMethod *callee_method,
     fail_msg = "native method";
   } else if ( callee_method->dont_inline()) {
     fail_msg = "don't inline by annotation";
-  } else if ( callee_method->is_jportal() && !C->method()->is_jportal()) {
-    fail_msg = "don't inline jportal method in NON-JPORTAL compilation";
+  } else if ( JPortal && callee_method->is_jportal() && !C->method()->is_jportal()) {
+    fail_msg = "don't inline JPORTAL method in NON-JPORTAL compilation";
+  }
+  if ( JPortal && !callee_method->is_jportal() && C->method()->is_jportal() && _non_jportal_inline >= _max_non_jportal_inline) {
+    fail_msg = "don't inline NON-JPORTAL method in JPORTAL compilation";
+  } else {
+    ++_non_jportal_inline;
   }
 
   // one more inlining restriction

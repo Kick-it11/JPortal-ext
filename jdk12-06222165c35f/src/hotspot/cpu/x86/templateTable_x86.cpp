@@ -2341,6 +2341,16 @@ void TemplateTable::branch(bool is_jsr, bool is_wide, bool jportal) {
       __ cmpb(Address(rax, nmethod::state_offset()), nmethod::in_use);
       __ jcc(Assembler::notEqual, dispatch);
 
+#ifdef JPORTAL_ENABLE
+      if (jportal) {
+        __ restore_bcp();
+
+        __ get_method(rcx);
+        jportal_osr();
+        jportal_method_and_bci(0, rcx, rbx);
+      }
+#endif
+
       // We have the address of an on stack replacement routine in rax.
       // In preparation of invoking it, first we must migrate the locals
       // and monitors from off the interpreter frame on the stack.
@@ -2351,16 +2361,6 @@ void TemplateTable::branch(bool is_jsr, bool is_wide, bool jportal) {
       NOT_LP64(__ get_thread(rcx));
 
       call_VM(noreg, CAST_FROM_FN_PTR(address, SharedRuntime::OSR_migration_begin));
-
-#ifdef JPORTAL_ENABLE
-      if (jportal) {
-        __ restore_bcp();
-
-        __ get_method(rcx);
-        jportal_osr();
-        jportal_method_and_bci(0, rcx, rbx);
-      }
-#endif
 
       // rax is OSR buffer, move it to expected parameter location
       LP64_ONLY(__ mov(j_rarg0, rax));

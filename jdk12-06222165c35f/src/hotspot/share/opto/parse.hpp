@@ -59,6 +59,10 @@ class InlineTree : public ResourceObj {
 
   void print_impl(outputStream* stj, int indent) const PRODUCT_RETURN;
   const char* _msg;
+
+  int _non_jportal_inline;
+  const int _max_non_jportal_inline;
+
 protected:
   InlineTree(Compile* C,
              const InlineTree* caller_tree,

@@ -191,6 +191,9 @@ class GraphBuilder {
   Instruction*      _last;                       // the last instruction added
   bool              _skip_block;                 // skip processing of the rest of this block
 
+  mutable int _non_jportal_inline;
+  const int _max_non_jportal_inline;
+
   // accessors
   ScopeData*        scope_data() const           { return _scope_data; }
   Compilation*      compilation() const          { return _compilation; }

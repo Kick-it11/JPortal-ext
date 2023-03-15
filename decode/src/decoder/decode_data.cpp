@@ -969,8 +969,9 @@ bool DecodeDataEvent::jit_code_event()
 {
     DecodeData::DecodeDataType cur_type;
     uint64_t loc;
+    _pcs.clear();
     if (!_access.next_trace(cur_type, loc) || cur_type != DecodeData::_jit_code
-        || _access.get_jit_code(loc, _section, _pcs))
+        || !_access.get_jit_code(loc, _section, _pcs))
     {
         std::cerr << "DecodeDataEvent error: Fail to get jit code event at "
                   << loc << std::endl;

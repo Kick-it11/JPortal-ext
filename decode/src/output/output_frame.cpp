@@ -274,7 +274,7 @@ public:
             return;
         const Method *m = info[idx].first;
         Block *cur = info[idx].second;
-        assert(m = _method);
+        assert(m == _method);
         if (idx < info.size() - 1)
         {
             if (!_children.count(cur))
@@ -437,9 +437,9 @@ void JitFrame::jit_code(std::vector<const PCStackInfo *> pcs,
         assert(pc);
         std::vector<std::pair<const Method *, Block *>> infos;
 
-        for (int j = 0; j < pc->numstackframes; ++j)
+        for (int j = pc->numstackframes-1; j >= 0; --j)
         {
-            const Method *m = _section->method(pc->methods[i]);
+            const Method *m = _section->method(pc->methods[j]);
             /* m could be a non target method, use pc->bcis[j] to distinguish*/
             Block *block = m ? m->get_bg()->offset2block(pc->bcis[j])
                              : (Block *)(uint64_t)pc->bcis[j];

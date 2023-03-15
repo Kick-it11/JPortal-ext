@@ -674,6 +674,12 @@ void DecodeOutput::output_method(const std::string prefix)
                     if (!output_jit_method(event, file, jits))
                         file << "e" << std::endl;
                     break;
+                case DecodeData::_decode_error:
+                    file << "e" << std::endl;
+                    break;
+                case DecodeData::_data_loss:
+                    file << "l" << std::endl;
+                    break;
                 default:
                     std::cerr << "DecodeOutput error: unknown type for Method Trace" << std::endl;
                     exit(1);

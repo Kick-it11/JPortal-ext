@@ -86,6 +86,7 @@ void DecodeDataRecord::switch_out(uint64_t time)
         }
         _cur_thread = nullptr;
     }
+    _type = DecodeData::_illegal;
 }
 
 bool DecodeDataRecord::record_method_entry(const Method *method)
@@ -427,16 +428,16 @@ bool DecodeDataAccess::next_trace(DecodeData::DecodeDataType &type, uint64_t &po
     pos = _current - _data->_data_begin;
     while (_current >= _terminal)
     {
-        if (_it == _splits.end())
+        if (_idx == _splits.size())
         {
             return false;
         }
         else
         {
-            _data = _it->data;
-            _current = _data->_data_begin + _it->start_addr;
-            _terminal = _data->_data_begin + _it->end_addr;
-            ++_it;
+            _data = _splits[_idx].data;
+            _current = _data->_data_begin + _splits[_idx].start_addr;
+            _terminal = _data->_data_begin + _splits[_idx].end_addr;
+            ++_idx;
         }
     }
     type = (DecodeData::DecodeDataType)*_current;
@@ -505,7 +506,7 @@ bool DecodeDataAccess::next_trace(DecodeData::DecodeDataType &type, uint64_t &po
         ++_current;
         break;
     default:
-        std::cerr << "DecodeData error: access unknown type" << type << std::endl;
+        std::cerr << "DecodeData error: access unknown type " << type << " " << pos << std::endl;
         exit(1);
     }
     return true;
@@ -513,18 +514,19 @@ bool DecodeDataAccess::next_trace(DecodeData::DecodeDataType &type, uint64_t &po
 
 bool DecodeDataAccess::current_trace(DecodeData::DecodeDataType &type)
 {
+    uint64_t pos = _current - _data->_data_begin;
     while (_current >= _terminal)
     {
-        if (_it == _splits.end())
+        if (_idx == _splits.size())
         {
             return false;
         }
         else
         {
-            _data = _it->data;
-            _current = _data->_data_begin + _it->start_addr;
-            _terminal = _data->_data_begin + _it->end_addr;
-            ++_it;
+            _data = _splits[_idx].data;
+            _current = _data->_data_begin + _splits[_idx].start_addr;
+            _terminal = _data->_data_begin + _splits[_idx].end_addr;
+            ++_idx;
         }
     }
     type = (DecodeData::DecodeDataType)*_current;
@@ -554,7 +556,7 @@ bool DecodeDataAccess::current_trace(DecodeData::DecodeDataType &type)
     case DecodeData::_data_loss:
         break;
     default:
-        std::cerr << "DecodeData error: access unknown type" << type << std::endl;
+        std::cerr << "DecodeData error: access unknown type " << type << " " << std::endl;
         exit(1);
     }
     return true;
@@ -969,8 +971,9 @@ bool DecodeDataEvent::jit_code_event()
 {
     DecodeData::DecodeDataType cur_type;
     uint64_t loc;
+    _pcs.clear();
     if (!_access.next_trace(cur_type, loc) || cur_type != DecodeData::_jit_code
-        || _access.get_jit_code(loc, _section, _pcs))
+        || !_access.get_jit_code(loc, _section, _pcs))
     {
         std::cerr << "DecodeDataEvent error: Fail to get jit code event at "
                   << loc << std::endl;
@@ -1022,6 +1025,8 @@ bool DecodeDataEvent::current_event()
 
     if (_type != DecodeData::_bci)
         _pending = true;
+
+    _type = cur_type;
 
     switch(_type)
     {

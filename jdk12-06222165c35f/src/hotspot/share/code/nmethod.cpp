@@ -1242,7 +1242,7 @@ bool nmethod::make_not_entrant_or_zombie(int state) {
                   SharedRuntime::get_handle_wrong_method_stub());
 
       // JPortal
-      if (JPortal && CodeCache::is_jportal((address)this)) {
+      if ((JPortal || JPortalMethod) && CodeCache::is_jportal((address)this)) {
         ic_dump = true;
         ic_src = verified_entry_point(),
         ic_dest = SharedRuntime::get_handle_wrong_method_stub();
@@ -1366,7 +1366,7 @@ void nmethod::flush() {
     tty->print_cr("*flushing %s nmethod %3d/" INTPTR_FORMAT ". Live blobs:" UINT32_FORMAT
                   "/Free CodeCache:" SIZE_FORMAT "Kb",
                   is_osr_method() ? "osr" : "",_compile_id, p2i(this), CodeCache::blob_count(),
-                  CodeCache::unallocated_capacity(CodeCache::get_code_blob_type(this), JPortal && CodeCache::is_jportal((address)this))/1024);
+                  CodeCache::unallocated_capacity(CodeCache::get_code_blob_type(this), (JPortal || JPortalMethod) && CodeCache::is_jportal((address)this))/1024);
   }
 
   // We need to deallocate any ExceptionCache data.
@@ -1479,7 +1479,7 @@ void nmethod::post_compiled_method_load_event() {
 
 #ifdef JPORTAL_ENABLE
   // JPortal
-  if (JPortal && CodeCache::is_jportal((address)this)) {
+  if ((JPortal || JPortalMethod) && CodeCache::is_jportal((address)this)) {
     JPortalEnable::dump_compiled_method_load(moop, this);
   }
 #endif
@@ -1523,7 +1523,7 @@ void nmethod::post_compiled_method_unload() {
 
 #ifdef JPORTAL_ENABLE
   // JPortal
-  if (JPortal && CodeCache::is_jportal((address)this)) {
+  if ((JPortal || JPortalMethod) && CodeCache::is_jportal((address)this)) {
     JPortalEnable::dump_compiled_method_unload(method(), this);
   }
 #endif

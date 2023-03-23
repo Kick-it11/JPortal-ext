@@ -32,16 +32,27 @@ private:
                           std::vector<InterFrame *> &inters,
                           std::vector<JitFrame *> &jits);
 
-    bool output_jit(DecodeDataEvent &event, std::ofstream &file,
+    /* CFG output */
+    bool output_jit_cfg(DecodeDataEvent &event, std::ofstream &file,
                     std::vector<JitFrame *> &jits);
 
-    bool output(DecodeDataEvent &event, std::ofstream &file);
+    /* Method output */
+    bool output_jit_method(DecodeDataEvent &event, std::ofstream &file,
+                           std::vector<JitFrame *> &jits);
+
+    bool output_cfg(DecodeDataEvent &event, std::ofstream &file);
 
 public:
     DecodeOutput(const std::vector<DecodeData *> &data);
 
     /* output trace data to file with name prefix-thrd1, prefix-thrd*, ... */
-    void output(const std::string prefix);
+    void output_cfg(const std::string prefix);
+
+    /* output trace data to file with name prefix-thrd1, prefix-thrd*, ... */
+    void output_method(const std::string prefix);
+
+    /* output trace data to file with name prefix-thrd1, prefix-thrd*, ... */
+    void output_method_noinline(const std::string prefix);
 
     /* simply print decode data, with no method info */
     void print();

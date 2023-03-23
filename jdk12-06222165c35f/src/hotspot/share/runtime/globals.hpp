@@ -2503,9 +2503,15 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
           "Enable dtrace probes for monitor events")                        \
                                                                             \
   product(bool, JPortal, false,                                             \
-          "Enable JPortal Trace")                                           \
+          "Enable JPortal Control Flow Trace")                              \
                                                                             \
   product(bool, JPortalMethod, false,                                       \
+          "Enable JPortal Trace Method Entry and Exit")                     \
+                                                                            \
+  product(bool, JPortalMethodNoinline, false,                               \
+          "Enable JPortal Trace Method Entry and Exit")                     \
+                                                                            \
+  product(bool, JPortalMethodComp, false,                                   \
           "Enable JPortal Trace Method Entry and Exit")                     \
                                                                             \
   product(uintx, JPortalMMAPPages, 1024,                                    \

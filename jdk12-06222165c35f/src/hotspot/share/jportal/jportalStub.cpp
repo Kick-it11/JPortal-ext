@@ -17,7 +17,7 @@ JPortalStub             *JPortalStubBuffer::_bci_table           = NULL;
 JPortalStub             *JPortalStubBuffer::_switch_table        = NULL;
 
 void JPortalStubBuffer_init() {
-  if (JPortal || JPortalMethod) {
+  if (JPortal || JPortalMethod || JPortalMethodNoinline || JPortalMethodComp) {
     JPortalStubBuffer::initialize();
   }
 }
@@ -61,15 +61,19 @@ void JPortalStubBuffer::initialize() {
   _buffer = new StubQueue(new JPortalStubInterface, JPortalNonNMethodCodeHeapSize-4*K, JPortalStubBuffer_lock, "JPortalStubBuffer", true);
   assert (_buffer != NULL, "cannot allocate JPortalStubBuffer");
 
-  _bci_table = new_jportal_table_stub();
-  _bci_table->set_table_stub();
+  // Only control flow tracing needs this
+  if (JPortal)
+  {
+    _bci_table = new_jportal_table_stub();
+    _bci_table->set_table_stub();
 
-  _switch_table = new_jportal_table_stub();
-  _switch_table->set_table_stub();
+    _switch_table = new_jportal_table_stub();
+    _switch_table->set_table_stub();
 
-  JPortalEnable::dump_bci_table_stub(_bci_table->code_begin(), JPortalTableStubLimit, jportal_table_stub_entry_size());
+    JPortalEnable::dump_bci_table_stub(_bci_table->code_begin(), JPortalTableStubLimit, jportal_table_stub_entry_size());
 
-  JPortalEnable::dump_switch_table_stub(_switch_table->code_begin(), JPortalTableStubLimit, jportal_table_stub_entry_size());
+    JPortalEnable::dump_switch_table_stub(_switch_table->code_begin(), JPortalTableStubLimit, jportal_table_stub_entry_size());
+  }
 }
 
 bool JPortalStubBuffer::contains(address instruction_address) {

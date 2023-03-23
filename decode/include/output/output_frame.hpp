@@ -62,14 +62,20 @@ public:
 
     const JitSection *section() { return _section; }
 
-    void entry(std::vector<std::pair<int, std::pair<int, int>>> &ans);
+    void entry(bool cfgt, bool mt,
+               std::vector<std::pair<int, std::pair<int, int>>> &cfgs,
+               std::vector<std::pair<std::string, int>> &methods);
 
     void clear();
 
     void jit_code(std::vector<const PCStackInfo *> pcs,
-                  std::vector<std::pair<int, std::pair<int, int>>> &ans);
+                  bool cfgt, bool mt,
+                  std::vector<std::pair<int, std::pair<int, int>>> &cfgs,
+                  std::vector<std::pair<std::string, int>> &methods);
 
-    void jit_return(std::vector<std::pair<int, std::pair<int, int>>> &ans);
+    void jit_return(bool cfgt, bool mt,
+                    std::vector<std::pair<int, std::pair<int, int>>> &cfgs,
+                    std::vector<std::pair<std::string, int>> &methods);
 };
 
 #endif /* OUTPUT_FRAME_HPP */

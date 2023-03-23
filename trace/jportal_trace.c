@@ -248,6 +248,9 @@ struct trace_header
 
     /** Sideband configurations: sample type */
     __u64 sample_type;
+
+    /** trace_ type **/
+    __u64 trace_type;
 };
 
 struct auxtrace_event {
@@ -312,8 +315,7 @@ void wrmsr_on_cpu(__u32 reg, int cpu, __u64 data)
     if (pwrite(fd, &data, sizeof data, reg) != sizeof data) {
         if (errno == EIO) {
             fprintf(stderr,
-                    "JPortal wrmsr: CPU %d cannot set MSR "
-                    "0x%08"PRIx32" to 0x%016"PRIx64".\n",
+                    "JPortal wrmsr: CPU %d cannot set MSR %u to %llx.\n",
                     cpu, reg, data);
             exit(4);
         } else {
@@ -1047,7 +1049,7 @@ static void sig_handler(int sig)
 int main(int argc, char *argv[])
 {
     
-    if (argc != 8)
+    if (argc != 9)
     {
         fprintf(stderr, "JPortalTrace: arguments error.\n");
         exit(-1);
@@ -1057,6 +1059,7 @@ int main(int argc, char *argv[])
     __u64 _low_bound, _high_bound;
     struct trace_record *rec = trace_record_alloc();
     int cpu;
+    int trace_type;
 
     if (!rec)
     {
@@ -1070,6 +1073,7 @@ int main(int argc, char *argv[])
     sscanf(argv[5], "%d", &rec->mmap_pages);
     sscanf(argv[6], "%d", &rec->aux_pages);
     sscanf(argv[7], "%d", &rec->shm_id);
+    sscanf(argv[8], "%d", &trace_type);
 
     rec->shm_addr = shmat(rec->shm_id, NULL, 0);
 
@@ -1105,6 +1109,7 @@ int main(int argc, char *argv[])
     attr.family = cpuinfo.family;
     attr.model = cpuinfo.model;
     attr.stepping = cpuinfo.stepping;
+    attr.trace_type = trace_type;
     tsc_ctc_ratio(&attr.cpuid_0x15_ebx, &attr.cpuid_0x15_eax);
     pt_scan_file("max_nonturbo_ratio", "%d", &max_nonturbo_ratio);
     attr.nom_freq = (__u8)max_nonturbo_ratio;
@@ -1132,7 +1137,7 @@ int main(int argc, char *argv[])
     }
     close(write_pipe);
 
-    printf("JPortalTrace starts(process: %d  ip filter: %lx-%lx).\n",
+    printf("JPortalTrace starts(process: %d  ip filter: %llx-%llx).\n",
             rec->pid, _low_bound, _high_bound);
 
     for (;;)

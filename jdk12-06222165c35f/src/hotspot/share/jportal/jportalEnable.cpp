@@ -605,7 +605,7 @@ void JPortalEnable::trace() {
 
   // write JPortalTrace arguments
   char java_pid[20], write_pipe[20], _low_bound[20], _high_bound[20];
-  char mmap_pages[20], aux_pages[20], shmid[20];
+  char mmap_pages[20], aux_pages[20], shmid[20], trace_type[20];
   if (sprintf(java_pid, "%ld", syscall(SYS_gettid)) < 0 ||
       sprintf(write_pipe, "%d", pipe_fd[1]) < 0 ||
       sprintf(_low_bound, "%p", CodeCache::low_bound(true)) < 0 ||
@@ -614,7 +614,8 @@ void JPortalEnable::trace() {
       sprintf(aux_pages, "%lu", JPortalAUXPages) < 0 || 
         sprintf(aux_pages, "%lu", JPortalAUXPages) < 0 || 
       sprintf(aux_pages, "%lu", JPortalAUXPages) < 0 || 
-      sprintf(shmid, "%d", _shm_id) < 0) {
+      sprintf(shmid, "%d", _shm_id) < 0 ||
+      sprintf(trace_type, "%d", JPortal?1:(JPortalMethod?2:(JPortalMethodNoinline?3:(JPortalMethodComp?4:0)))) < 0) {
     close(pipe_fd[0]);
     close(pipe_fd[1]);
 
@@ -632,7 +633,7 @@ void JPortalEnable::trace() {
 
     execl("/home/jake/codes/JPortal-ext/build/trace/JPortalTrace",
           "./JPortalTrace", java_pid, write_pipe, _low_bound, _high_bound,
-          mmap_pages, aux_pages, shmid, NULL);
+          mmap_pages, aux_pages, shmid, trace_type, NULL);
 
     // fail to load subprocess
     warning("JPortal error: Fail to load JPortalTrace process");

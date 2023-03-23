@@ -1228,7 +1228,7 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* thread, Runtime1::StubID stub_i
           NativeGeneralJump::replace_mt_safe(instr_pc, copy_buff);
 
           // JPortal
-          if (JPortal && CodeCache::is_jportal(instr_pc)) {
+          if ((JPortal || JPortalMethod) && CodeCache::is_jportal(instr_pc)) {
             ic_dump = true;
             ic_src = instr_pc;
             ic_dest = instr_pc + *byte_count;
@@ -1271,7 +1271,7 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* thread, Runtime1::StubID stub_i
           NativeGeneralJump::insert_unconditional(instr_pc, being_initialized_entry);
 
           // JPortal
-          if (JPortal && CodeCache::is_jportal(instr_pc)) {
+          if ((JPortal || JPortalMethod) && CodeCache::is_jportal(instr_pc)) {
             ic_dump = true;
             ic_src = instr_pc;
             ic_dest = being_initialized_entry;

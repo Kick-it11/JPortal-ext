@@ -76,8 +76,8 @@ CallGenerator* Compile::call_generator(ciMethod* callee, int vtable_index, bool 
     allow_inline = false;
   }
 
-#ifdef JPORTAL_ENABLE
-  if (JPortalMethod && callee->is_jportal()) {
+#ifdef JPORTAL_ENABLE // allow inline
+  if (JPortalMethodComp && callee->is_jportal()) {
     allow_inline = false;
   }
 #endif

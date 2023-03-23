@@ -66,9 +66,19 @@ public class Test {
 }
 ```
 
-To trace execution of method add in class Test
+Or use modifier to change mark class files directly.
+
+To trace control flow execution of method add in class Test
 ```
 path-to-built-of-jdk/bin/javac Test.java
 sudo path-to-built-of-jdk/bin/java -XX:+JPortal Test
 sudo path-to-built-of-decode/decode -c ./
 ```
+
+Use JPortalMethod/JPortalMethodNoinline/JPortalMethodComp flag to trace method entry/exit.
+
+JPortalMethod: Use Control flow tracing for jitted code;
+
+JPortalMethodNoinline: Collect entry/exit for major method in jitted code only
+
+JPortalMethodComp: Trace complete method entry/exit

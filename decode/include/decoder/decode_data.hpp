@@ -265,9 +265,10 @@ private:
     const uint8_t *_current;
     const uint8_t *_terminal;
 
-    std::vector<DecodeData::ThreadSplit>::iterator _it;
+    int _idx;
     std::vector<DecodeData::ThreadSplit> _splits;
 
+    DecodeDataAccess(const DecodeDataAccess &) = delete;
 public:
     DecodeDataAccess(DecodeData *data)
     {
@@ -275,7 +276,7 @@ public:
         _data = data;
         _current = _data->_data_begin;
         _terminal = _data->_data_end;
-        _it = _splits.end();
+        _idx = 0;
     }
 
     DecodeDataAccess(const DecodeData::ThreadSplit &split)
@@ -284,19 +285,19 @@ public:
         _data = split.data;
         _current = _data->_data_begin + split.start_addr;
         _terminal = _data->_data_begin + split.end_addr;
-        _it = _splits.end();
+        _idx = 0;
     }
 
     DecodeDataAccess(const std::vector<DecodeData::ThreadSplit> &splits)
     {
         _splits = splits;
-        _it = _splits.begin();
-        if (_it != _splits.end())
+        _idx = 0;
+        if (_idx != splits.size())
         {
-            _data = _it->data;
-            _current = _data->_data_begin + _it->start_addr;
-            _terminal = _data->_data_begin + _it->end_addr;
-            ++_it;
+            _data = _splits[_idx].data;
+            _current = _data->_data_begin + _splits[_idx].start_addr;
+            _terminal = _data->_data_begin + _splits[_idx].end_addr;
+            ++_idx;
         }
         else
         {
@@ -380,6 +381,8 @@ private:
     bool jit_code_event();
     bool data_loss_event();
     bool decode_error_event();
+
+    DecodeDataEvent(const DecodeDataEvent &) = delete;
 
 public:
     DecodeDataEvent(DecodeData *data) :

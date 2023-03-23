@@ -17,7 +17,7 @@ JPortalStub             *JPortalStubBuffer::_bci_table           = NULL;
 JPortalStub             *JPortalStubBuffer::_switch_table        = NULL;
 
 void JPortalStubBuffer_init() {
-  if (JPortal || JPortalMethod || JPortalMethodNoinline) {
+  if (JPortal || JPortalMethod || JPortalMethodNoinline || JPortalMethodComp) {
     JPortalStubBuffer::initialize();
   }
 }

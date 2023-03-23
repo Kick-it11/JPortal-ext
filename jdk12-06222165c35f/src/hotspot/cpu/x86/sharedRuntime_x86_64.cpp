@@ -2442,7 +2442,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   }
 
 #ifdef JPORTAL_ENABLE
-  if ((JPortalMethod || JPortalMethodNoinline) && method()->is_jportal()) {
+  if ((JPortalMethod || JPortalMethodNoinline || JPortalMethodComp) && method()->is_jportal()) {
     __ lea(rscratch1, ExternalAddress(method()->jportal_entry()));
     __ call(rscratch1);
   }
@@ -2698,7 +2698,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   }
 
 #ifdef JPORTAL_ENABLE
-  if ((JPortalMethod || JPortalMethodNoinline) && method()->is_jportal()) {
+  if ((JPortalMethod || JPortalMethodNoinline || JPortalMethodComp) && method()->is_jportal()) {
     __ lea(rscratch1, ExternalAddress(method()->jportal_exit()));
     __ call(rscratch1);
   }

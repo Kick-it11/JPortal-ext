@@ -587,7 +587,7 @@ void JVMRuntime::print(uint8_t *buffer, uint64_t size)
             const JavaCallBeginInfo *jcbi;
             jcbi = (const JavaCallBeginInfo *)buffer;
             buffer += sizeof(JavaCallBeginInfo);
-            std::cout << "JavaCallBeginInfo: " << jcbi->addr << std::endl;
+            std::cout << std::hex << "JavaCallBeginInfo: " << jcbi->addr << std::endl;
             break;
         }
         case _java_call_end_info:
@@ -595,7 +595,7 @@ void JVMRuntime::print(uint8_t *buffer, uint64_t size)
             const JavaCallEndInfo *jcei;
             jcei = (const JavaCallEndInfo *)buffer;
             buffer += sizeof(JavaCallEndInfo);
-            std::cout << "JavaCallEndInfo: " << jcei->addr << std::endl;
+            std::cout << std::hex << "JavaCallEndInfo: " << jcei->addr << std::endl;
             break;
         }
         case _method_info:
@@ -609,7 +609,7 @@ void JVMRuntime::print(uint8_t *buffer, uint64_t size)
             buffer += mei->method_name_length;
             std::string sig((const char *)buffer, mei->method_signature_length);
             buffer += mei->method_signature_length;
-            std::cout << "MethodEntryInfo: " << mei->addr1 << " " << mei->addr2 << " " << klass_name
+            std::cout << std::hex << "MethodEntryInfo: " << mei->addr1 << " " << mei->addr2 << " " << mei->addr3 << " " << klass_name
                       << " " << name << " " << sig << " " << info->time << std::endl;
             break;
         }
@@ -618,7 +618,7 @@ void JVMRuntime::print(uint8_t *buffer, uint64_t size)
             const BranchTakenInfo *bti;
             bti = (const BranchTakenInfo *)buffer;
             buffer += sizeof(BranchTakenInfo);
-            std::cout << "BranchTakenInfo: " << bti->addr << " " << info->time << std::endl;
+            std::cout << std::hex << "BranchTakenInfo: " << bti->addr << " " << info->time << std::endl;
             break;
         }
         case _branch_not_taken_info:
@@ -626,7 +626,7 @@ void JVMRuntime::print(uint8_t *buffer, uint64_t size)
             const BranchNotTakenInfo *bnti;
             bnti = (const BranchNotTakenInfo *)buffer;
             buffer += sizeof(BranchNotTakenInfo);
-            std::cout << "BranchNotTakenInfo: " << bnti->addr << " " << info->time << std::endl;
+            std::cout << std::hex << "BranchNotTakenInfo: " << bnti->addr << " " << info->time << std::endl;
             break;
         }
         case _switch_table_stub_info:
@@ -634,7 +634,7 @@ void JVMRuntime::print(uint8_t *buffer, uint64_t size)
             const SwitchTableStubInfo *stsi;
             stsi = (const SwitchTableStubInfo *)buffer;
             buffer += sizeof(SwitchTableStubInfo);
-            std::cout << "SwitchTableStubInfo: " << stsi->addr << " " << stsi->num
+            std::cout << std::hex << "SwitchTableStubInfo: " << stsi->addr << " " << stsi->num
                       << " " << stsi->ssize << " " << info->time << std::endl;
             break;
         }
@@ -643,7 +643,7 @@ void JVMRuntime::print(uint8_t *buffer, uint64_t size)
             const SwitchDefaultInfo *sdi;
             sdi = (const SwitchDefaultInfo *)buffer;
             buffer += sizeof(SwitchDefaultInfo);
-            std::cout << "SwitchDefaultInfo: " << sdi->addr << " " << info->time << std::endl;
+            std::cout << std::hex << "SwitchDefaultInfo: " << sdi->addr << " " << info->time << std::endl;
             break;
         }
         case _bci_table_stub_info:
@@ -651,7 +651,7 @@ void JVMRuntime::print(uint8_t *buffer, uint64_t size)
             const BciTableStubInfo *btsi;
             btsi = (const BciTableStubInfo *)buffer;
             buffer += sizeof(BciTableStubInfo);
-            std::cout << "BciTableStubInfo: " << btsi->addr << " " << btsi->num
+            std::cout << std::hex << "BciTableStubInfo: " << btsi->addr << " " << btsi->num
                       << " " << btsi->ssize << " " << info->time << std::endl;
             break;
         }
@@ -660,7 +660,7 @@ void JVMRuntime::print(uint8_t *buffer, uint64_t size)
             const OSRInfo *osri;
             osri = (const OSRInfo *)buffer;
             buffer += sizeof(OSRInfo);
-            std::cout << "OSRInfo: " << osri->addr << std::endl;
+            std::cout << std::hex << "OSRInfo: " << osri->addr << std::endl;
             break;
         }
         case _throw_exception_info:
@@ -668,7 +668,7 @@ void JVMRuntime::print(uint8_t *buffer, uint64_t size)
             const ThrowExceptionInfo *tei;
             tei = (const ThrowExceptionInfo *)buffer;
             buffer += sizeof(ThrowExceptionInfo);
-            std::cout << "ThrowExceptionInfo: " << tei->addr << std::endl;
+            std::cout << std::hex << "ThrowExceptionInfo: " << tei->addr << std::endl;
             break;
         }
         case _rethrow_exception_info:
@@ -676,7 +676,7 @@ void JVMRuntime::print(uint8_t *buffer, uint64_t size)
             const RethrowExceptionInfo *rei;
             rei = (const RethrowExceptionInfo *)buffer;
             buffer += sizeof(RethrowExceptionInfo);
-            std::cout << "RethrowExceptionInfo: " << rei->addr << std::endl;
+            std::cout << std::hex << "RethrowExceptionInfo: " << rei->addr << std::endl;
             break;
         }
         case _handle_exception_info:
@@ -684,7 +684,7 @@ void JVMRuntime::print(uint8_t *buffer, uint64_t size)
             const HandleExceptionInfo *hei;
             hei = (const HandleExceptionInfo *)buffer;
             buffer += sizeof(HandleExceptionInfo);
-            std::cout << "HandleExceptionInfo: " << hei->addr << std::endl;
+            std::cout << std::hex << "HandleExceptionInfo: " << hei->addr << std::endl;
             break;
         }
         case _ret_code_info:
@@ -692,7 +692,7 @@ void JVMRuntime::print(uint8_t *buffer, uint64_t size)
             const RetCodeInfo *rci;
             rci = (const RetCodeInfo *)buffer;
             buffer += sizeof(RetCodeInfo);
-            std::cout << "RetCodeInfo: " << rci->addr << std::endl;
+            std::cout << std::hex << "RetCodeInfo: " << rci->addr << std::endl;
             break;
         }
         case _deoptimization_info:
@@ -700,7 +700,7 @@ void JVMRuntime::print(uint8_t *buffer, uint64_t size)
             const DeoptimizationInfo *di;
             di = (const DeoptimizationInfo *)buffer;
             buffer += sizeof(DeoptimizationInfo);
-            std::cout << "DeoptimizationInfo: " << di->addr << " " << info->time << std::endl;
+            std::cout << std::hex << "DeoptimizationInfo: " << di->addr << " " << info->time << std::endl;
             break;
         }
         case _non_invoke_ret_info:
@@ -708,7 +708,7 @@ void JVMRuntime::print(uint8_t *buffer, uint64_t size)
             const NonInvokeRetInfo *niri;
             niri = (const NonInvokeRetInfo *)buffer;
             buffer += sizeof(NonInvokeRetInfo);
-            std::cout << "NonInvokeRetInfo: " << niri->addr << std::endl;
+            std::cout << std::hex << "NonInvokeRetInfo: " << niri->addr << std::endl;
             break;
         }
         case _pop_frame_info:
@@ -716,7 +716,7 @@ void JVMRuntime::print(uint8_t *buffer, uint64_t size)
             const PopFrameInfo *pfi;
             pfi = (const PopFrameInfo *)buffer;
             buffer += sizeof(PopFrameInfo);
-            std::cout << "PopFrameInfo: " << pfi->addr << std::endl;
+            std::cout << std::hex << "PopFrameInfo: " << pfi->addr << std::endl;
             break;
         }
         case _earlyret_info:
@@ -724,7 +724,7 @@ void JVMRuntime::print(uint8_t *buffer, uint64_t size)
             const EarlyretInfo *ei;
             ei = (const EarlyretInfo *)buffer;
             buffer += sizeof(EarlyretInfo);
-            std::cout << "EarlyretInfo: " << ei->addr << std::endl;
+            std::cout << std::hex << "EarlyretInfo: " << ei->addr << std::endl;
             break;
         }
         case _compiled_method_load_info:
@@ -732,7 +732,7 @@ void JVMRuntime::print(uint8_t *buffer, uint64_t size)
             const CompiledMethodLoadInfo *cmi;
             cmi = (const CompiledMethodLoadInfo *)buffer;
             buffer += sizeof(CompiledMethodLoadInfo);
-            std::cout << "CompiledMethodLoad: " << cmi->code_begin << " " << cmi->code_size
+            std::cout << std::hex << "CompiledMethodLoad: " << cmi->code_begin << " " << cmi->code_size
                       << " " << cmi->stub_begin << " " << cmi->entry_point
                       << " " << cmi->verified_entry_point << " " << cmi->osr_entry_point
                       << " " << info->time << std::endl;
@@ -766,21 +766,21 @@ void JVMRuntime::print(uint8_t *buffer, uint64_t size)
         {
             const CompiledMethodUnloadInfo *cmui = (const CompiledMethodUnloadInfo *)buffer;
             buffer += sizeof(CompiledMethodUnloadInfo);
-            std::cout << "Compiled Method Unload " << cmui->code_begin << " " << info->time << std::endl;
+            std::cout << std::hex << "Compiled Method Unload " << cmui->code_begin << " " << info->time << std::endl;
             break;
         }
         case _thread_start_info:
         {
             const ThreadStartInfo *ths = (const ThreadStartInfo *)buffer;
             buffer += sizeof(ThreadStartInfo);
-            std::cout << "Thread Start " << ths->java_tid << " " << ths->sys_tid
+            std::cout << std::hex << "Thread Start " << ths->java_tid << " " << ths->sys_tid
                       << " " << info->time << std::endl;
             break;
         }
         case _inline_cache_add_info:
         {
             const InlineCacheAddInfo *icai = (const InlineCacheAddInfo *)buffer;
-            std::cout << "Inline cache Add " << icai->src << " " << icai->dest
+            std::cout << std::hex << "Inline cache Add " << icai->src << " " << icai->dest
                       << " " << info->time << std::endl;
             buffer += sizeof(InlineCacheAddInfo);
             break;
@@ -788,7 +788,7 @@ void JVMRuntime::print(uint8_t *buffer, uint64_t size)
         case _inline_cache_clear_info:
         {
             const InlineCacheClearInfo *icci = (const InlineCacheClearInfo *)buffer;
-            std::cout << "Inline cache Clear " << icci->src
+            std::cout << std::hex << "Inline cache Clear " << icci->src
                       << " " << info->time << std::endl;
             buffer += sizeof(InlineCacheClearInfo);
             break;

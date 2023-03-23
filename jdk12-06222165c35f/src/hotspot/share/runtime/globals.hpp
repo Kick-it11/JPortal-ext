@@ -2511,6 +2511,9 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   product(bool, JPortalMethodNoinline, false,                               \
           "Enable JPortal Trace Method Entry and Exit")                     \
                                                                             \
+  product(bool, JPortalMethodComp, false,                                   \
+          "Enable JPortal Trace Method Entry and Exit")                     \
+                                                                            \
   product(uintx, JPortalMMAPPages, 1024,                                    \
           "JPortal Trace MMAP Pages(power of 2)")                           \
           range(2, 256*M)                                                   \

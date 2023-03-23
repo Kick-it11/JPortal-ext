@@ -1202,8 +1202,8 @@ void LIRGenerator::do_Return(Return* x) {
     call_runtime(&signature, args, CAST_FROM_FN_PTR(address, SharedRuntime::dtrace_method_exit), voidType, NULL);
   }
 
-#ifdef JPORTAL_ENABLE // inlined method ->goto  not  return
-  if (JPortalMethodNoinline && method()->is_jportal()) {
+#ifdef JPORTAL_ENABLE // inlined method -> goto  not  return
+  if ((JPortalMethodNoinline || JPortalMethodComp) && method()->is_jportal()) {
     __ jportal_call(((Method *)(method()->constant_encoding()))->jportal_exit());
   }
 #endif
@@ -2682,7 +2682,7 @@ void LIRGenerator::do_Base(Base* x) {
   }
 
 #ifdef JPORTAL_ENABLE // base method
-  if (JPortalMethodNoinline && method()->is_jportal()) {
+  if ((JPortalMethodNoinline || JPortalMethodComp) && method()->is_jportal()) {
     __ jportal_call(((Method *)(method()->constant_encoding()))->jportal_entry());
   }
 #endif

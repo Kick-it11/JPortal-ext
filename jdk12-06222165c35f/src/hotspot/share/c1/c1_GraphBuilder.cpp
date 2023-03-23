@@ -1537,11 +1537,11 @@ void GraphBuilder::method_return(Value x, bool ignore_return) {
       append(new RuntimeCall(voidType, "dtrace_method_exit", CAST_FROM_FN_PTR(address, SharedRuntime::dtrace_method_exit), args));
     }
 
-// #ifdef JPORTAL_ENABLE // continuation = null -> inlined method
-//     if (JPortalMethodNoinline && method()->is_jportal()) {
-//       // append(new JPortalCall(((Method *)(method()->constant_encoding()))->jportal_exit()));
-//     }
-// #endif
+#ifdef JPORTAL_ENABLE // continuation != null -> inlined method
+    if (JPortalMethodComp && method()->is_jportal()) {
+      append(new JPortalCall(((Method *)(method()->constant_encoding()))->jportal_exit()));
+    }
+#endif
 
     // If the inlined method is synchronized, the monitor must be
     // released before we jump to the continuation block.
@@ -3730,11 +3730,11 @@ void GraphBuilder::fill_sync_handler(Value lock, BlockBegin* sync_handler, bool 
     append_with_bci(new RuntimeCall(voidType, "dtrace_method_exit", CAST_FROM_FN_PTR(address, SharedRuntime::dtrace_method_exit), args), bci);
   }
 
-// #ifdef JPORTAL_ENABLE // inlined sync method
-//   if (JPortalMethodNoinline && method()->is_jportal()) {
-//     // append_with_bci(new JPortalCall(((Method *)(method()->constant_encoding()))->jportal_exit()), bci);
-//   }
-// #endif
+#ifdef JPORTAL_ENABLE // inlined sync method
+  if (JPortalMethodComp && method()->is_jportal()) {
+    append_with_bci(new JPortalCall(((Method *)(method()->constant_encoding()))->jportal_exit()), bci);
+  }
+#endif
 
   if (lock) {
     assert(state()->locks_size() > 0 && state()->lock_at(state()->locks_size() - 1) == lock, "lock is missing");
@@ -3943,12 +3943,11 @@ bool GraphBuilder::try_inline_full(ciMethod* callee, bool holder_known, bool ign
     append(new RuntimeCall(voidType, "dtrace_method_entry", CAST_FROM_FN_PTR(address, SharedRuntime::dtrace_method_entry), args));
   }
 
-// Do not trace inlined method
-// #ifdef JPORTAL_ENABLE
-//   if (JPortalMethodNoInline && method()->is_jportal()) {
-//     // append(new JPortalCall(((Method *)(method()->constant_encoding()))->jportal_entry()));
-//   }
-// #endif
+#ifdef JPORTAL_ENABLE
+  if (JPortalMethodComp && method()->is_jportal()) {
+    append(new JPortalCall(((Method *)(method()->constant_encoding()))->jportal_entry()));
+  }
+#endif
   if (profile_inlined_calls()) {
     profile_invocation(callee, copy_state_before_with_bci(SynchronizationEntryBCI));
   }

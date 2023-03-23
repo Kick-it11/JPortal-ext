@@ -315,8 +315,7 @@ void wrmsr_on_cpu(__u32 reg, int cpu, __u64 data)
     if (pwrite(fd, &data, sizeof data, reg) != sizeof data) {
         if (errno == EIO) {
             fprintf(stderr,
-                    "JPortal wrmsr: CPU %d cannot set MSR "
-                    "0x%08"PRIx32" to 0x%016"PRIx64".\n",
+                    "JPortal wrmsr: CPU %d cannot set MSR %u to %llx.\n",
                     cpu, reg, data);
             exit(4);
         } else {
@@ -1138,7 +1137,7 @@ int main(int argc, char *argv[])
     }
     close(write_pipe);
 
-    printf("JPortalTrace starts(process: %d  ip filter: %lx-%lx).\n",
+    printf("JPortalTrace starts(process: %d  ip filter: %llx-%llx).\n",
             rec->pid, _low_bound, _high_bound);
 
     for (;;)

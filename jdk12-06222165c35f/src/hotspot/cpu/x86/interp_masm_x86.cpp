@@ -2085,7 +2085,7 @@ void InterpreterMacroAssembler::notify_method_entry() {
   }
 
 #ifdef JPORTAL_ENABLE
-  if (JPortalMethod || JPortalMethodNoinline) {
+  if (JPortalMethod || JPortalMethodNoinline || JPortalMethodComp) {
     get_method(rarg);
     Label non_jportal;
 
@@ -2139,7 +2139,7 @@ void InterpreterMacroAssembler::notify_method_exit(
   }
 
 #ifdef JPORTAL_ENABLE
-  if (JPortalMethod || JPortalMethodNoinline) {
+  if (JPortalMethod || JPortalMethodNoinline || JPortalMethodComp) {
     get_method(rarg);
     Label non_jportal;
 

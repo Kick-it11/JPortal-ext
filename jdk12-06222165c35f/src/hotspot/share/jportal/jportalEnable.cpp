@@ -615,7 +615,7 @@ void JPortalEnable::trace() {
         sprintf(aux_pages, "%lu", JPortalAUXPages) < 0 || 
       sprintf(aux_pages, "%lu", JPortalAUXPages) < 0 || 
       sprintf(shmid, "%d", _shm_id) < 0 ||
-      sprintf(trace_type, "%d", JPortal?1:(JPortalMethod?2:(JPortalMethodNoinline?3:0))) < 0) {
+      sprintf(trace_type, "%d", JPortal?1:(JPortalMethod?2:(JPortalMethodNoinline?3:(JPortalMethodComp?4:0)))) < 0) {
     close(pipe_fd[0]);
     close(pipe_fd[1]);
 
@@ -631,7 +631,7 @@ void JPortalEnable::trace() {
     prctl(PR_SET_PDEATHSIG, SIGTERM);
     close(pipe_fd[0]);
 
-    execl("/home/jake/codes/JPortalMethod/JPortal-ext/build/trace/JPortalTrace",
+    execl("/home/jake/codes/JPortal-ext/build/trace/JPortalTrace",
           "./JPortalTrace", java_pid, write_pipe, _low_bound, _high_bound,
           mmap_pages, aux_pages, shmid, trace_type, NULL);
 

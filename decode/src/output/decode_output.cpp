@@ -63,7 +63,7 @@ bool DecodeOutput::return_frames(std::ofstream &file,
 void DecodeOutput::find_jit_frame(std::vector<JitFrame *> &jits,
                                   const JitSection *section)
 {
-    while (jits.back()->section() != section)
+    while (!jits.empty() && jits.back()->section() != section)
     {
         delete jits.back();
         jits.pop_back();

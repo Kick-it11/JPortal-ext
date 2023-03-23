@@ -138,6 +138,7 @@ public:
     bool jportal_trace() { return _trace_header.trace_type == 1; }
     bool jportal_method_trace() { return _trace_header.trace_type == 2; }
     bool jportal_method_noinline_trace() { return _trace_header.trace_type == 3; }
+    bool jportal_method_comp_trace() { return _trace_header.trace_type == 4; }
 };
 
 #endif /* TRACE_DATA_PARSER_HPP */

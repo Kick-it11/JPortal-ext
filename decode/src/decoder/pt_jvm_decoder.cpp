@@ -1957,11 +1957,11 @@ int PTJVMDecoder::decoder_drain_events()
         case ptev_enabled:
             errcode = decoder_process_enabled();
             if (errcode < 0)
-                return errcode;
-
-            /** If tracing was disabled & enabled asynchronously, ignore */
-            if (_ip != disabled_ip)
+                std::cerr << "PTJVMDecoder error: Fail to process enabled event"
+                          << pt_errstr(pt_errcode(errcode)) << std::endl;
+            else if (_ip != disabled_ip)
                 unresolved = true;
+            /** If tracing was disabled & enabled asynchronously, ignore */
 
             break;
 
@@ -1970,8 +1970,9 @@ int PTJVMDecoder::decoder_drain_events()
 
             errcode = decoder_process_disabled();
             if (errcode < 0)
-                return errcode;
-            
+                std::cerr << "PTJVMDecoder error: Fail to process async disabled event"
+                          << pt_errstr(pt_errcode(errcode)) << std::endl;
+
             break;
 
         case ptev_disabled:
@@ -1979,23 +1980,26 @@ int PTJVMDecoder::decoder_drain_events()
 
             errcode = decoder_process_disabled();
             if (errcode < 0)
-                return errcode;
+                std::cerr << "PTJVMDecoder error: Fail to process disabled event "
+                          << pt_errstr(pt_errcode(errcode)) << std::endl;
 
             break;
 
         case ptev_async_branch:
             errcode = decoder_process_async_branch();
             if (errcode < 0)
-                return errcode;
-
-            unresolved = true;
+                std::cerr << "PTJVMDecoder error: Fail to process async branch event "
+                          << pt_errstr(pt_errcode(errcode)) << std::endl;
+            else
+                unresolved = true;
             break;
 
         case ptev_async_paging:
         case ptev_paging:
             errcode = decoder_process_paging();
             if (errcode < 0)
-                return errcode;
+                std::cerr << "PTJVMDecoder error: Fail to process paging event"
+                          << pt_errstr(pt_errcode(errcode)) << std::endl;
 
             break;
 
@@ -2003,14 +2007,16 @@ int PTJVMDecoder::decoder_drain_events()
         case ptev_vmcs:
             errcode = decoder_process_vmcs();
             if (errcode < 0)
-                return errcode;
+                std::cerr << "PTJVMDecoder error: Fail to process vmcs event"
+                          << pt_errstr(pt_errcode(errcode)) << std::endl;
 
             break;
 
         case ptev_overflow:
             errcode = decoder_process_overflow();
             if (errcode < 0)
-                return errcode;
+                std::cerr << "PTJVMDecoder error: Fail to process overflow event"
+                          << pt_errstr(pt_errcode(errcode)) << std::endl;
 
             unresolved = true;
 
@@ -2019,21 +2025,24 @@ int PTJVMDecoder::decoder_drain_events()
         case ptev_exec_mode:
             errcode = decoder_process_exec_mode();
             if (errcode < 0)
-                return errcode;
+                std::cerr << "PTJVMDecoder error: Fail to process exec event"
+                          << pt_errstr(pt_errcode(errcode)) << std::endl;
 
             break;
 
         case ptev_tsx:
             errcode = decoder_process_tsx();
             if (errcode < 0)
-                return errcode;
+                std::cerr << "PTJVMDecoder error: Fail to process tscx event"
+                          << pt_errstr(pt_errcode(errcode)) << std::endl;
 
             break;
 
         case ptev_stop:
             errcode = decoder_process_stop();
             if (errcode < 0)
-                return errcode;
+                std::cerr << "PTJVMDecoder error: Fail to process stop event"
+                          << pt_errstr(pt_errcode(errcode)) << std::endl;
 
             break;
 
@@ -2058,7 +2067,7 @@ int PTJVMDecoder::decoder_drain_events()
         }
     }
 
-    return errcode;
+    return 0;
 }
 
 void PTJVMDecoder::decode()

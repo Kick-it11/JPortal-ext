@@ -178,14 +178,26 @@ private:
                         std::vector<std::pair<int, std::pair<int, int>>> &cfgs,
                         std::vector<std::pair<std::string, int>> &methods)
     {
+        /* Sometimes bci = -1 */
+        totals.erase({_method, nullptr});
+
+        /* Should return iframes (>= idx) when iframe[idx] is not this method */
+        if (idx < iframes.size() && iframes[idx].first != _method)
+            return_iframes(iframes, iframes.size()-idx, cfgt, mt, cfgs, methods);
+
         Block *cur = nullptr;
-        if (idx >= iframes.size())
+        assert(idx <= iframes.size());
+        if (idx == iframes.size())
+        {
             iframes.push_back({_method, cur});
+            totals.erase({_method, cur});
+        }
         else
         {
             cur = iframes[idx].second;
             totals.erase({_method, cur});
-            if (idx != iframes.size() - 1 && !_children.count(cur))
+            /* Should erase latter(> idx) frames */
+            if (idx < iframes.size() - 1 && !_children.count(cur))
                 return_iframes(iframes, iframes.size()-idx-1, cfgt, mt, cfgs, methods);
         }
 
@@ -197,14 +209,12 @@ private:
                                     { return l.second < r.second; });
             cur = iter->first;
             totals.erase({_method, cur});
+            iframes[idx] = {_method, cur};
             _marks.erase(iter);
             if (_children.count(cur))
                 _children[cur]->traverse(iframes, idx+1, totals, cfgt, mt, cfgs, methods);
         }
 
-        if (idx == iframes.size() - 1)
-            iframes.pop_back();
-        
         return;
     }
 
@@ -292,19 +302,20 @@ public:
                   std::vector<std::pair<int, std::pair<int, int>>> &cfgs,
                   std::vector<std::pair<std::string, int>> &methods)
     {
-        /* Sometimes bci = -1 */
-        totals.erase({_method, nullptr});
-
-        /* Should return iframes (>= idx)*/
-        if (idx < iframes.size() && iframes[idx].first != _method)
-            return_iframes(iframes, iframes.size()-idx, cfgt, mt, cfgs, methods);
-
         if (!_method || !_method->is_jportal())
             return traverse_empty(iframes, idx, totals, cfgt, mt, cfgs, methods);
 
+        /* Sometimes bci = -1 */
+        totals.erase({_method, nullptr});
+
+        /* Should return iframes (>= idx) when iframe[idx] is not this method */
+        if (idx < iframes.size() && iframes[idx].first != _method)
+            return_iframes(iframes, iframes.size()-idx, cfgt, mt, cfgs, methods);
+
         BlockGraph *bg = _method->get_bg();
         Block *cur = nullptr;
-        if (idx >= iframes.size())
+        assert(idx <= iframes.size());
+        if (idx == iframes.size())
         {
             cur = bg->offset2block(0);
             iframes.push_back({_method, cur});
@@ -316,7 +327,16 @@ public:
         else
         {
             cur = iframes[idx].second;
-            assert(cur != nullptr);
+            if (cur == nullptr)
+            {
+                /* iframe from first bci might have block empty */
+                cur = bg->offset2block(0);
+                iframes.push_back({_method, cur});
+                /* add cur to ans */
+                if (cfgt) cfgs.push_back({_method->id(), {cur->get_begin_bci(), cur->get_end_bci()}});
+                if (mt) methods.push_back({"i", _method->id()});
+                totals.erase({_method, cur});
+            }
             totals.erase({_method, cur});
             /* Should erase latter(> idx) frames */
             if (idx < iframes.size() - 1 && !_children.count(cur))
@@ -332,9 +352,7 @@ public:
             cur = next_block(cur, cfgt, cfgs);
             if (!cur)
             {
-                methods.push_back({"o", _method->id()});
-                iframes.pop_back();
-                return;
+                return return_iframes(iframes, iframes.size()-idx, cfgt, mt,  cfgs, methods);
             }
             else
             {

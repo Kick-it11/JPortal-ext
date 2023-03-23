@@ -18,7 +18,7 @@ static void decode_part(DecodeData *trace, struct pt_config config,
     delete[] config.begin;
 }
 
-static void decode(const std::string &file, std::vector<std::string> &paths)
+static void decode(const std::string &file, std::vector<std::string> &paths, bool print_only)
 {
     TraceDataParser parser(file);
     std::vector<DecodeData *> results;
@@ -38,7 +38,7 @@ static void decode(const std::string &file, std::vector<std::string> &paths)
     std::pair<uint8_t *, uint64_t> pt_data;
     std::pair<uint64_t, uint64_t> time;
     uint32_t cpu;
-    ThreadPool pool(8, 32);
+    ThreadPool pool(6, 32);
     int id = 0;
     while (parser.next_pt_data(pt_data, cpu, time))
     {
@@ -58,12 +58,16 @@ static void decode(const std::string &file, std::vector<std::string> &paths)
 
     DecodeOutput to_file(results);
 
-    if (parser.jportal_trace())
+    if (print_only)
+        to_file.print();
+    else if (parser.jportal_trace())
         to_file.output_cfg("cfg");
     else if (parser.jportal_method_trace())
         to_file.output_method("method");
     else if (parser.jportal_method_noinline_trace())
-        to_file.output_method_noinline("methodnoinline");
+        to_file.output_method_noinline("methodnoinlineorcomp");
+    else if (parser.jportal_method_comp_trace())
+        to_file.output_method_noinline("methodcomp");
 
     /* Exit */
     JVMRuntime::destroy();
@@ -103,6 +107,7 @@ int main(int argc, char **argv)
 {
     std::string trace_data = "JPortalTrace.data";
     std::vector<std::string> class_paths;
+    bool print_only = false;
     for (int i = 1; i < argc;)
     {
         std::string arg = argv[i++];
@@ -148,11 +153,15 @@ int main(int argc, char **argv)
             return 0;
         }
 
+        if (arg == "-p")
+        {
+            print_only = true;
+        }
         std::cerr << "decode error: Unknown arguments" << std::endl;
         return -1;
     }
 
-    decode(trace_data, class_paths);
+    decode(trace_data, class_paths, print_only);
 
     return 0;
 }

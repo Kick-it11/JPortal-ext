@@ -826,7 +826,7 @@ void InterpreterMacroAssembler::do_jump_from_interpreted(Register method, Regist
   }
 #endif
 
-  push_return_address(tmp1, code, jportal, false);
+  push_return_address(tmp1, code, jportal, !determined);
 
 #ifdef JPORTAL_ENABLE
   if (JPortal) {

@@ -14,7 +14,6 @@ class Method
 private:
     static std::atomic_int MethodCounter;
     const u2 ACC_JPORTAL = 0x2000;
-    const u2 ACC_FINAL = 0x0010;
     u2 _flags;
     int _id;
     const std::string _name_signature;
@@ -32,6 +31,5 @@ public:
     int id() const { return _id; }
     void print_graph() const;
     bool is_jportal() const { return (_flags & ACC_JPORTAL) == ACC_JPORTAL; }
-    bool is_final() const { return (_flags & ACC_FINAL) == ACC_FINAL; }
 };
 #endif /* METHOD_HPP */

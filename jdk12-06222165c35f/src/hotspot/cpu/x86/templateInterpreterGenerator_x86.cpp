@@ -1729,22 +1729,23 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
 #ifdef JPORTAL_ENABLE
   if (JPortal) {
     __ get_method(rcx);
-    Label non_jportal, remove_activation;
+    Label non_jportal;
+    Label not_handle_here;
 
     __ movl(rbx, Address(rcx, Method::access_flags_offset()));
     __ testl(rbx, JVM_ACC_JPORTAL);
     __ jcc(Assembler::zero, non_jportal);
 
-    __ movptr(rbx, ExternalAddress(Interpreter::_remove_activation_entry));
-    __ cmpptr(rbx, rax);
-    __ jcc(Assembler::equal, non_jportal);
+    __ movptr(rbx, RegisterOrConstant((intptr_t)Interpreter::remove_activation_entry()));
+    __ cmpptr(rax, rbx);
+    __ jcc(Assembler::zero, not_handle_here);
 
     jportal_handle_exception();
     jportal_method_and_bci(0, rcx, rbx);
 
     __ jmp(non_jportal);
 
-    __ bind(remove_activation);
+    __ bind(not_handle_here);
 
     jportal_rethrow_exception();
 

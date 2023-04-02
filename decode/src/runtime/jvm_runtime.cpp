@@ -806,7 +806,7 @@ void JVMRuntime::print(uint8_t *buffer, uint64_t size)
 
 void JVMRuntime::output(std::string prefix)
 {
-    std::ofstream file(prefix+"methods");
+    std::ofstream file(prefix+"-methods");
     for  (auto method : _id_to_methods)
     {
         file << method.first << " " << method.second->get_klass()->get_name()

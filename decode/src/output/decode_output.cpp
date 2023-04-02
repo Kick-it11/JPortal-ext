@@ -1,5 +1,6 @@
 #include "decoder/decode_data.hpp"
 #include "java/block.hpp"
+#include "java/klass.hpp"
 #include "java/method.hpp"
 #include "output/decode_output.hpp"
 #include "output/output_frame.hpp"
@@ -41,11 +42,28 @@ bool DecodeOutput::return_frames(std::ofstream &file,
     {
         std::vector<std::pair<int, int>> ans;
         inters.back()->forward(ans);
+        if (Bytecodes::is_invoke(inters.back()->code()))
+        {
+            const Method *callee = nullptr;
+            if ((callee = inters.back()->static_callee()) && callee->is_jportal())
+            {
+                inters.back()->invoke();
+                inters.push_back(new InterFrame(callee, 0));
+                continue;
+            }
+            else
+            {
+                clear_frames(inters, jits);
+                return false;
+            }
+        }
+
         if (!Bytecodes::is_return(inters.back()->code()))
         {
             clear_frames(inters, jits);
             return false;
         }
+
         if (_method_id != inters.back()->method()->id())
         {
             _method_id = inters.back()->method()->id();
@@ -94,13 +112,7 @@ bool DecodeOutput::check_pre_event(DecodeDataEvent &event, std::ofstream &file,
     {
         if (inters.empty())
         {
-            inters.push_back(new InterFrame(event.method(), 0));
-            event.set_unpending();
-            return true;
-        }
-        else if (inters.back()->method() == event.method() && event.bci_or_ind() == inters.back()->bci())
-        {
-            /* Handle: Ignore: Has a call back target method entry */
+            inters.push_back(new InterFrame(event.method(), event.bci_or_ind()));
             event.set_unpending();
             return true;
         }
@@ -148,7 +160,7 @@ bool DecodeOutput::check_pre_event(DecodeDataEvent &event, std::ofstream &file,
         {
             event.set_unpending();
         }
-        if (inters.back()->method() == event.method() && inters.back()->forward(event.bci_or_ind(), ans))
+        else if (inters.back()->method() == event.method() && inters.back()->forward(event.bci_or_ind(), ans))
         {
             if (!ans.empty())
             {
@@ -253,7 +265,7 @@ bool DecodeOutput::check_pre_event(DecodeDataEvent &event, std::ofstream &file,
         event.set_unpending();
         return true;
     case DecodeData::_decode_error:
-        file << "e" << std::endl;
+        file << "d" << std::endl;
         event.set_unpending();
         return true;
     default:
@@ -271,6 +283,29 @@ bool DecodeOutput::check_post_event(DecodeDataEvent &event, std::ofstream &file,
 
     Bytecodes::Code code = inters.back()->code();
     DecodeData::DecodeDataType type = event.type();
+    /* bytecode that does not consume event */
+    if (Bytecodes::is_return(code))
+    {
+        delete inters.back();
+        inters.pop_back();
+        return true;
+    }
+    const Method *callee = nullptr;
+    if (Bytecodes::is_invoke(code) && !inters.back()->jit_invoke()
+        && (callee = inters.back()->static_callee()) && callee->is_jportal())
+    {
+        if (type == DecodeData::_jit_code && event.section()->mainm() == callee)
+        {
+            inters.back()->set_jit_invoke();
+        }
+        else
+        {
+            inters.back()->invoke();
+            inters.push_back(new InterFrame(callee, 0));
+            return true;
+        }
+    }
+
     if (type == DecodeData::_jit_code)
     {
         if (!output_jit_cfg(event, file, jits))
@@ -282,6 +317,7 @@ bool DecodeOutput::check_post_event(DecodeDataEvent &event, std::ofstream &file,
         return true;
     }
 
+    /* event consuming bytecode */
     if (Bytecodes::is_branch(code))
     {
         if (DecodeData::_taken == type)
@@ -320,7 +356,7 @@ bool DecodeOutput::check_post_event(DecodeDataEvent &event, std::ofstream &file,
         }
         else if (DecodeData::_switch_default == type)
         {
-            if (inters.back()->switch_default())
+            if (!inters.back()->switch_default())
                 return false;
             event.set_unpending();
             return true;
@@ -348,23 +384,10 @@ bool DecodeOutput::check_post_event(DecodeDataEvent &event, std::ofstream &file,
     }
     else if (Bytecodes::is_invoke(code))
     {
-        const Method *callee = nullptr;
-        if (DecodeData::_method_point && event.bci_or_ind() == inters.back()->next_bci())
+        if (DecodeData::_method_point == event.type() && event.method () == inters.back()->method() && event.bci_or_ind() == inters.back()->next_bci())
         {
             inters.back()->invoke();
             event.set_unpending();
-            return true;
-        }
-        else if (Bytecodes::_invokestatic == code || Bytecodes::_invokespecial == code && (callee = inters.back()->callee()))
-        {
-            inters.back()->invoke();
-            inters.push_back(new InterFrame(callee, 0));
-            return true;
-        }
-        else if (Bytecodes::_invokevirtual == code || Bytecodes::_invokeinterface == code && (callee = inters.back()->callee()) && callee->is_final())
-        {
-            inters.back()->invoke();
-            inters.push_back(new InterFrame(callee, 0));
             return true;
         }
         else if (DecodeData::_method_entry == type)
@@ -377,12 +400,6 @@ bool DecodeOutput::check_post_event(DecodeDataEvent &event, std::ofstream &file,
         {
             return false;
         }
-    }
-    else if (Bytecodes::is_return(code))
-    {
-        delete inters.back();
-        inters.pop_back();
-        return true;
     }
     else if (Bytecodes::_athrow == code)
     {
@@ -503,6 +520,8 @@ bool DecodeOutput::output_cfg(DecodeDataEvent &event, std::ofstream &file)
     std::vector<JitFrame *> jits;
     while (event.current_event())
     {
+        int id = event.id();
+        uint64_t pos = event.pos();
         std::vector<std::pair<int, int>> ans;
         DecodeData::DecodeDataType type = event.type();
         /* process java_call_begin & java_call_end here */

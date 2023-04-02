@@ -2430,7 +2430,7 @@ void TemplateTable::if_0cmp(Condition cc, bool jportal) {
   }
 #endif
 
-  branch(false, false);
+  branch(false, false, jportal);
 
   __ bind(not_taken);
 
@@ -2457,7 +2457,7 @@ void TemplateTable::if_icmp(Condition cc, bool jportal) {
   }
 #endif
 
-  branch(false, false);
+  branch(false, false, jportal);
   __ bind(not_taken);
 
 #ifdef JPORTAL_ENABLE
@@ -2482,7 +2482,7 @@ void TemplateTable::if_nullcmp(Condition cc, bool jportal) {
   }
 #endif
 
-  branch(false, false);
+  branch(false, false, jportal);
   __ bind(not_taken);
 
 #ifdef JPORTAL_ENABLE
@@ -2508,7 +2508,7 @@ void TemplateTable::if_acmp(Condition cc, bool jportal) {
   }
 #endif
 
-  branch(false, false);
+  branch(false, false, jportal);
   __ bind(not_taken);
 
 #ifdef JPORTAL_ENABLE
@@ -3910,7 +3910,7 @@ void TemplateTable::invokevirtual_helper(Register index,
   __ profile_final_call(rax);
   __ profile_arguments_type(rax, method, rbcp, true);
 
-  __ jump_from_interpreted(method, rax, rdx, bytecode(), jportal, true);
+  __ jump_from_interpreted(method, rax, rdx, bytecode(), jportal, false);
 
   __ bind(notFinal);
 
@@ -4025,7 +4025,7 @@ void TemplateTable::invokeinterface(int byte_no, bool jportal) {
   __ profile_final_call(rdx);
   __ profile_arguments_type(rdx, rbx, rbcp, true);
 
-  __ jump_from_interpreted(rbx, rax, rdx, bytecode(), jportal, true);
+  __ jump_from_interpreted(rbx, rax, rdx, bytecode(), jportal, false);
   // no return from above
   __ bind(notVFinal);
 

@@ -147,16 +147,26 @@ void PTJVMDecoder::decoder_drain_jvm_events(uint64_t time)
         default:
         {
             /* unknown dump type */
-            std::cerr << "PTJVMDecoder error: unknown dump type" << std::endl;
+            std::cerr << "PTJVMDecoder error: unknown dump type " << info->type << std::endl;
             exit(1);
         }
+        case JVMRuntime::_java_call_begin_info:
+        case JVMRuntime::_java_call_end_info:
         case JVMRuntime::_method_info:
-        case JVMRuntime::_branch_not_taken_info:
         case JVMRuntime::_branch_taken_info:
-        case JVMRuntime::_bci_table_stub_info:
+        case JVMRuntime::_branch_not_taken_info:
         case JVMRuntime::_switch_table_stub_info:
         case JVMRuntime::_switch_default_info:
+        case JVMRuntime::_bci_table_stub_info:
+        case JVMRuntime::_osr_info:
+        case JVMRuntime::_throw_exception_info:
+        case JVMRuntime::_rethrow_exception_info:
+        case JVMRuntime::_handle_exception_info:
+        case JVMRuntime::_ret_code_info:
         case JVMRuntime::_deoptimization_info:
+        case JVMRuntime::_non_invoke_ret_info:
+        case JVMRuntime::_pop_frame_info:
+        case JVMRuntime::_earlyret_info:
         {
             /* do not need to handle */
             break;

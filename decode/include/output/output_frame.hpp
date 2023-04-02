@@ -17,6 +17,7 @@ private:
     int _bci;
     Block *_block;
     bool _pending; /* indicate an event needed to help forward */
+    bool _jit_invoke; /* indicate this frame have a jit call now -> should not use static callee */
 
 public:
     InterFrame(const Method * method, int bci);
@@ -31,7 +32,7 @@ public:
 
     int next_bci() { return _bci + Bytecodes::length_for(code()); }
 
-    const Method *callee();
+    const Method *static_callee();
 
     bool taken();
 
@@ -48,6 +49,9 @@ public:
     bool forward(std::vector<std::pair<int, int>> &ans);
 
     bool forward(int idx, std::vector<std::pair<int, int>> &ans);
+
+    void set_jit_invoke();
+    bool jit_invoke() { return _jit_invoke; }
 };
 
 class JitFrame

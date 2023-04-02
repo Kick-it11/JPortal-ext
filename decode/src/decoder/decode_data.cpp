@@ -843,7 +843,9 @@ bool DecodeDataEvent::rethrow_exception_event()
                   << loc << std::endl;
         exit(1);
     }
+    return true;
 }
+
 bool DecodeDataEvent::handle_exception_event()
 {
     DecodeData::DecodeDataType cur_type;

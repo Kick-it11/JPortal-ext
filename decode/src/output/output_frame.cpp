@@ -15,11 +15,12 @@
 InterFrame::InterFrame(const Method *method, int bci)
 {
     _method = method;
-    assert(method != nullptr);
+    assert(method != nullptr && method->is_jportal());
     _bci = bci;
     _block = _method->get_bg()->offset2block(bci);
     assert(_block != nullptr);
     _pending = false;
+    _jit_invoke = false;
 }
 
 Bytecodes::Code InterFrame::code()
@@ -27,10 +28,31 @@ Bytecodes::Code InterFrame::code()
     return _method->get_bg()->code(_bci);
 }
 
-const Method *InterFrame::callee()
+const Method *InterFrame::static_callee()
 {
-    const Klass *klass = _method->get_klass();
-    return Analyser::get_method(klass->get_name(), klass->index2method(_bci));
+    auto methodref = _method->get_klass()->index2methodref(_method->get_bg()->method_ref(_bci));
+    if (code() == Bytecodes::_invokestatic)
+        return Analyser::get_method(methodref.first, methodref.second);
+    if (code() == Bytecodes::_invokespecial)
+    {
+        const Klass *klass = Analyser::get_klass(methodref.first);
+        while (klass)
+        {
+            const Method *callee = klass->get_method(methodref.second);
+            if (callee)
+                return callee;
+            klass = Analyser::get_klass(klass->get_father_name());
+        }
+    }
+    return nullptr;
+}
+
+void InterFrame::set_jit_invoke()
+{
+    if (Bytecodes::is_invoke(code()))
+    {
+        _jit_invoke = true;
+    }
 }
 
 bool InterFrame::taken()
@@ -87,6 +109,8 @@ bool InterFrame::invoke()
         return false;
     _block = (*_block->get_succs_begin());
     _bci = _block->get_begin_bci();
+    _pending = false;
+    _jit_invoke = false;
     return true;
 }
 
@@ -98,7 +122,8 @@ bool InterFrame::forward(std::vector<std::pair<int, int>> &ans)
 
     for (;;)
     {
-        ans.push_back({_bci, _block->get_end_bci()});
+        if (_bci != _block->get_end_bci() || !_pending)
+            ans.push_back({_bci, _block->get_end_bci()});
         _bci = _block->get_end_bci();
         Bytecodes::Code cur = code();
         if (Bytecodes::is_branch(cur) || Bytecodes::is_invoke(cur) ||
@@ -115,6 +140,7 @@ bool InterFrame::forward(std::vector<std::pair<int, int>> &ans)
             return false;
         _block = *(_block->get_succs_begin());
         _bci = _block->get_begin_bci();
+        _pending = false;
     }
 }
 
@@ -124,23 +150,24 @@ bool InterFrame::forward(int idx, std::vector<std::pair<int, int>> &ans)
     if (!_block)
         return false;
 
-    if (_pending)
-        return true;
-
     for (;;)
     {
-        if (_block->get_begin_bci() >= idx || _block->get_end_bci() < idx)
+        if (_block->get_begin_bci() <= idx || _block->get_end_bci() >= idx)
         {
-            ans.push_back({_bci, idx});
+            if (_bci != _block->get_end_bci() || !_pending)
+                ans.push_back({_bci, idx});
             _bci = idx;
+            _pending = true; /* forward to bci always needs to be handled */
             return true;
         }
-        ans.push_back({_bci, _block->get_end_bci()});
+        if (_bci != _block->get_end_bci() || !_pending)
+            ans.push_back({_bci, _block->get_end_bci()});
         _bci = _block->get_end_bci();
         Bytecodes::Code cur = code();
         if (Bytecodes::is_invoke(cur) || Bytecodes::is_branch(cur) ||
             Bytecodes::_tableswitch == cur || Bytecodes::_lookupswitch == cur)
         {
+            _pending = true;
             return false;
         }
         if (0 == _block->get_succs_size())
@@ -149,6 +176,7 @@ bool InterFrame::forward(int idx, std::vector<std::pair<int, int>> &ans)
             return false;
         _block = *(_block->get_succs_begin());
         _bci = _block->get_begin_bci();
+        _pending = false;
     }
 }
 
@@ -156,6 +184,7 @@ bool InterFrame::forward(int idx, std::vector<std::pair<int, int>> &ans)
 bool InterFrame::straight(int idx)
 {
     _bci = idx;
+    _pending = false;
     _block = _method->get_bg()->offset2block(idx);
     return _block != nullptr;
 }
@@ -459,7 +488,7 @@ void JitFrame::jit_code(std::vector<const PCStackInfo *> pcs,
         {
             const Method *m = _section->method(pc->methods[j]);
             /* m could be a non target method, use pc->bcis[j] to distinguish*/
-            Block *block = m ? m->get_bg()->offset2block(pc->bcis[j])
+            Block *block = (m && m->is_jportal()) ? m->get_bg()->offset2block(pc->bcis[j])
                              : (Block *)(uint64_t)pc->bcis[j];
             infos.push_back({m, block});
             totals.insert({m, block});

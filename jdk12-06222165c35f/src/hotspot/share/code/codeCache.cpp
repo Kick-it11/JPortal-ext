@@ -398,6 +398,8 @@ void CodeCache::initialize_heaps() {
     _normal_high_bound = (address)normal_non_profiled_space.end();
     _jportal_low_bound = (address)jportal_non_method_space.base();
     _jportal_high_bound = (address)jportal_non_method_space.end();
+
+    return;
   }
 
   FLAG_SET_ERGO(uintx, JPortalReservedCodeCacheSize, 0);

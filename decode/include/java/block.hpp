@@ -29,7 +29,7 @@ private:
 public:
     Block(int id, int begin_bci)
         : _block_id(id), _begin_bci(begin_bci),
-          _end_bci(-1), _call_site_index(-1) { }
+          _end_bci(-1), _call_site_index(-1) {}
     ~Block() {}
     void set_end_bci(int bci) { _end_bci = bci; }
     void set_call_site_index(int index) { _call_site_index = index; }
@@ -47,7 +47,7 @@ public:
     std::vector<Block *>::iterator get_succs_end() { return _succs.end(); }
     int get_preds_size() const { return _preds.size(); }
     int get_succs_size() const { return _succs.size(); }
-    Block *get_succes_block(int id) const { return id >=0 && id < get_succs_size() ? _succs[id] : nullptr; }
+    Block *get_succes_block(int id) const { return id >= 0 && id < get_succs_size() ? _succs[id] : nullptr; }
     int get_id() const { return _block_id; }
     int get_begin_bci() const { return _begin_bci; }
     int get_end_bci() const { return _end_bci; }
@@ -74,6 +74,7 @@ private:
     std::vector<Block *> _blocks;
     std::vector<Excep> _exceps;
     std::unordered_map<int, Block *> _offset2block;
+    std::unordered_map<int, u2> _method_refs; /* invoke bci -> method ref */
     bool _is_build_graph;
 
 public:
@@ -110,10 +111,15 @@ public:
         delete[] _code;
         _code = nullptr;
     }
-    Bytecodes::Code code(int bci) {
+    Bytecodes::Code code(int bci)
+    {
         if (bci < 0 || bci >= _code_length)
             return Bytecodes::_illegal;
         return Bytecodes::cast(*(_code + bci));
+    }
+    u2 method_ref(int bci)
+    {
+        return _method_refs.count(bci) ? _method_refs.at(bci) : -1;
     }
     void set_exceps(std::vector<Excep> exceps) {}
     std::vector<Excep> *get_exceps() { return &_exceps; }

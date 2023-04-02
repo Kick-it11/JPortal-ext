@@ -175,18 +175,21 @@ void BlockGraph::build_graph()
         {
             u2 methodref_index = bs.get_u2();
             block_start.insert(bs.get_offset());
+            _method_refs[bci] = methodref_index;
         }
         else if (bc == Bytecodes::_invokeinterface)
         {
             u2 interface_methodref_index = bs.get_u2();
             bs.get_u2();
             block_start.insert(bs.get_offset());
+            _method_refs[bci] = interface_methodref_index;
         }
         else if (bc == Bytecodes::_invokedynamic)
         {
             u2 dynamic_method_index = bs.get_u2();
             bs.get_u2();
             block_start.insert(bs.get_offset());
+            _method_refs[bci] = dynamic_method_index;
         }
         else
         {
@@ -254,8 +257,8 @@ void BlockGraph::build_graph()
             case Bytecodes::_ifnonnull:
             {
                 int jmp_offset = (short)bs.get_u2();
-                make_block_at(bs.get_offset(), current);
                 make_block_at(bci + jmp_offset, current);
+                make_block_at(bs.get_offset(), current);
                 current->set_end_bci(bci);
                 current = nullptr;
                 break;

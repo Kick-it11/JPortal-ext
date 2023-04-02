@@ -321,6 +321,9 @@ public:
 
     /* Note that pcs might < 0, if so: it is not a index in pc, but entry/osrentry/....*/
     bool get_jit_code(uint64_t pos, const JitSection *&section, std::vector<int> &pcs);
+
+    int id() { return _data?_data->_id:-1; }
+    uint64_t pos() { return _data?_current-_data->_data_begin:0; }
 };
 
 class DecodeDataEvent {
@@ -423,6 +426,9 @@ public:
     const JitSection *section() { return _pending ? _section : nullptr; }
 
     std::vector<int> &pcs() { if (!_pending) _pcs.clear();  return _pcs; }
+
+    int id() { return _access.id(); }
+    uint64_t pos() { return _access.pos(); }
 };
 
 #endif /* DECODE_DATA_HPP */

@@ -44,7 +44,58 @@
 #define PERF_RECORD_AUXTRACE 71
 #define PERF_RECORD_JVMRUNTIME 72
 
-#define PER_READ_LIMIT 1024*1024*16
+#define barrier() __asm__ __volatile__("": : :"memory")
+
+static __always_inline void __read_once_size(const volatile void *p, void *res, int size)
+{
+    switch (size) {
+    case 1: *(__u8  *) res = *(volatile __u8  *) p; break;
+    case 2: *(__u16 *) res = *(volatile __u16 *) p; break;
+    case 4: *(__u32 *) res = *(volatile __u32 *) p; break;
+    case 8: *(__u64 *) res = *(volatile __u64 *) p; break;
+    default:
+        barrier();
+        __builtin_memcpy((void *)res, (const void *)p, size);
+        barrier();
+    }
+}
+
+static __always_inline void __write_once_size(volatile void *p, void *res, int size)
+{
+    switch (size) {
+    case 1: *(volatile  __u8 *) p = *(__u8  *) res; break;
+    case 2: *(volatile __u16 *) p = *(__u16 *) res; break;
+    case 4: *(volatile __u32 *) p = *(__u32 *) res; break;
+    case 8: *(volatile __u64 *) p = *(__u64 *) res; break;
+    default:
+        barrier();
+        __builtin_memcpy((void *)p, (const void *)res, size);
+        barrier();
+    }
+}
+
+#define READ_ONCE(x)                    \
+({                            \
+    union { typeof(x) __val; char __c[1]; } __u =    \
+        { .__c = { 0 } };            \
+    __read_once_size(&(x), __u.__c, sizeof(x));    \
+    __u.__val;                    \
+})
+
+#define WRITE_ONCE(x, val)                \
+({                            \
+    union { typeof(x) __val; char __c[1]; } __u =    \
+        { .__val = (val) };             \
+    __write_once_size(&(x), __u.__c, sizeof(x));    \
+    __u.__val;                    \
+})
+
+#define mb()    asm volatile("mfence" ::: "memory")
+#define rmb()    asm volatile("lfence" ::: "memory")
+#define wmb()    asm volatile("sfence" ::: "memory")
+#define smp_rmb() barrier()
+#define smp_wmb() barrier()
+#define smp_mb()  asm volatile("lock; addl $0,-132(%%rsp)" ::: "memory", "cc")
 
 extern void pt_cpuid(__u32 leaf, __u32 *eax, __u32 *ebx, __u32 *ecx, __u32 *edx)
 {
@@ -154,9 +205,9 @@ int pt_cpu_read(struct pt_cpu *cpu)
 
 /* Supported address range configurations. */
 enum pt_addr_cfg {
-	pt_addr_cfg_disabled	= 0,
-	pt_addr_cfg_filter	= 1,
-	pt_addr_cfg_stop	= 2
+    pt_addr_cfg_disabled    = 0,
+    pt_addr_cfg_filter    = 1,
+    pt_addr_cfg_stop    = 2
 };
 
 struct shm_header {
@@ -202,10 +253,10 @@ struct trace_header
     __u64 header_size;
 
     /** PT CPU configurations: The filter. */
-    __u32 filter; /*	0 for stop, 1 for filter*/
+    __u32 filter; /*    0 for stop, 1 for filter*/
 
     /** PT CPU configurations: The cpu vendor. */
-    __u32 vendor; /*	0 for pcv_unknown, 1 for pcv_intel*/
+    __u32 vendor; /*    0 for pcv_unknown, 1 for pcv_intel*/
 
     /** PT CPU configurations: The cpu family. */
     __u16 family;
@@ -461,12 +512,12 @@ int read_tsc_conversion(const struct perf_event_mmap_page *pc,
     while (1)
     {
         seq = pc->lock;
-        __sync_synchronize();
+        rmb();
         *time_mult = pc->time_mult;
         *time_shift = pc->time_shift;
         *time_zero = pc->time_zero;
         cap_user_time_zero = pc->cap_user_time_zero;
-        __sync_synchronize();
+        rmb();
         if (pc->lock == seq && !(seq & 1))
             break;
         if (++i > 10000)
@@ -492,58 +543,60 @@ static void tsc_ctc_ratio(__u32 *n, __u32 *d)
 }
 
 /* these reads and writes might be non-atomic in a non-64 bit platform */
-static __u64 auxtrace_mmap_read_head(struct perf_event_mmap_page *header)
+static __always_inline __u64 auxtrace_mmap_read_head(struct perf_event_mmap_page *header)
 {
-    __u64 head = header->aux_head;
+    __u64 head = READ_ONCE(header->aux_head);
 
     /* To ensure all read are done after read head; */
-    __sync_synchronize();
+    smp_rmb();
     return head;
 }
 
-static void auxtrace_mmap_write_tail(struct perf_event_mmap_page *header,
+static __always_inline void auxtrace_mmap_write_tail(struct perf_event_mmap_page *header,
                                      __u64 tail)
 {
     /* To ensure all read are done before write tail */
-    __sync_synchronize();
+    smp_mb();
 
-    header->aux_tail = tail;
+    WRITE_ONCE(header->aux_tail, tail);
 }
 
-static __u64 mmap_read_head(struct perf_event_mmap_page *header)
+static __always_inline __u64 mmap_read_head(struct perf_event_mmap_page *header)
 {
-    __u64 head = header->data_head;
+    __u64 head = READ_ONCE(header->data_head);
 
     /* To ensure all read are done after read head; */
-    __sync_synchronize();
+    smp_rmb();
+
     return head;
 }
 
-static void mmap_write_tail(struct perf_event_mmap_page *header,
+static __always_inline void mmap_write_tail(struct perf_event_mmap_page *header,
                             __u64 tail)
 {
     /* To ensure all read are done before write tail */
-    __sync_synchronize();
+    smp_mb();
 
-    header->data_tail = tail;
+    WRITE_ONCE(header->data_tail, tail);
 }
 
-static __u64 shm_read_head(struct shm_header *header)
+static __always_inline __u64 shm_read_head(struct shm_header *header)
 {
-    __u64 head = header->data_head;
+    __u64 head = READ_ONCE(header->data_head);
 
     /* To ensure all read are done after read head; */
-    __sync_synchronize();
+    smp_rmb();
+
     return head;
 }
 
-static void shm_write_tail(struct shm_header *header,
+static __always_inline void shm_write_tail(struct shm_header *header,
                             __u64 tail)
 {
     /* To ensure all read are done before write tail */
-    __sync_synchronize();
+    smp_mb();
 
-    header->data_tail = tail;
+    WRITE_ONCE(header->data_tail, tail);
 }
 
 static FILE *pt_open_file(const char *name)
@@ -691,6 +744,7 @@ static int trace_event_open(struct trace_record *record)
     pid_t pid = record->pid;
     int cpu;
     pt_default_attr(&record->attr);
+    record->attr.aux_watermark = record->aux_pages*PAGE_SIZE/4;
 
     for (cpu = 0; cpu < nr_cpus; cpu++)
     {
@@ -842,13 +896,6 @@ static int auxtrace_mmap_record(void *mmap_base, void *aux_base,
     else
     {
         size = len - (old_off - head_off);
-    }
-
-    /* Per read limitation */
-    if (size >= PER_READ_LIMIT) {
-        size = PER_READ_LIMIT;
-        head = (old + PER_READ_LIMIT);
-        head_off = head & mask;
     }
 
     if (head > old || size <= head || mask)
@@ -1017,27 +1064,25 @@ static int record_all(struct trace_record *record)
     int nr_cpus = record->nr_cpus;
     int i;
 
-    if (shm_record(record->shm_addr, &record->shm_start, record->fd) < 0)
-    {
-        return -1;
-    }
-
     for (i = 0; i < nr_cpus; i++)
     {
-        
-        if (auxtrace_mmap_record(record->mmap_base[i], record->aux_base[i],
-                                 &record->aux_start[i], i, record->fd) < 0)
-        {
-            return -1;
-        }
-
         if (mmap_record(record->mmap_base[i], &record->mmap_start[i],
                         record->fd) < 0)
         {
             return -1;
         }
+
+        if (auxtrace_mmap_record(record->mmap_base[i], record->aux_base[i],
+                                 &record->aux_start[i], i, record->fd) < 0)
+        {
+            return -1;
+        }
     }
 
+    if (shm_record(record->shm_addr, &record->shm_start, record->fd) < 0)
+    {
+        return -1;
+    }
     return 0;
 }
 

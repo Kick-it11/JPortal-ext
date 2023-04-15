@@ -5,22 +5,6 @@
  * on each CPU and supports inherition
  */
 
-
-#define MSR_IA32_RTIT_CTL 0x00000570
-#define MSR_IA32_RTIT_STATUS 0x00000571
-#define MSR_IA32_RTIT_ADDR0_A 0x00000580
-#define MSR_IA32_RTIT_ADDR0_B 0x00000581
-#define MSR_IA32_RTIT_ADDR1_A 0x00000582
-#define MSR_IA32_RTIT_ADDR1_B 0x00000583
-#define MSR_IA32_RTIT_ADDR2_A 0x00000584
-#define MSR_IA32_RTIT_ADDR2_B 0x00000585
-#define MSR_IA32_RTIT_ADDR3_A 0x00000586
-#define MSR_IA32_RTIT_ADDR3_B 0x00000587
-#define MSR_IA32_RTIT_CR3_MATCH 0x00000572
-#define MSR_IA32_RTIT_OUTPUT_BASE 0x00000560
-#define MSR_IA32_RTIT_OUTPUT_MASK 0x00000561
-
-
 #include <linux/perf_event.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
@@ -44,15 +28,41 @@
 #define PERF_RECORD_AUXTRACE 71
 #define PERF_RECORD_JVMRUNTIME 72
 
-#define barrier() __asm__ __volatile__("": : :"memory")
+#define MSR_IA32_RTIT_CTL 0x00000570
+#define MSR_IA32_RTIT_STATUS 0x00000571
+#define MSR_IA32_RTIT_ADDR0_A 0x00000580
+#define MSR_IA32_RTIT_ADDR0_B 0x00000581
+#define MSR_IA32_RTIT_ADDR1_A 0x00000582
+#define MSR_IA32_RTIT_ADDR1_B 0x00000583
+#define MSR_IA32_RTIT_ADDR2_A 0x00000584
+#define MSR_IA32_RTIT_ADDR2_B 0x00000585
+#define MSR_IA32_RTIT_ADDR3_A 0x00000586
+#define MSR_IA32_RTIT_ADDR3_B 0x00000587
+#define MSR_IA32_RTIT_CR3_MATCH 0x00000572
+#define MSR_IA32_RTIT_OUTPUT_BASE 0x00000560
+#define MSR_IA32_RTIT_OUTPUT_MASK 0x00000561
+
+#define barrier() __asm__ __volatile__("" \
+                                       :  \
+                                       :  \
+                                       : "memory")
 
 static __always_inline void __read_once_size(const volatile void *p, void *res, int size)
 {
-    switch (size) {
-    case 1: *(__u8  *) res = *(volatile __u8  *) p; break;
-    case 2: *(__u16 *) res = *(volatile __u16 *) p; break;
-    case 4: *(__u32 *) res = *(volatile __u32 *) p; break;
-    case 8: *(__u64 *) res = *(volatile __u64 *) p; break;
+    switch (size)
+    {
+    case 1:
+        *(__u8 *)res = *(volatile __u8 *)p;
+        break;
+    case 2:
+        *(__u16 *)res = *(volatile __u16 *)p;
+        break;
+    case 4:
+        *(__u32 *)res = *(volatile __u32 *)p;
+        break;
+    case 8:
+        *(__u64 *)res = *(volatile __u64 *)p;
+        break;
     default:
         barrier();
         __builtin_memcpy((void *)res, (const void *)p, size);
@@ -62,11 +72,20 @@ static __always_inline void __read_once_size(const volatile void *p, void *res, 
 
 static __always_inline void __write_once_size(volatile void *p, void *res, int size)
 {
-    switch (size) {
-    case 1: *(volatile  __u8 *) p = *(__u8  *) res; break;
-    case 2: *(volatile __u16 *) p = *(__u16 *) res; break;
-    case 4: *(volatile __u32 *) p = *(__u32 *) res; break;
-    case 8: *(volatile __u64 *) p = *(__u64 *) res; break;
+    switch (size)
+    {
+    case 1:
+        *(volatile __u8 *)p = *(__u8 *)res;
+        break;
+    case 2:
+        *(volatile __u16 *)p = *(__u16 *)res;
+        break;
+    case 4:
+        *(volatile __u32 *)p = *(__u32 *)res;
+        break;
+    case 8:
+        *(volatile __u64 *)p = *(__u64 *)res;
+        break;
     default:
         barrier();
         __builtin_memcpy((void *)p, (const void *)res, size);
@@ -74,46 +93,60 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
     }
 }
 
-#define READ_ONCE(x)                    \
-({                            \
-    union { typeof(x) __val; char __c[1]; } __u =    \
-        { .__c = { 0 } };            \
-    __read_once_size(&(x), __u.__c, sizeof(x));    \
-    __u.__val;                    \
-})
+#define READ_ONCE(x)                                \
+    ({                                              \
+        union                                       \
+        {                                           \
+            typeof(x) __val;                        \
+            char __c[1];                            \
+        } __u =                                     \
+            {.__c = {0}};                           \
+        __read_once_size(&(x), __u.__c, sizeof(x)); \
+        __u.__val;                                  \
+    })
 
-#define WRITE_ONCE(x, val)                \
-({                            \
-    union { typeof(x) __val; char __c[1]; } __u =    \
-        { .__val = (val) };             \
-    __write_once_size(&(x), __u.__c, sizeof(x));    \
-    __u.__val;                    \
-})
+#define WRITE_ONCE(x, val)                           \
+    ({                                               \
+        union                                        \
+        {                                            \
+            typeof(x) __val;                         \
+            char __c[1];                             \
+        } __u =                                      \
+            {.__val = (val)};                        \
+        __write_once_size(&(x), __u.__c, sizeof(x)); \
+        __u.__val;                                   \
+    })
 
-#define mb()    asm volatile("mfence" ::: "memory")
-#define rmb()    asm volatile("lfence" ::: "memory")
-#define wmb()    asm volatile("sfence" ::: "memory")
+#define mb() asm volatile("mfence" :: \
+                              : "memory")
+#define rmb() asm volatile("lfence" :: \
+                               : "memory")
+#define wmb() asm volatile("sfence" :: \
+                               : "memory")
 #define smp_rmb() barrier()
 #define smp_wmb() barrier()
-#define smp_mb()  asm volatile("lock; addl $0,-132(%%rsp)" ::: "memory", "cc")
+#define smp_mb() asm volatile("lock; addl $0,-132(%%rsp)" :: \
+                                  : "memory", "cc")
 
-extern void pt_cpuid(__u32 leaf, __u32 *eax, __u32 *ebx, __u32 *ecx, __u32 *edx)
-{
-    __get_cpuid(leaf, eax, ebx, ecx, edx);
-}
+static int page_size;
+static volatile int done = 0;
+static volatile unsigned long long record_samples = 0;
+__u64 total_size = 0;
 
-static const char * const cpu_vendors[] = {
+static const char *const cpu_vendors[] = {
     "",
-    "GenuineIntel"
-};
+    "GenuineIntel"};
 
-enum {
+enum
+{
     pt_cpuid_vendor_size = 12
 };
 
-union cpu_vendor {
+union cpu_vendor
+{
     /* The raw data returned from cpuid. */
-    struct {
+    struct
+    {
         __u32 ebx;
         __u32 edx;
         __u32 ecx;
@@ -124,47 +157,15 @@ union cpu_vendor {
 };
 
 /** A cpu vendor. */
-enum pt_cpu_vendor {
+enum pt_cpu_vendor
+{
     pcv_unknown,
     pcv_intel
 };
 
-static enum pt_cpu_vendor cpu_vendor(void)
-{
-    union cpu_vendor vendor;
-    __u32 eax;
-    size_t i;
-
-    memset(&vendor, 0, sizeof(vendor));
-    eax = 0;
-
-    pt_cpuid(0u, &eax, &vendor.cpuid.ebx, &vendor.cpuid.ecx,
-         &vendor.cpuid.edx);
-
-    for (i = 0; i < sizeof(cpu_vendors)/sizeof(*cpu_vendors); i++)
-        if (strncmp(vendor.vendor_string,
-                cpu_vendors[i], pt_cpuid_vendor_size) == 0)
-            return (enum pt_cpu_vendor) i;
-
-    return pcv_unknown;
-}
-
-static __u32 cpu_info(void)
-{
-    __u32 eax, ebx, ecx, edx;
-
-    eax = 0;
-    ebx = 0;
-    ecx = 0;
-    edx = 0;
-    pt_cpuid(1u, &eax, &ebx, &ecx, &edx);
-
-    return eax;
-}
-
-
 /** A cpu identifier. */
-struct pt_cpu {
+struct pt_cpu
+{
     /** The cpu vendor. */
     enum pt_cpu_vendor vendor;
 
@@ -178,72 +179,63 @@ struct pt_cpu {
     __u8 stepping;
 };
 
-int pt_cpu_read(struct pt_cpu *cpu)
-{
-    __u32 info;
-    __u16 family;
-
-    if (!cpu)
-        return -1;
-
-    cpu->vendor = cpu_vendor();
-
-    info = cpu_info();
-
-    cpu->family = family = (info>>8) & 0xf;
-    if (family == 0xf)
-        cpu->family += (info>>20) & 0xf;
-
-    cpu->model = (info>>4) & 0xf;
-    if (family == 0x6 || family == 0xf)
-        cpu->model += (info>>12) & 0xf0;
-
-    cpu->stepping = (info>>0) & 0xf;
-
-    return 0;
-}
-
 /* Supported address range configurations. */
-enum pt_addr_cfg {
-    pt_addr_cfg_disabled    = 0,
-    pt_addr_cfg_filter    = 1,
-    pt_addr_cfg_stop    = 2
+enum pt_addr_cfg
+{
+    pt_addr_cfg_disabled = 0,
+    pt_addr_cfg_filter = 1,
+    pt_addr_cfg_stop = 2
 };
 
-struct shm_header {
+struct shm_header
+{
     volatile __u64 data_head;
     volatile __u64 data_tail;
     __u64 data_size;
 };
 
+struct cpu_mmap
+{
+    /* file descriptor of perf_event_open */
+    int perf_fd;
+
+    /* mmap base and aux base for each cpu*/
+    void *mmap_base;
+    void *aux_base;
+
+    /* start of write */
+    __u64 mmap_start;
+    __u64 aux_start;
+};
+
+struct shm_record
+{
+    /* shared memory address for JVM */
+    int shm_id;
+    void *shm_addr;
+    __u64 shm_start;
+};
+
 /* global tracing info */
 struct trace_record
 {
-    int nr_cpus;
-    /* perf event open fd */
-    int *trace_fd;
     struct perf_event_attr attr;
 
+    /* cpu number : acquired by syscall */
+    int nr_cpus;
+
+    /* tracing process */
     pid_t pid;
 
     /* needed to be power of 2*/
     int mmap_pages;
     int aux_pages;
 
-    /* mmap base and aux base for each cpu*/
-    void **mmap_base;
-    void **aux_base;
-    /* start of write */
-    __u64 *mmap_start;
-    __u64 *aux_start;
-
-    /* shared memory address */
-    int shm_id;
-    void *shm_addr;
-    __u64 shm_start;
-
     /* file descriptor returned by open file */
     int fd;
+
+    struct cpu_mmap *mmaps;
+    struct shm_record jvmshm;
 };
 
 /** TraceData header */
@@ -304,7 +296,8 @@ struct trace_header
     __u64 trace_type;
 };
 
-struct auxtrace_event {
+struct auxtrace_event
+{
     struct perf_event_header header;
     __u64 size;
     __u64 offset;
@@ -315,61 +308,116 @@ struct auxtrace_event {
     __u32 reservered__; /* for alignment */
 };
 
-struct jvmruntime_event {
+struct jvmruntime_event
+{
     struct perf_event_header header;
     __u64 size;
 };
 
-#define PAGE_SIZE 4096
-
-static volatile int done = 0;
-static volatile unsigned long long record_samples = 0;
-
-static inline int perf_event_open(struct perf_event_attr *hw_event,
-                                  pid_t pid, int cpu, int group_fd,
-                                  unsigned long flags)
+static __always_inline int perf_event_open(struct perf_event_attr *hw_event,
+                                           pid_t pid, int cpu, int group_fd,
+                                           unsigned long flags)
 {
     return syscall(__NR_perf_event_open, hw_event, pid, cpu,
                    group_fd, flags);
 }
 
-static inline int cpu_num()
+static enum pt_cpu_vendor cpu_vendor(void)
 {
-    int nr_cpus;
-    nr_cpus = sysconf(_SC_NPROCESSORS_ONLN);
+    union cpu_vendor vendor;
+    __u32 eax;
+    size_t i;
 
-    return (nr_cpus < 0) ? 0 : nr_cpus;
+    memset(&vendor, 0, sizeof(vendor));
+    eax = 0;
+
+    __get_cpuid(0u, &eax, &vendor.cpuid.ebx, &vendor.cpuid.ecx,
+                &vendor.cpuid.edx);
+
+    for (i = 0; i < sizeof(cpu_vendors) / sizeof(*cpu_vendors); i++)
+        if (strncmp(vendor.vendor_string,
+                    cpu_vendors[i], pt_cpuid_vendor_size) == 0)
+            return (enum pt_cpu_vendor)i;
+
+    return pcv_unknown;
 }
 
-void wrmsr_on_cpu(__u32 reg, int cpu, __u64 data)
+static __u32 cpu_info(void)
+{
+    __u32 eax, ebx, ecx, edx;
+
+    eax = 0;
+    ebx = 0;
+    ecx = 0;
+    edx = 0;
+    __get_cpuid(1u, &eax, &ebx, &ecx, &edx);
+
+    return eax;
+}
+
+static int pt_cpu_read(struct pt_cpu *cpu)
+{
+    __u32 info;
+    __u16 family;
+
+    if (!cpu)
+        return -1;
+
+    cpu->vendor = cpu_vendor();
+
+    info = cpu_info();
+
+    cpu->family = family = (info >> 8) & 0xf;
+    if (family == 0xf)
+        cpu->family += (info >> 20) & 0xf;
+
+    cpu->model = (info >> 4) & 0xf;
+    if (family == 0x6 || family == 0xf)
+        cpu->model += (info >> 12) & 0xf0;
+
+    cpu->stepping = (info >> 0) & 0xf;
+
+    return 0;
+}
+
+static __always_inline void wrmsr_on_cpu(__u32 reg, int cpu, __u64 data)
 {
     int fd;
     char msr_file_name[64];
 
     sprintf(msr_file_name, "/dev/cpu/%d/msr", cpu);
     fd = open(msr_file_name, O_WRONLY);
-    if (fd < 0) {
-        if (errno == ENXIO) {
+    if (fd < 0)
+    {
+        if (errno == ENXIO)
+        {
             fprintf(stderr, "JPortalTrace wrmsr: No CPU %d.\n", cpu);
             exit(2);
-        } else if (errno == EIO) {
+        }
+        else if (errno == EIO)
+        {
             fprintf(stderr, "JPortalTrace wrmsr: CPU %d doesn't support MSRs.\n",
                     cpu);
             exit(3);
-        } else {
+        }
+        else
+        {
             perror("JPortalTrace wrmsr: open error.\n");
             exit(127);
         }
     }
 
-    
-    if (pwrite(fd, &data, sizeof data, reg) != sizeof data) {
-        if (errno == EIO) {
+    if (pwrite(fd, &data, sizeof data, reg) != sizeof data)
+    {
+        if (errno == EIO)
+        {
             fprintf(stderr,
                     "JPortal wrmsr: CPU %d cannot set MSR %u to %llx.\n",
                     cpu, reg, data);
             exit(4);
-        } else {
+        }
+        else
+        {
             perror("JPortalTrace wrmsr: pwrite error.\n");
             exit(127);
         }
@@ -380,10 +428,12 @@ void wrmsr_on_cpu(__u32 reg, int cpu, __u64 data)
     return;
 }
 
-void wrmsr_on_all_cpus(int nr_cpus, __u32 reg, __u64 data){
+static void wrmsr_on_all_cpus(int nr_cpus, __u32 reg, __u64 data)
+{
     int cpu = 0;
 
-    for (; cpu < nr_cpus; cpu++){
+    for (; cpu < nr_cpus; cpu++)
+    {
         wrmsr_on_cpu(reg, cpu, data);
     }
 }
@@ -393,23 +443,14 @@ static void trace_record_free(struct trace_record *record)
     if (!record)
         return;
 
-    if (record->mmap_base)
-        free(record->mmap_base);
-    if (record->aux_base)
-        free(record->aux_base);
-    if (record->mmap_start)
-        free(record->mmap_start);
-    if (record->aux_start)
-        free(record->aux_start);
+    if (record->jvmshm.shm_addr)
+        shmdt(record->jvmshm.shm_addr);
 
-    if (record->trace_fd)
-        free(record->trace_fd);
+    if (record->jvmshm.shm_id != -1)
+        shmctl(record->jvmshm.shm_id, IPC_RMID, NULL);
 
-    if (record->shm_addr)
-        shmdt(record->shm_addr);
-
-    if (record->shm_id != -1)
-        shmctl(record->shm_id, IPC_RMID, NULL);
+    if (record->mmaps)
+        free(record->mmaps);
 
     free(record);
 }
@@ -421,89 +462,74 @@ static struct trace_record *trace_record_alloc()
         return NULL;
     memset(record, 0, sizeof(*record));
 
-    int nr_cpus = cpu_num();
+    int cpu;
+
+    int nr_cpus = sysconf(_SC_NPROCESSORS_ONLN);
+    if (nr_cpus < 0)
+        nr_cpus = 0;
     record->nr_cpus = nr_cpus;
     record->fd = -1;
 
-    record->mmap_base = malloc(sizeof(void *) * nr_cpus);
-    if (!record->mmap_base)
-    {
-        trace_record_free(record);
-        return NULL;
-    }
+    record->jvmshm.shm_id = -1;
 
-    memset(record->mmap_base, 0, sizeof(void *) * nr_cpus);
-    record->aux_base = malloc(sizeof(void *) * nr_cpus);
-    if (!record->aux_base)
-    {
-        trace_record_free(record);
-        return NULL;
-    }
+    record->mmaps = malloc(sizeof(struct cpu_mmap) * nr_cpus);
+    memset(record->mmaps, 0, sizeof(struct cpu_mmap) * nr_cpus);
+    for (cpu = 0; cpu < nr_cpus; ++cpu)
+        record->mmaps[cpu].perf_fd = -1;
 
-    memset(record->aux_base, 0, sizeof(void *) * nr_cpus);
-    record->mmap_start = malloc(sizeof(__u64) * nr_cpus);
-    if (!record->mmap_start)
-    {
-        trace_record_free(record);
-        return NULL;
-    }
-
-    memset(record->mmap_start, 0, sizeof(__u64) * nr_cpus);
-
-    record->aux_start = malloc(sizeof(__u64) * nr_cpus);
-    if (!record->aux_start)
-    {
-        trace_record_free(record);
-        return NULL;
-    }
-    memset(record->aux_start, 0, sizeof(__u64) * nr_cpus);
-
-    record->trace_fd = malloc(sizeof(int) * nr_cpus);
-    if (!record->trace_fd)
-    {
-        trace_record_free(record);
-        return NULL;
-    }
-    memset(record->trace_fd, -1, sizeof(int) * nr_cpus);
-
-    record->shm_id = -1;
     return record;
 }
 
-static int trace_event_enable(struct trace_record *record)
+static __always_inline int trace_event_enable_per_cpu(struct cpu_mmap *cpumm)
 {
-    if (!record || !record->trace_fd)
+    return ioctl(cpumm->perf_fd, PERF_EVENT_IOC_ENABLE, 0);
+}
+
+static __always_inline int trace_event_enable(struct trace_record *record)
+{
+    if (!record)
         return -1;
 
     int cpu;
     for (cpu = 0; cpu < record->nr_cpus; cpu++)
     {
-        ioctl(record->trace_fd[cpu],
-              PERF_EVENT_IOC_ENABLE, 0);
+        int err = trace_event_enable_per_cpu(&record->mmaps[cpu]);
+        if (err < 0)
+        {
+            return err;
+        }
     }
 
     return 0;
 }
 
-static int trace_event_disable(struct trace_record *record)
+static __always_inline int trace_event_disable_per_cpu(struct cpu_mmap *cpumm)
 {
-    if (!record || !record->trace_fd)
+    return ioctl(cpumm->perf_fd, PERF_EVENT_IOC_DISABLE, 0);
+}
+
+static __always_inline int trace_event_disable(struct trace_record *record)
+{
+    if (!record)
         return -1;
 
     int cpu;
     for (cpu = 0; cpu < record->nr_cpus; cpu++)
     {
-        ioctl(record->trace_fd[cpu],
-              PERF_EVENT_IOC_DISABLE, 0);
+        int err = trace_event_disable_per_cpu(&record->mmaps[cpu]);
+        if (err < 0)
+        {
+            return err;
+        }
     }
 
     return 0;
 }
 
-int read_tsc_conversion(const struct perf_event_mmap_page *pc,
-                        __u32 *time_mult,
-                        __u16 *time_shift,
-                        __u64 *time_zero)
+static int read_tsc_conversion(const struct perf_event_mmap_page *pc,
+                               __u32 *time_mult,
+                               __u16 *time_shift,
+                               __u64 *time_zero)
 {
     bool cap_user_time_zero;
     __u32 seq;
@@ -542,70 +568,13 @@ static void tsc_ctc_ratio(__u32 *n, __u32 *d)
     *d = eax;
 }
 
-/* these reads and writes might be non-atomic in a non-64 bit platform */
-static __always_inline __u64 auxtrace_mmap_read_head(struct perf_event_mmap_page *header)
-{
-    __u64 head = READ_ONCE(header->aux_head);
-
-    /* To ensure all read are done after read head; */
-    smp_rmb();
-    return head;
-}
-
-static __always_inline void auxtrace_mmap_write_tail(struct perf_event_mmap_page *header,
-                                     __u64 tail)
-{
-    /* To ensure all read are done before write tail */
-    smp_mb();
-
-    WRITE_ONCE(header->aux_tail, tail);
-}
-
-static __always_inline __u64 mmap_read_head(struct perf_event_mmap_page *header)
-{
-    __u64 head = READ_ONCE(header->data_head);
-
-    /* To ensure all read are done after read head; */
-    smp_rmb();
-
-    return head;
-}
-
-static __always_inline void mmap_write_tail(struct perf_event_mmap_page *header,
-                            __u64 tail)
-{
-    /* To ensure all read are done before write tail */
-    smp_mb();
-
-    WRITE_ONCE(header->data_tail, tail);
-}
-
-static __always_inline __u64 shm_read_head(struct shm_header *header)
-{
-    __u64 head = READ_ONCE(header->data_head);
-
-    /* To ensure all read are done after read head; */
-    smp_rmb();
-
-    return head;
-}
-
-static __always_inline void shm_write_tail(struct shm_header *header,
-                            __u64 tail)
-{
-    /* To ensure all read are done before write tail */
-    smp_mb();
-
-    WRITE_ONCE(header->data_tail, tail);
-}
-
-static FILE *pt_open_file(const char *name)
+static __always_inline FILE *pt_open_file(const char *name)
 {
     struct stat st;
     char path[4096];
 
     snprintf(path, 4096,
-         "%s%s", "/sys/bus/event_source/devices/intel_pt/", name);
+             "%s%s", "/sys/bus/event_source/devices/intel_pt/", name);
 
     if (stat(path, &st) < 0)
         return NULL;
@@ -613,8 +582,8 @@ static FILE *pt_open_file(const char *name)
     return fopen(path, "r");
 }
 
-int pt_scan_file(const char *name, const char *fmt,
-                 ...)
+static int pt_scan_file(const char *name, const char *fmt,
+                        ...)
 {
     va_list args;
     FILE *file;
@@ -631,7 +600,7 @@ int pt_scan_file(const char *name, const char *fmt,
     return ret;
 }
 
-static int pt_pick_bit(int bits, int target)
+static __always_inline int pt_pick_bit(int bits, int target)
 {
     int pos, pick = -1;
 
@@ -744,13 +713,15 @@ static int trace_event_open(struct trace_record *record)
     pid_t pid = record->pid;
     int cpu;
     pt_default_attr(&record->attr);
-    record->attr.aux_watermark = record->aux_pages*PAGE_SIZE/4;
+    record->attr.aux_watermark = record->aux_pages * page_size / 4;
+    record->attr.wakeup_events = 1;
 
     for (cpu = 0; cpu < nr_cpus; cpu++)
     {
-        record->trace_fd[cpu] = perf_event_open(&record->attr,
-                                                pid, cpu, -1, PERF_FLAG_FD_CLOEXEC);
-        if (record->trace_fd[cpu] < 0)
+        record->mmaps[cpu].perf_fd = perf_event_open(&record->attr,
+                                                     pid, cpu, -1,
+                                                     PERF_FLAG_FD_CLOEXEC);
+        if (record->mmaps[cpu].perf_fd < 0)
             return -1;
     }
 
@@ -758,22 +729,28 @@ static int trace_event_open(struct trace_record *record)
     {
         struct perf_event_mmap_page *header;
 
-        record->mmap_base[cpu] = mmap(NULL, (record->mmap_pages + 1) * PAGE_SIZE,
-                                      PROT_WRITE | PROT_READ,
-                                      MAP_SHARED, record->trace_fd[cpu], 0);
+        record->mmaps[cpu].mmap_base = mmap(NULL, (record->mmap_pages + 1) * page_size,
+                                            PROT_WRITE | PROT_READ, MAP_SHARED,
+                                            record->mmaps[cpu].perf_fd, 0);
 
-        if (record->mmap_base[cpu] == MAP_FAILED)
+        if (record->mmaps[cpu].mmap_base == MAP_FAILED)
             return -1;
 
-        header = record->mmap_base[cpu];
+        header = record->mmaps[cpu].mmap_base;
         header->aux_offset = header->data_offset + header->data_size;
-        header->aux_size = record->aux_pages * PAGE_SIZE;
+        header->aux_size = record->aux_pages * page_size;
 
-        record->aux_base[cpu] = mmap(NULL, header->aux_size,
-                                     PROT_READ | PROT_WRITE, MAP_SHARED,
-                                     record->trace_fd[cpu], header->aux_offset);
-        if (record->aux_base[cpu] == MAP_FAILED)
+        record->mmaps[cpu].aux_base = mmap(NULL, header->aux_size,
+                                           PROT_READ | PROT_WRITE, MAP_SHARED,
+                                           record->mmaps[cpu].perf_fd,
+                                           header->aux_offset);
+        if (record->mmaps[cpu].aux_base == MAP_FAILED)
             return -1;
+
+        /*printf("mmap : %p %p %p %llx %llx %llx %llx %llx %llx %llx %llx\n", record->mmap_base[cpu],
+                record->mmap_base[cpu] + header->data_offset, record->aux_base[cpu],
+                header->data_head, header->data_offset, header->data_size, header->data_tail,
+                header->aux_head, header->aux_offset, header->aux_size, header->aux_tail);*/
     }
 
     record->fd = open("JPortalTrace.data", O_CREAT | O_RDWR | O_TRUNC | O_CLOEXEC, S_IRUSR | S_IWUSR);
@@ -796,17 +773,17 @@ static void trace_event_close(struct trace_record *record)
     int cpu, ev;
 
     for (cpu = 0; cpu < nr_cpus; cpu++)
-        if (record->trace_fd[cpu] >= 0)
-            close(record->trace_fd[cpu]);
+        if (record->mmaps[cpu].perf_fd >= 0)
+            close(record->mmaps[cpu].perf_fd);
 
     for (cpu = 0; cpu < nr_cpus; cpu++)
     {
-        if (record->mmap_base[cpu] > 0)
+        if (record->mmaps[cpu].mmap_base > 0)
         {
-            struct perf_event_mmap_page *header = record->mmap_base[cpu];
-            if (record->aux_base && record->aux_base[cpu] > 0)
+            struct perf_event_mmap_page *header = record->mmaps[cpu].mmap_base;
+            if (record->mmaps[cpu].aux_base > 0)
             {
-                munmap(record->aux_base[cpu], header->aux_size);
+                munmap(record->mmaps[cpu].aux_base, header->aux_size);
             }
             munmap(header, header->data_size + header->data_offset);
         }
@@ -818,7 +795,7 @@ static void trace_event_close(struct trace_record *record)
     }
 }
 
-inline static ssize_t ion(bool is_read, int fd, void *buf, size_t n)
+static __always_inline ssize_t ion(bool is_read, int fd, void *buf, size_t n)
 {
     void *buf_start = buf;
     size_t left = n;
@@ -826,8 +803,7 @@ inline static ssize_t ion(bool is_read, int fd, void *buf, size_t n)
     while (left)
     {
         /* buf must be treated as const if !is_read. */
-        ssize_t ret = is_read ? read(fd, buf, left) :
-            write(fd, buf, left);
+        ssize_t ret = is_read ? read(fd, buf, left) : write(fd, buf, left);
 
         if (ret < 0 && errno == EINTR)
         {
@@ -840,40 +816,83 @@ inline static ssize_t ion(bool is_read, int fd, void *buf, size_t n)
         }
 
         left -= ret;
-        buf  += ret;
+        buf += ret;
     }
 
     return n;
 }
 
-__u64 total_size = 0;
-inline static ssize_t record_write(int fd, const void *buf, size_t n)
+static __always_inline ssize_t record_write(int fd, const void *buf, size_t n)
 {
     record_samples++;
     total_size += n;
     return ion(false, fd, (void *)buf, n);
 }
 
-static inline __u64 get_timestamp() {
-#if defined(__i386__) || defined(__x86_64__)
-    unsigned int low, high;
+/* these reads and writes might be non-atomic in a non-64 bit platform */
+static __always_inline __u64 auxtrace_mmap_read_head(struct perf_event_mmap_page *header)
+{
+    __u64 head = READ_ONCE(header->aux_head);
 
-    asm volatile("rdtsc" : "=a" (low), "=d" (high));
-
-    return low | ((__u64)high) << 32;
-#else
-    return 0;
-#endif
+    /* To ensure all read are done after read head; */
+    smp_rmb();
+    return head;
 }
 
-static int auxtrace_mmap_record(void *mmap_base, void *aux_base,
-                                __u64 *aux_start, int cpu, int fd)
+static __always_inline void auxtrace_mmap_write_tail(struct perf_event_mmap_page *header,
+                                                     __u64 tail)
 {
-    struct perf_event_mmap_page *header = mmap_base;
+    /* To ensure all read are done before write tail */
+    smp_mb();
+
+    WRITE_ONCE(header->aux_tail, tail);
+}
+
+static __always_inline __u64 mmap_read_head(struct perf_event_mmap_page *header)
+{
+    __u64 head = READ_ONCE(header->data_head);
+
+    /* To ensure all read are done after read head; */
+    smp_rmb();
+
+    return head;
+}
+
+static __always_inline void mmap_write_tail(struct perf_event_mmap_page *header,
+                                            __u64 tail)
+{
+    /* To ensure all read are done before write tail */
+    smp_mb();
+
+    WRITE_ONCE(header->data_tail, tail);
+}
+
+static __always_inline __u64 shm_read_head(struct shm_header *header)
+{
+    __u64 head = READ_ONCE(header->data_head);
+
+    /* To ensure all read are done after read head; */
+    smp_rmb();
+
+    return head;
+}
+
+static __always_inline void shm_write_tail(struct shm_header *header,
+                                           __u64 tail)
+{
+    /* To ensure all read are done before write tail */
+    smp_mb();
+
+    WRITE_ONCE(header->data_tail, tail);
+}
+
+static __always_inline int auxtrace_mmap_record(struct cpu_mmap *cpumm, int cpu, int fd)
+{
+    struct perf_event_mmap_page *header = cpumm->mmap_base;
     __u64 head, old;
-    old = *aux_start;
+    old = cpumm->aux_start;
     __u64 offset;
-    unsigned char *data = aux_base;
+    unsigned char *data = cpumm->aux_base;
     size_t size, head_off, old_off, len1, len2;
     void *data1, *data2;
     size_t len = header->aux_size;
@@ -929,6 +948,10 @@ static int auxtrace_mmap_record(void *mmap_base, void *aux_base,
         data2 = NULL;
     }
 
+    /* printf("aux r: %p %p %llx %llx %llx %llx %llx %llx\n",
+             mmap_base, aux_base, old, head,
+             len, mask, old_off, head_off); */
+
     struct auxtrace_event ev;
     memset(&ev, 0, sizeof(ev));
     ev.header.type = PERF_RECORD_AUXTRACE;
@@ -953,28 +976,31 @@ static int auxtrace_mmap_record(void *mmap_base, void *aux_base,
         return -1;
     }
 
-    *aux_start = head;
+    cpumm->aux_start = head;
     auxtrace_mmap_write_tail(header, head);
 
     /*enable*/
-    return 0;
+    return trace_event_enable_per_cpu(cpumm);
 }
 
-static int mmap_record(void *mmap_base, __u64 *start, int fd)
+static __always_inline int mmap_record(struct cpu_mmap *cpumm, int cpu, int fd)
 {
-    struct perf_event_mmap_page *header = mmap_base;
+    struct perf_event_mmap_page *header = cpumm->mmap_base;
     __u64 head, old;
-    old = *start;
+    old = cpumm->mmap_start;
     head = mmap_read_head(header);
     __u64 size = head - old;
     int mask = header->data_size - 1;
-    unsigned char *data = mmap_base + header->data_offset;
+    unsigned char *data = cpumm->mmap_base + header->data_offset;
     void *buff;
 
     if (old == head)
     {
         return 0;
     }
+
+    /*printf("mmap r: %p %llx %llx %llx %llx %llx %llx\n",
+             mmap_base, old, head, size, mask);*/
 
     if ((old & mask) + size != (head & mask))
     {
@@ -997,24 +1023,27 @@ static int mmap_record(void *mmap_base, __u64 *start, int fd)
         return -1;
     }
 
-    *start = head;
+    cpumm->mmap_start = head;
     mmap_write_tail(header, head);
+
     return 0;
 }
 
-static int shm_record(void *shm_addr, __u64 *start, int fd) {
-    struct shm_header *header = (struct shm_header *)shm_addr;
+static __always_inline int shm_record(struct shm_record *jvmshm, int fd)
+{
+    struct shm_header *header = (struct shm_header *)jvmshm->shm_addr;
     __u64 head, old;
-    void *data_begin = shm_addr + sizeof(struct shm_header);
+    void *data_begin = jvmshm->shm_addr + sizeof(struct shm_header);
     size_t size;
 
-    old = *start;
+    old = jvmshm->shm_start;
     head = shm_read_head(header);
 
     if (head == old)
         return 0;
 
-    if (old < head) {
+    if (old < head)
+    {
         size = head - old;
     }
     else
@@ -1052,37 +1081,36 @@ static int shm_record(void *shm_addr, __u64 *start, int fd) {
         }
     }
 
-    *start = head;
+    jvmshm->shm_start = head;
 
     shm_write_tail(header, head);
 
     return 0;
 }
 
-static int record_all(struct trace_record *record)
+static __always_inline int record_all(struct trace_record *record)
 {
     int nr_cpus = record->nr_cpus;
-    int i;
+    int cpu;
 
-    for (i = 0; i < nr_cpus; i++)
+    for (cpu = 0; cpu < nr_cpus; cpu++)
     {
-        if (mmap_record(record->mmap_base[i], &record->mmap_start[i],
-                        record->fd) < 0)
+        if (mmap_record(&record->mmaps[cpu], cpu, record->fd) < 0)
         {
             return -1;
         }
 
-        if (auxtrace_mmap_record(record->mmap_base[i], record->aux_base[i],
-                                 &record->aux_start[i], i, record->fd) < 0)
+        if (auxtrace_mmap_record(&record->mmaps[cpu], cpu, record->fd) < 0)
         {
             return -1;
         }
     }
 
-    if (shm_record(record->shm_addr, &record->shm_start, record->fd) < 0)
+    if (shm_record(&record->jvmshm, record->fd) < 0)
     {
         return -1;
     }
+
     return 0;
 }
 
@@ -1093,7 +1121,6 @@ static void sig_handler(int sig)
 
 int main(int argc, char *argv[])
 {
-    
     if (argc != 9)
     {
         fprintf(stderr, "JPortalTrace: arguments error.\n");
@@ -1105,6 +1132,7 @@ int main(int argc, char *argv[])
     struct trace_record *rec = trace_record_alloc();
     int cpu;
     int trace_type;
+    page_size = __getpagesize();
 
     if (!rec)
     {
@@ -1117,10 +1145,10 @@ int main(int argc, char *argv[])
     sscanf(argv[4], "%llx", &_high_bound);
     sscanf(argv[5], "%d", &rec->mmap_pages);
     sscanf(argv[6], "%d", &rec->aux_pages);
-    sscanf(argv[7], "%d", &rec->shm_id);
+    sscanf(argv[7], "%d", &rec->jvmshm.shm_id);
     sscanf(argv[8], "%d", &trace_type);
 
-    rec->shm_addr = shmat(rec->shm_id, NULL, 0);
+    rec->jvmshm.shm_addr = shmat(rec->jvmshm.shm_id, NULL, 0);
 
     /* write msr to set ip filter */
     wrmsr_on_all_cpus(rec->nr_cpus, MSR_IA32_RTIT_ADDR0_A, _low_bound);
@@ -1134,8 +1162,9 @@ int main(int argc, char *argv[])
 
     for (cpu = 0; cpu < rec->nr_cpus; cpu++)
     {
-        int errr = ioctl(rec->trace_fd[cpu], PERF_EVENT_IOC_SET_FILTER, 
-            "filter 0x580/580@/bin/bash");
+        int errr = ioctl(rec->mmaps[cpu].perf_fd,
+                         PERF_EVENT_IOC_SET_FILTER,
+                         "filter 0x580/580@/bin/bash");
         if (errr < 0)
         {
             fprintf(stderr, "JPortalTrace: set filter error.\n");
@@ -1146,7 +1175,8 @@ int main(int argc, char *argv[])
     struct trace_header attr;
     struct pt_cpu cpuinfo;
     int max_nonturbo_ratio;
-    read_tsc_conversion(rec->mmap_base[0], &attr.time_mult, &attr.time_shift, &attr.time_zero);
+    read_tsc_conversion(rec->mmaps->mmap_base, &attr.time_mult,
+                        &attr.time_shift, &attr.time_zero);
     pt_cpu_read(&cpuinfo);
     attr.header_size = sizeof(attr);
     attr.filter = (__u32)pt_addr_cfg_filter;
@@ -1183,7 +1213,7 @@ int main(int argc, char *argv[])
     close(write_pipe);
 
     printf("JPortalTrace starts(process: %d  ip filter: %llx-%llx).\n",
-            rec->pid, _low_bound, _high_bound);
+           rec->pid, _low_bound, _high_bound);
 
     for (;;)
     {
@@ -1197,7 +1227,7 @@ int main(int argc, char *argv[])
 
         if (done && record_samples == hits)
         {
-            printf("JPortalTrace end\n");
+            printf("JPortalTrace end with %llu data generated\n", total_size);
             break;
         }
     }

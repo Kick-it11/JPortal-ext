@@ -335,12 +335,12 @@ void CodeCache::initialize_heaps() {
                             jportal_profiled_size, jportal_non_profiled_size, true);
 
     ReservedCodeSpace rs = reserve_heap_memory(normal_cache_size + jportal_cache_size);
-    ReservedSpace normal_non_method_space    = rs.first_part(normal_non_nmethod_size);
-    ReservedSpace rest1                      = rs.last_part(normal_non_nmethod_size);
-    ReservedSpace normal_profiled_space      = rest1.first_part(normal_profiled_size);
-    ReservedSpace rest2                      = rest1.last_part(normal_profiled_size);
-    ReservedSpace normal_non_profiled_space  = rest2.first_part(normal_non_profiled_size);
-    ReservedSpace rest3                      = rest2.last_part(normal_non_profiled_size);
+    ReservedSpace normal_profiled_space      = rs.first_part(normal_profiled_size);
+    ReservedSpace rest1                      = rs.last_part(normal_profiled_size);
+    ReservedSpace normal_non_profiled_space  = rest1.first_part(normal_non_profiled_size);
+    ReservedSpace rest2                      = rest1.last_part(normal_non_profiled_size);
+    ReservedSpace normal_non_method_space    = rest2.first_part(normal_non_nmethod_size);
+    ReservedSpace rest3                      = rest2.last_part(normal_non_nmethod_size);
     ReservedSpace jportal_non_method_space   = rest3.first_part(jportal_non_nmethod_size);
     ReservedSpace rest4                      = rest3.last_part(jportal_non_nmethod_size);
     ReservedSpace jportal_profiled_space     = rest4.first_part(jportal_profiled_size);

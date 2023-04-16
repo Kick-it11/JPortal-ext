@@ -31,9 +31,7 @@ Bytecodes::Code InterFrame::code()
 const Method *InterFrame::static_callee()
 {
     auto methodref = _method->get_klass()->index2methodref(_method->get_bg()->method_ref(_bci));
-    if (code() == Bytecodes::_invokestatic)
-        return Analyser::get_method(methodref.first, methodref.second);
-    if (code() == Bytecodes::_invokespecial)
+    if (code() == Bytecodes::_invokespecial || code() == Bytecodes::_invokestatic)
     {
         const Klass *klass = Analyser::get_klass(methodref.first);
         while (klass)
@@ -399,7 +397,10 @@ public:
         if (!method || !method->is_jportal())
             return;
 
-        assert(cur != nullptr);
+        /* only a bci of -1 occured ? */
+        if (!cur)
+            cur = method->get_bg()->offset2block(0);
+
         std::vector<std::pair<int, Block *>> vv;
         std::unordered_set<Block *> ss;
         std::queue<std::pair<int, Block *>> q;
@@ -504,7 +505,7 @@ void JitFrame::jit_code(std::vector<const PCStackInfo *> pcs,
             {
                 if (iframe.first && iframe.first->is_jportal())
                 {
-                    if (cfgt)
+                    if (cfgt && iframe.second)
                         cfgs.push_back({iframe.first->id(), {iframe.second->get_begin_bci(),
                                        iframe.second->get_end_bci()}});
                     if (mt)

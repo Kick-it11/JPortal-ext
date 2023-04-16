@@ -128,6 +128,8 @@ private:
     /* process all jvm runtime events */
     void decoder_drain_jvm_events(uint64_t time);
 
+    void decoder_forward_jvm_event();
+
     /* process all sideband events */
     void decoder_drain_sideband_events(uint64_t time);
 
@@ -235,7 +237,7 @@ private:
 
     int decoder_record_intercode(uint64_t ip);
 
-    void decoder_process_ip();
+    void decoder_process_ip(bool retry);
 
 public:
     PTJVMDecoder(const struct pt_config *config, DecodeData *const data,

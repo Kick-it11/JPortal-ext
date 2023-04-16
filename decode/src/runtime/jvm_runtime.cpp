@@ -146,6 +146,31 @@ JVMRuntime::~JVMRuntime()
     _current = nullptr;
 }
 
+int JVMRuntime::forward(const uint8_t **data)
+{
+    if (!data)
+    {
+        return -pte_internal;
+    }
+
+    if (_current >= _end)
+    {
+        return -pte_eos;
+    }
+
+    const DumpInfo *info = (const struct DumpInfo *)_current;
+    if (_current + info->size > _end)
+    {
+        _current = _end;
+        return -pte_internal;
+    }
+
+    *data = _current;
+    _current += info->size;
+
+    return pts_event_pending;
+}
+
 int JVMRuntime::event(uint64_t time, const uint8_t **data)
 {
     if (!data)

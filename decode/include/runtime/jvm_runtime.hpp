@@ -217,6 +217,9 @@ public:
     /* parse jvm runtime event to time */
     int event(uint64_t time, const uint8_t **data);
 
+    /* for error */
+    int forward(const uint8_t **data);
+
     /* static functions */
 
     /* initialize, process all section in advance */

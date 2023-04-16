@@ -214,6 +214,97 @@ void PTJVMDecoder::decoder_drain_jvm_events(uint64_t time)
     }
 }
 
+void PTJVMDecoder::decoder_forward_jvm_event()
+{
+    const uint8_t *data;
+    int status = _jvm->forward(&data);
+    if (status < 0)
+    {
+        if (status == -pte_eos)
+            return;
+        std::cerr << "PTJVMDecoder error: jvm event " << pt_errstr(pt_errcode(status)) << std::endl;
+        return;
+    }
+
+    if (!(status && pts_event_pending))
+    {
+        return;
+    }
+
+    const JVMRuntime::DumpInfo *info = (const JVMRuntime::DumpInfo *)data;
+    data += sizeof(JVMRuntime::DumpInfo);
+
+    switch (info->type)
+    {
+    default:
+    {
+        /* unknown dump type */
+        std::cerr << "PTJVMDecoder error: unknown dump type " << info->type << std::endl;
+        exit(1);
+    }
+    case JVMRuntime::_java_call_begin_info:
+    case JVMRuntime::_java_call_end_info:
+    case JVMRuntime::_method_info:
+    case JVMRuntime::_branch_taken_info:
+    case JVMRuntime::_branch_not_taken_info:
+    case JVMRuntime::_switch_table_stub_info:
+    case JVMRuntime::_switch_default_info:
+    case JVMRuntime::_bci_table_stub_info:
+    case JVMRuntime::_osr_info:
+    case JVMRuntime::_throw_exception_info:
+    case JVMRuntime::_rethrow_exception_info:
+    case JVMRuntime::_handle_exception_info:
+    case JVMRuntime::_ret_code_info:
+    case JVMRuntime::_deoptimization_info:
+    case JVMRuntime::_non_invoke_ret_info:
+    case JVMRuntime::_pop_frame_info:
+    case JVMRuntime::_earlyret_info:
+    {
+        /* do not need to handle */
+        break;
+    }
+    case JVMRuntime::_compiled_method_load_info:
+    {
+        data += info->size - sizeof(struct JVMRuntime::DumpInfo);
+        JitSection *section = JVMRuntime::jit_section(data);
+        if (!section)
+        {
+            std::cerr << "PTJVMDecoder error: JitSection cannot be found" << std::endl;
+        }
+        else
+        {
+            _image->add(section);
+        }
+        break;
+    }
+    case JVMRuntime::_compiled_method_unload_info:
+    {
+        const JVMRuntime::CompiledMethodUnloadInfo *cmui = (const JVMRuntime::CompiledMethodUnloadInfo *)data;
+        _image->remove(cmui->code_begin);
+        break;
+    }
+    case JVMRuntime::_thread_start_info:
+    {
+        /* Do not need to handle */
+        break;
+    }
+    case JVMRuntime::_inline_cache_add_info:
+    {
+        const JVMRuntime::InlineCacheAddInfo *icai = (const JVMRuntime::InlineCacheAddInfo *)data;
+        JitSection *section = _image->find(icai->src);
+        _ic_map[{section, icai->src}] = icai->dest;
+        break;
+    }
+    case JVMRuntime::_inline_cache_clear_info:
+    {
+        const JVMRuntime::InlineCacheClearInfo *icci = (const JVMRuntime::InlineCacheClearInfo *)data;
+        JitSection *section = _image->find(icci->src);
+        _ic_map.erase({section, icci->src});
+        break;
+    }
+    }
+}
+
 void PTJVMDecoder::decoder_drain_sideband_events(uint64_t time)
 {
     struct pev_event event;
@@ -279,7 +370,7 @@ void PTJVMDecoder::decoder_drain_sideband_events(uint64_t time)
                 _tid = JVMRuntime::java_tid(*event.sample.tid);
                 if (_tid == 0)
                 {
-                    std::cerr << "PTJVMDecoder error: Fail to get java tid " << *event.sample.tid << std::endl;
+                    std::cerr << "PTJVMDecoder error: Fail to get java tid " << std::hex << *event.sample.tid << std::endl;
                 }
                 _record.switch_in(_tid, event.sample.tsc);
             }
@@ -295,7 +386,7 @@ void PTJVMDecoder::decoder_drain_sideband_events(uint64_t time)
             }
             if (_tid == 0)
             {
-                std::cerr << "PTJVMDecoder error: Fail to get java tid " << *event.sample.tid << std::endl;
+                std::cerr << "PTJVMDecoder error: Fail to get java tid " << std::hex << *event.sample.tid << std::endl;
             }
             _record.switch_in(_tid, event.sample.tsc);
             break;
@@ -1858,7 +1949,7 @@ int PTJVMDecoder::decoder_record_intercode(uint64_t ip)
     }
     else if (JVMRuntime::in_switch_table(_ip))
     {
-        recorded =  _record.record_switch_case(JVMRuntime::switch_case(ip));
+        recorded = _record.record_switch_case(JVMRuntime::switch_case(ip));
     }
     else if (JVMRuntime::switch_default(_ip))
     {
@@ -1915,13 +2006,15 @@ int PTJVMDecoder::decoder_record_intercode(uint64_t ip)
     return 0;
 }
 
-void PTJVMDecoder::decoder_process_ip()
+void PTJVMDecoder::decoder_process_ip(bool retry)
 {
     if (JitSection *section = _image->find(_ip))
     {
         int errcode = decoder_process_jitcode(section);
         if (errcode < 0 && errcode != -pte_eos && errcode != -pte_nomap)
         {
+            if (!retry)
+                decoder_forward_jvm_event();
             /* error happens while decoding, jit process will print this error */
             _record.record_decode_error();
         }
@@ -1940,6 +2033,11 @@ void PTJVMDecoder::decoder_process_ip()
         int errcode = decoder_record_intercode(_ip);
         if (errcode < 0)
         {
+            if (!retry)
+            {
+                decoder_forward_jvm_event();
+                return decoder_process_ip(true);
+            }
             /* error happens while decoding */
             std::cerr << "PTJVMDecoder error: Fail to record Inter codes" << std::endl;
             _record.record_decode_error();
@@ -1967,7 +2065,7 @@ int PTJVMDecoder::decoder_drain_events()
         case ptev_enabled:
             errcode = decoder_process_enabled();
             if (errcode < 0)
-                std::cerr << "PTJVMDecoder error: Fail to process enabled event"
+                std::cerr << "PTJVMDecoder error: Fail to process enabled event "
                           << pt_errstr(pt_errcode(errcode)) << std::endl;
             else if (_ip != disabled_ip)
                 unresolved = true;
@@ -2072,7 +2170,7 @@ int PTJVMDecoder::decoder_drain_events()
         /* This completes processing of the current event. */
         if (unresolved)
         {
-            decoder_process_ip();
+            decoder_process_ip(false);
             unresolved = false;
         }
     }
@@ -2111,7 +2209,7 @@ void PTJVMDecoder::decode()
                 if (status & pts_ip_suppressed)
                     continue;
 
-                decoder_process_ip();
+                decoder_process_ip(false);
             }
         }
 

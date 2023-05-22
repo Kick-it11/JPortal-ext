@@ -547,6 +547,9 @@ int PTJVMDecoder::decoder_process_overflow()
      */
     _speculative = 0;
 
+    std::cerr << "PTJVMDecoder error: internal overflow around time " << _time << std::endl;
+    _record.record_data_loss();
+
     return 0;
 }
 
@@ -2067,7 +2070,7 @@ int PTJVMDecoder::decoder_drain_events()
             if (errcode < 0)
                 std::cerr << "PTJVMDecoder error: Fail to process enabled event "
                           << pt_errstr(pt_errcode(errcode)) << std::endl;
-            else if (_ip != disabled_ip)
+            else if (_ip != disabled_ip && !_event.status_update)
                 unresolved = true;
             /** If tracing was disabled & enabled asynchronously, ignore */
 
@@ -2125,8 +2128,6 @@ int PTJVMDecoder::decoder_drain_events()
             if (errcode < 0)
                 std::cerr << "PTJVMDecoder error: Fail to process overflow event"
                           << pt_errstr(pt_errcode(errcode)) << std::endl;
-
-            unresolved = true;
 
             break;
 
